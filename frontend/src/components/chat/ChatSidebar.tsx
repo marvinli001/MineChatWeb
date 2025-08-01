@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import { PlusIcon, ChatBubbleLeftIcon, Cog6ToothIcon, UserIcon } from '@heroicons/react/24/outline'
 import { useChatStore } from '@/store/chatStore'
 import { useAuthStore } from '@/store/authStore'

@@ -21,12 +21,13 @@ export interface Settings {
   theme: 'light' | 'dark' | 'auto'
   language: string
   
-  // 同步设置
+  // 云同步设置
   enableCloudSync: boolean
-  milvusConfig: {
-    endpoint: string
-    token: string
-    collection: string
+  autoSync: boolean
+  cloudflareConfig: {
+    accountId: string
+    apiToken: string
+    databaseId: string
   }
 }
 
@@ -53,10 +54,11 @@ const defaultSettings: Settings = {
   theme: 'auto',
   language: 'zh-CN',
   enableCloudSync: false,
-  milvusConfig: {
-    endpoint: '',
-    token: '',
-    collection: 'chat_history'
+  autoSync: false,
+  cloudflareConfig: {
+    accountId: '',
+    apiToken: '',
+    databaseId: ''
   }
 }
 
@@ -77,12 +79,10 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       saveSettings: () => {
-        // 设置已经通过persist中间件自动保存到localStorage
-        console.log('设置已保存')
+        console.log('设置已保存到本地存储')
       },
 
       initializeSettings: () => {
-        // 应用主题设置
         const { theme } = get().settings
         if (theme === 'auto') {
           const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches

@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import uvicorn
-from app.api.v1 import chat, auth, voice, image, milvus
+from app.api.v1 import chat, auth, voice, image, sync
 from app.core.config import settings
 
 app = FastAPI(
@@ -21,11 +21,10 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["voice"])
 app.include_router(image.router, prefix="/api/v1/image", tags=["image"])
-app.include_router(milvus.router, prefix="/api/v1/vector", tags=["vector"])
+app.include_router(sync.router, prefix="/api/v1/sync", tags=["sync"])
 
 @app.get("/")
 async def root():

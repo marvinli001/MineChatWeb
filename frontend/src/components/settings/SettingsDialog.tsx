@@ -6,6 +6,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import ApiSettings from './ApiSettings'
 import ModelSettings from './ModelSettings'
 import VoiceSettings from './VoiceSettings'
+import CloudSyncSettings from './CloudSyncSettings'
 import { Button } from '@/components/ui/button'
 
 interface SettingsDialogProps {
@@ -20,7 +21,7 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
     { id: 'api', name: 'API设置', icon: '🔑' },
     { id: 'model', name: '模型设置', icon: '🤖' },
     { id: 'voice', name: '语音设置', icon: '🎵' },
-    { id: 'sync', name: '同步设置', icon: '☁️' }
+    { id: 'sync', name: '云同步设置', icon: '☁️' }
   ]
 
   const handleSave = () => {
@@ -68,16 +69,7 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
             {activeTab === 'api' && <ApiSettings />}
             {activeTab === 'model' && <ModelSettings />}
             {activeTab === 'voice' && <VoiceSettings />}
-            {activeTab === 'sync' && (
-              <div className="text-center py-12">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                  云同步设置
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400">
-                  功能开发中...
-                </p>
-              </div>
-            )}
+            {activeTab === 'sync' && <CloudSyncSettings />}
           </div>
         </div>
 

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ChatMessage, Conversation } from '@/lib/types'
 import { useSettingsStore } from './settingsStore'
-import { v4 as uuidv4 } from 'uuid'
+import { generateId } from '@/lib/utils'
 
 interface ChatState {
   conversations: Conversation[]
@@ -18,6 +18,10 @@ interface ChatState {
   deleteConversation: (id: string) => void
   updateConversationTitle: (id: string, title: string) => void
   clearAllConversations: () => void
+  
+  // Cloud sync actions
+  syncToCloud: () => Promise<void>
+  syncFromCloud: () => Promise<void>
   
   // Getters
   currentConversation: Conversation | null
@@ -38,7 +42,7 @@ export const useChatStore = create<ChatState>()(
 
       createNewConversation: () => {
         const newConversation: Conversation = {
-          id: uuidv4(),
+          id: generateId(),
           title: '新对话',
           messages: [],
           created_at: new Date().toISOString(),
@@ -83,7 +87,6 @@ export const useChatStore = create<ChatState>()(
           isLoading: true
         }))
 
-        // 创建AbortController用于取消请求
         const abortController = new AbortController()
         set({ abortController })
 
@@ -91,7 +94,6 @@ export const useChatStore = create<ChatState>()(
           const { currentConversation: updatedConversation } = get()
           if (!updatedConversation) return
 
-          // 检查API设置
           if (!settings.chatProvider || !settings.chatModel) {
             throw new Error('请先在设置中配置AI模型')
           }
@@ -101,13 +103,11 @@ export const useChatStore = create<ChatState>()(
             throw new Error(`请先在设置中配置${settings.chatProvider}的API密钥`)
           }
 
-          // 准备消息历史
           const messages = updatedConversation.messages.map(msg => ({
             role: msg.role,
             content: msg.content
           }))
 
-          // 调用流式API
           const response = await fetch('/api/v1/chat/completion', {
             method: 'POST',
             headers: {
@@ -136,7 +136,6 @@ export const useChatStore = create<ChatState>()(
             timestamp: new Date().toISOString()
           }
 
-          // 添加AI回复
           set(state => ({
             conversations: state.conversations.map(conv =>
               conv.id === state.currentConversationId
@@ -152,13 +151,21 @@ export const useChatStore = create<ChatState>()(
             abortController: null
           }))
 
+          // 自动同步到云端
+          if (settings.enableCloudSync && settings.autoSync) {
+            try {
+              await get().syncToCloud()
+            } catch (error) {
+              console.warn('自动云同步失败:', error)
+            }
+          }
+
         } catch (error: any) {
           if (error.name === 'AbortError') {
             console.log('请求被取消')
           } else {
             console.error('发送消息失败:', error)
             
-            // 添加错误消息
             const errorMessage: ChatMessage = {
               role: 'assistant',
               content: `错误: ${error.message}`,
@@ -211,6 +218,58 @@ export const useChatStore = create<ChatState>()(
         set({
           conversations: [],
           currentConversationId: null
+        })
+      },
+
+      syncToCloud: async () => {
+        const settings = useSettingsStore.getState().settings
+        if (!settings.enableCloudSync) {
+          throw new Error('云同步未启用')
+        }
+
+        const { conversations } = get()
+        
+        const response = await fetch('/api/v1/sync/upload', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            conversations,
+            cloudflare_config: settings.cloudflareConfig
+          })
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.detail || '同步到云端失败')
+        }
+      },
+
+      syncFromCloud: async () => {
+        const settings = useSettingsStore.getState().settings
+        if (!settings.enableCloudSync) {
+          throw new Error('云同步未启用')
+        }
+
+        const response = await fetch('/api/v1/sync/download', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            cloudflare_config: settings.cloudflareConfig
+          })
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.detail || '从云端同步失败')
+        }
+
+        const data = await response.json()
+        set({
+          conversations: data.conversations || []
         })
       }
     }),

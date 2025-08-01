@@ -4,7 +4,7 @@ import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { oneDark } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 import { ClipboardIcon, CheckIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline'
 import { ChatMessage } from '@/lib/types'
 import toast from 'react-hot-toast'
@@ -113,7 +113,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             components={{
-                              code({ node, inline, className, children, ...props }) {
+                              code: ({ node, inline, className, children, ...props }) => {
                                 const match = /language-(\w+)/.exec(className || '')
                                 return !inline && match ? (
                                   <SyntaxHighlighter
@@ -140,7 +140,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          code({ node, inline, className, children, ...props }) {
+                          code: ({ node, inline, className, children, ...props }) => {
                             const match = /language-(\w+)/.exec(className || '')
                             return !inline && match ? (
                               <SyntaxHighlighter

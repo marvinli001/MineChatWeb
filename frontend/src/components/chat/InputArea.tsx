@@ -26,6 +26,12 @@ export default function InputArea() {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
+    // 检查是否配置了AI提供商
+    if (!settings.chatProvider || !settings.chatModel) {
+      toast.error('请先在设置中配置AI模型')
+      return
+    }
+
     const message = input.trim()
     setInput('')
     
@@ -75,6 +81,11 @@ export default function InputArea() {
   }
 
   const handleVoiceInput = async (audioBlob: Blob) => {
+    if (!settings.voiceProvider) {
+      toast.error('请先在设置中配置语音提供商')
+      return
+    }
+
     try {
       const formData = new FormData()
       formData.append('file', audioBlob, 'recording.wav')
