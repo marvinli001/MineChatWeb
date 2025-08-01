@@ -113,20 +113,21 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             components={{
-                              code: ({ node, className, children, ...props }) => {
+                              code: (props) => {
+                                const { className, children, ...rest } = props
                                 const match = /language-(\w+)/.exec(className || '')
-                                const inline = node?.tagName !== 'pre'
-                                return !inline && match ? (
+                                const isInline = !className?.includes('language-')
+                                
+                                return !isInline && match ? (
                                   <SyntaxHighlighter
-                                    style={oneDark as { [key: string]: React.CSSProperties }}
+                                    style={oneDark}
                                     language={match[1]}
                                     PreTag="div"
-                                    {...props}
                                   >
                                     {String(children).replace(/\n$/, '')}
                                   </SyntaxHighlighter>
                                 ) : (
-                                  <code className={className} {...props}>
+                                  <code className={className} {...rest}>
                                     {children}
                                   </code>
                                 )
@@ -141,19 +142,21 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          code: ({ node, inline, className, children, ...props }) => {
+                          code: (props) => {
+                            const { className, children, ...rest } = props
                             const match = /language-(\w+)/.exec(className || '')
-                            return !inline && match ? (
+                            const isInline = !className?.includes('language-')
+                            
+                            return !isInline && match ? (
                               <SyntaxHighlighter
                                 style={oneDark}
                                 language={match[1]}
                                 PreTag="div"
-                                {...props}
                               >
                                 {String(children).replace(/\n$/, '')}
                               </SyntaxHighlighter>
                             ) : (
-                              <code className={className} {...props}>
+                              <code className={className} {...rest}>
                                 {children}
                               </code>
                             )
