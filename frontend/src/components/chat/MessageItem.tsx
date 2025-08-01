@@ -113,11 +113,12 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             components={{
-                              code: ({ node, inline, className, children, ...props }) => {
+                              code: ({ node, className, children, ...props }) => {
                                 const match = /language-(\w+)/.exec(className || '')
+                                const inline = node?.tagName !== 'pre'
                                 return !inline && match ? (
                                   <SyntaxHighlighter
-                                    style={oneDark}
+                                    style={oneDark as { [key: string]: React.CSSProperties }}
                                     language={match[1]}
                                     PreTag="div"
                                     {...props}

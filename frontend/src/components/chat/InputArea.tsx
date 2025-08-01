@@ -112,7 +112,7 @@ export default function InputArea() {
     if (!file) return
 
     // 这里可以实现图片上传和识别功能
-    toast.info('图片功能开发中...')
+    toast('图片功能开发中...')
   }
 
   return (

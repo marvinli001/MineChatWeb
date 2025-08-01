@@ -2,7 +2,6 @@
 
 import { PlusIcon, ChatBubbleLeftIcon, Cog6ToothIcon, UserIcon } from '@heroicons/react/24/outline'
 import { useChatStore } from '@/store/chatStore'
-import { useAuthStore } from '@/store/authStore'
 import { Button } from '@/components/ui/button'
 
 interface ChatSidebarProps {
@@ -12,7 +11,6 @@ interface ChatSidebarProps {
 
 export default function ChatSidebar({ onSettingsClick, onLoginClick }: ChatSidebarProps) {
   const { conversations, currentConversationId, createNewConversation, setCurrentConversation, deleteConversation } = useChatStore()
-  const { user, isAuthenticated, logout } = useAuthStore()
 
   const handleNewChat = () => {
     createNewConversation()
@@ -99,30 +97,6 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick }: ChatSideb
             <Cog6ToothIcon className="w-4 h-4" />
             设置
           </Button>
-          
-          {isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 dark:text-gray-300">
-                {user?.username}
-              </span>
-              <button
-                onClick={logout}
-                className="text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              >
-                退出
-              </button>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onLoginClick}
-              className="flex items-center gap-2"
-            >
-              <UserIcon className="w-4 h-4" />
-              登录
-            </Button>
-          )}
         </div>
       </div>
     </div>
