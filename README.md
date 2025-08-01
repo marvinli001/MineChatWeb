@@ -1,4 +1,4 @@
-# ChatGPT Clone
+# MineChatWeb
 
 一个功能强大的AI聊天应用，支持多种AI提供商，使用 Python FastAPI + Next.js 构建。
 
