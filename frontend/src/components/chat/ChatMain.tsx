@@ -19,40 +19,26 @@ export default function ChatMain() {
 
   if (!currentConversation) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            您今天想聊什么？
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 mb-8">
-            选择一个AI模型开始对话，或者创建新的对话
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl">
-            {[
-              { title: "写作助手", desc: "帮助您写作和编辑文档", icon: "✍️" },
-              { title: "编程助手", desc: "协助编程和调试代码", icon: "💻" },
-              { title: "学习伙伴", desc: "解答问题和解释概念", icon: "📚" },
-              { title: "创意灵感", desc: "激发创意和头脑风暴", icon: "💡" },
-              { title: "数据分析", desc: "分析和解释数据", icon: "📊" },
-              { title: "语言翻译", desc: "翻译和语言学习", icon: "🌍" }
-            ].map((item, index) => (
-              <div
-                key={index}
-                className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 cursor-pointer transition-colors"
-              >
-                <div className="text-2xl mb-2">{item.icon}</div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">{item.title}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">{item.desc}</p>
-              </div>
-            ))}
+      <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+        {/* 主内容区域 - 居中显示欢迎信息 */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-2xl mx-auto px-4">
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              您今天想聊什么？
+            </h1>
           </div>
+        </div>
+        
+        {/* 输入区域固定在底部 */}
+        <div className="flex-shrink-0">
+          <InputArea />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
       {/* 消息列表 */}
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         <div className="max-w-3xl mx-auto px-4 py-6">
@@ -76,7 +62,9 @@ export default function ChatMain() {
       </div>
 
       {/* 输入区域 */}
-      <InputArea />
+      <div className="flex-shrink-0">
+        <InputArea />
+      </div>
     </div>
   )
 }

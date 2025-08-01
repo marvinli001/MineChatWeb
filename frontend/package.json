@@ -27,6 +27,7 @@
     "react-syntax-highlighter": "^5.8.0",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^2.6.0",
+    "tailwind-scrollbar": "^4.0.2",
     "typescript": "^5",
     "uuid": "^11.1.0",
     "zustand": "^4.4.7"

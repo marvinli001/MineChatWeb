@@ -1,10 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { ClipboardIcon, CheckIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline'
 import { ChatMessage } from '@/lib/types'
 import toast from 'react-hot-toast'
@@ -107,31 +105,42 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                 {contentParts.map((part, index) => (
                   <div key={index}>
                     {part.type === 'thinking' ? (
-                      <div className="thinking-mode mb-4">
-                        <div className="thinking-label">🤔 AI的思考过程：</div>
-                        <div className="thinking-content">
+                      <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 rounded-r-lg">
+                        <div className="flex items-center gap-2 mb-2 text-blue-700 dark:text-blue-300 font-medium">
+                          <span>🤔</span>
+                          <span>AI的思考过程：</span>
+                        </div>
+                        <div className="text-blue-800 dark:text-blue-200 text-sm">
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             components={{
-                              code: (props) => {
-                                const { className, children, ...rest } = props
-                                const match = /language-(\w+)/.exec(className || '')
+                              code: ({ className, children, ...props }) => {
                                 const isInline = !className?.includes('language-')
+                                const language = className?.replace('language-', '') || ''
                                 
-                                return !isInline && match ? (
-                                  <SyntaxHighlighter
-                                    style={oneDark}
-                                    language={match[1]}
-                                    PreTag="div"
-                                  >
-                                    {String(children).replace(/\n$/, '')}
-                                  </SyntaxHighlighter>
-                                ) : (
-                                  <code className={className} {...rest}>
+                                return isInline ? (
+                                  <code className="bg-blue-100 dark:bg-blue-800 text-blue-900 dark:text-blue-100 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
                                     {children}
                                   </code>
+                                ) : (
+                                  <div className="relative my-4">
+                                    <div className="flex items-center justify-between bg-gray-800 text-gray-300 px-4 py-2 text-xs font-medium rounded-t-lg">
+                                      <span>{language || 'code'}</span>
+                                      <button
+                                        onClick={() => copyToClipboard(String(children))}
+                                        className="text-gray-400 hover:text-white transition-colors"
+                                        title="复制代码"
+                                      >
+                                        <ClipboardIcon className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                    <pre className="bg-gray-900 text-gray-100 p-4 overflow-x-auto rounded-b-lg border-t-0">
+                                      <code className="text-sm font-mono">{children}</code>
+                                    </pre>
+                                  </div>
                                 )
-                              }
+                              },
+                              pre: ({ children }) => <>{children}</>,
                             }}
                           >
                             {part.text}
@@ -142,25 +151,55 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          code: (props) => {
-                            const { className, children, ...rest } = props
-                            const match = /language-(\w+)/.exec(className || '')
+                          code: ({ className, children, ...props }) => {
                             const isInline = !className?.includes('language-')
+                            const language = className?.replace('language-', '') || ''
                             
-                            return !isInline && match ? (
-                              <SyntaxHighlighter
-                                style={oneDark}
-                                language={match[1]}
-                                PreTag="div"
-                              >
-                                {String(children).replace(/\n$/, '')}
-                              </SyntaxHighlighter>
-                            ) : (
-                              <code className={className} {...rest}>
+                            return isInline ? (
+                              <code className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
                                 {children}
                               </code>
+                            ) : (
+                              <div className="relative my-4">
+                                <div className="flex items-center justify-between bg-gray-800 text-gray-300 px-4 py-2 text-xs font-medium rounded-t-lg">
+                                  <span>{language || 'code'}</span>
+                                  <button
+                                    onClick={() => copyToClipboard(String(children))}
+                                    className="text-gray-400 hover:text-white transition-colors"
+                                    title="复制代码"
+                                  >
+                                    <ClipboardIcon className="w-4 h-4" />
+                                  </button>
+                                </div>
+                                <pre className="bg-gray-900 text-gray-100 p-4 overflow-x-auto rounded-b-lg border-t-0">
+                                  <code className="text-sm font-mono leading-relaxed">{children}</code>
+                                </pre>
+                              </div>
                             )
-                          }
+                          },
+                          pre: ({ children }) => <>{children}</>,
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-700 dark:text-gray-300 my-4">
+                              {children}
+                            </blockquote>
+                          ),
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-4">
+                              <table className="min-w-full border border-gray-300 dark:border-gray-600 rounded-lg">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          th: ({ children }) => (
+                            <th className="border border-gray-300 dark:border-gray-600 px-4 py-2 bg-gray-100 dark:bg-gray-700 font-semibold text-left">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="border border-gray-300 dark:border-gray-600 px-4 py-2">
+                              {children}
+                            </td>
+                          ),
                         }}
                       >
                         {part.text}
@@ -178,7 +217,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
               <button
                 onClick={() => copyToClipboard(message.content)}
                 className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                title="复制"
+                title="复制全部内容"
               >
                 {copied ? (
                   <CheckIcon className="w-4 h-4 text-green-500" />

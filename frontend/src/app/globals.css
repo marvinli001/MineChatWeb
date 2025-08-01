@@ -73,36 +73,21 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: rgb(75 85 99);
+  background: rgb(75 85 99);
   border-radius: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(107 114 128);
+  background: rgb(55 65 81);
 }
 
-/* 代码块样式 */
-.prose pre {
-  @apply bg-gray-900 rounded-lg p-4 overflow-x-auto;
+/* 确保正确的布局 */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
-.prose code {
-  @apply bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm;
-}
-
-.prose pre code {
-  @apply bg-transparent p-0;
-}
-
-/* 思考模式样式 */
-.thinking-mode {
-  @apply border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-r-lg;
-}
-
-.thinking-mode .thinking-label {
-  @apply text-blue-700 dark:text-blue-300 font-semibold text-sm mb-2;
-}
-
-.thinking-mode .thinking-content {
-  @apply text-gray-700 dark:text-gray-300 text-sm font-mono;
+#__next {
+  height: 100%;
 }

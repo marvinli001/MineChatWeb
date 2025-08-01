@@ -18,15 +18,19 @@ export default function Home() {
   }, [initialized, initializeSettings])
 
   return (
-    <div className="flex h-screen bg-white dark:bg-gray-900">
+    <div className="flex h-screen bg-white dark:bg-gray-900 overflow-hidden">
       {/* 侧边栏 */}
-      <ChatSidebar 
-        onSettingsClick={() => setShowSettings(true)}
-        onLoginClick={() => setShowLogin(true)}
-      />
+      <div className="flex-shrink-0">
+        <ChatSidebar 
+          onSettingsClick={() => setShowSettings(true)}
+          onLoginClick={() => setShowLogin(true)}
+        />
+      </div>
       
       {/* 主聊天区域 */}
-      <ChatMain />
+      <div className="flex-1 min-w-0">
+        <ChatMain />
+      </div>
       
       {/* 设置对话框 */}
       {showSettings && (
