@@ -20,7 +20,7 @@ export default function ModelSelector({ onModelMarketClick }: ModelSelectorProps
   const [isOpen, setIsOpen] = useState(false)
   const { settings, updateSettings } = useSettingsStore()
   
-  // 模型列表，包含使用次数
+  // 模型列表，包含使用次数（用于内部排序，但不显示）
   const [models] = useState<ModelUsage[]>([
     { id: 'gpt-4o', name: 'GPT-4o', description: '适用于复杂任务', provider: 'OpenAI', usageCount: 15 },
     { id: 'gpt-4o-mini', name: 'GPT-4o-mini', description: '快速且高效的模型', provider: 'OpenAI', usageCount: 32 },
@@ -92,16 +92,9 @@ export default function ModelSelector({ onModelMarketClick }: ModelSelectorProps
                       {model.description}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {model.usageCount > 0 && (
-                      <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                        {model.usageCount}
-                      </span>
-                    )}
-                    {currentModel?.id === model.id && (
-                      <CheckIcon className="w-4 h-4 text-blue-600" />
-                    )}
-                  </div>
+                  {currentModel?.id === model.id && (
+                    <CheckIcon className="w-4 h-4 text-blue-600" />
+                  )}
                 </button>
               ))}
               <div className="border-t border-gray-200 dark:border-gray-700 mt-2 pt-2">
