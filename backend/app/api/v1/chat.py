@@ -1,10 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
-from typing import List, Dict, Any, Optional
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from typing import List, Dict, Any
 import json
-import asyncio
 from app.models.chat import ChatMessage, ChatRequest, ChatResponse
 from app.services.ai_providers import AIProviderService
-from app.core.security import get_current_user
 
 router = APIRouter()
 
@@ -25,17 +23,11 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 @router.post("/completion", response_model=ChatResponse)
-async def chat_completion(
-    request: ChatRequest,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    处理聊天完成请求，支持多种AI提供商
-    """
+async def chat_completion(request: ChatRequest):
+    """处理聊天完成请求，支持多种AI提供商"""
     try:
         ai_service = AIProviderService()
         
-        # 根据用户设置选择AI提供商
         response = await ai_service.get_completion(
             provider=request.provider,
             model=request.model,
@@ -57,9 +49,7 @@ async def chat_completion(
 
 @router.websocket("/stream")
 async def websocket_chat(websocket: WebSocket):
-    """
-    WebSocket流式聊天
-    """
+    """WebSocket流式聊天"""
     await manager.connect(websocket)
     try:
         while True:
@@ -88,55 +78,3 @@ async def websocket_chat(websocket: WebSocket):
             websocket
         )
         manager.disconnect(websocket)
-
-@router.get("/models/{provider}")
-async def get_available_models(provider: str):
-    """
-    获取指定提供商的可用模型列表
-    """
-    ai_service = AIProviderService()
-    models = ai_service.get_available_models(provider)
-    return {"models": models}
-
-@router.get("/providers")
-async def get_supported_providers():
-    """
-    获取支持的AI提供商列表
-    """
-    return {
-        "providers": [
-            {
-                "id": "openai",
-                "name": "OpenAI",
-                "models": [
-                    "gpt-4o",
-                    "gpt-4o-mini",
-                    "gpt-4-turbo",
-                    "gpt-3.5-turbo",
-                    "o1-preview",
-                    "o1-mini"
-                ],
-                "supports_thinking": True
-            },
-            {
-                "id": "anthropic",
-                "name": "Anthropic",
-                "models": [
-                    "claude-3-5-sonnet-20241022",
-                    "claude-3-5-haiku-20241022",
-                    "claude-3-opus-20240229"
-                ],
-                "supports_thinking": True
-            },
-            {
-                "id": "google",
-                "name": "Google",
-                "models": [
-                    "gemini-2.0-flash-exp",
-                    "gemini-1.5-pro",
-                    "gemini-1.5-flash"
-                ],
-                "supports_thinking": True
-            }
-        ]
-    }
