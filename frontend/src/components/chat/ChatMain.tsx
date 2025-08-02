@@ -5,7 +5,11 @@ import { useChatStore } from '@/store/chatStore'
 import MessageItem from './MessageItem'
 import InputArea from './InputArea'
 
-export default function ChatMain() {
+interface ChatMainProps {
+  onModelMarketClick?: () => void
+}
+
+export default function ChatMain({ onModelMarketClick }: ChatMainProps) {
   const { currentConversation, isLoading } = useChatStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -30,7 +34,7 @@ export default function ChatMain() {
           
           {/* 居中的输入区域 */}
           <div className="w-full max-w-3xl px-4">
-            <InputArea isWelcomeMode={true} />
+            <InputArea isWelcomeMode={true} onModelMarketClick={onModelMarketClick} />
           </div>
         </div>
       </div>
@@ -63,7 +67,7 @@ export default function ChatMain() {
 
       {/* 输入区域 */}
       <div className="flex-shrink-0">
-        <InputArea isWelcomeMode={false} />
+        <InputArea isWelcomeMode={false} onModelMarketClick={onModelMarketClick} />
       </div>
     </div>
   )

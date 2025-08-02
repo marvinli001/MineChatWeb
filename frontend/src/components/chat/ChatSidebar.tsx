@@ -1,19 +1,31 @@
 'use client'
 
-import { PlusIcon, ChatBubbleLeftIcon, Cog6ToothIcon, UserIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, ChatBubbleLeftIcon, Cog6ToothIcon, UserIcon, CubeIcon, PuzzlePieceIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { useChatStore } from '@/store/chatStore'
 import { Button } from '@/components/ui/button'
 
 interface ChatSidebarProps {
   onSettingsClick: () => void
   onLoginClick: () => void
+  onModelMarketClick?: () => void
 }
 
-export default function ChatSidebar({ onSettingsClick, onLoginClick }: ChatSidebarProps) {
+export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMarketClick }: ChatSidebarProps) {
   const { conversations, currentConversationId, createNewConversation, setCurrentConversation, deleteConversation } = useChatStore()
 
   const handleNewChat = () => {
     createNewConversation()
+  }
+
+  const handleModelMarketClick = () => {
+    if (onModelMarketClick) {
+      onModelMarketClick()
+    }
+  }
+
+  const handlePluginMarketClick = () => {
+    // TODO: 打开插件市场浮窗
+    console.log('打开插件市场')
   }
 
   const formatDate = (date: Date) => {
@@ -35,9 +47,9 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick }: ChatSideb
   }, {} as Record<string, typeof conversations>)
 
   return (
-    <div className="w-64 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-      {/* 头部 */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+    <div className="w-64 bg-gray-50 dark:bg-gray-800 flex flex-col">
+      {/* 头部 - 新建对话 */}
+      <div className="p-4">
         <Button
           onClick={handleNewChat}
           className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
@@ -47,8 +59,45 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick }: ChatSideb
         </Button>
       </div>
 
+      {/* 模型市场按钮 */}
+      <div className="px-4 pb-2">
+        <button
+          onClick={handleModelMarketClick}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors text-left"
+        >
+          <SparklesIcon className="w-4 h-4 text-purple-500" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">模型市场</span>
+        </button>
+      </div>
+
+      {/* 插件市场按钮 */}
+      <div className="px-4 pb-2">
+        <button
+          onClick={handlePluginMarketClick}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors text-left"
+        >
+          <PuzzlePieceIcon className="w-4 h-4 text-blue-500" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">插件市场</span>
+        </button>
+      </div>
+
+      {/* 设置按钮 */}
+      <div className="px-4 pb-4">
+        <button
+          onClick={onSettingsClick}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors text-left"
+        >
+          <Cog6ToothIcon className="w-4 h-4 text-gray-500" />
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">设置</span>
+        </button>
+      </div>
+
       {/* 对话列表 */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin p-2">
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-2">
+        <div className="px-2 py-2">
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">聊天记录</span>
+        </div>
+        
         {Object.entries(groupedConversations).map(([date, convs]) => (
           <div key={date} className="mb-4">
             <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 font-medium">
@@ -83,21 +132,6 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick }: ChatSideb
             ))}
           </div>
         ))}
-      </div>
-
-      {/* 底部用户区域 */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSettingsClick}
-            className="flex items-center gap-2"
-          >
-            <Cog6ToothIcon className="w-4 h-4" />
-            设置
-          </Button>
-        </div>
       </div>
     </div>
   )
