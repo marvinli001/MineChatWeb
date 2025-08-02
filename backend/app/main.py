@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from app.api.v1 import chat, sync
+from app.api.v1 import chat, sync, voice, image
 
 app = FastAPI(
     title="MineChatWeb API",
@@ -17,8 +17,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include all routers
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
 app.include_router(sync.router, prefix="/api/v1/sync", tags=["sync"])
+app.include_router(voice.router, prefix="/api/v1/voice", tags=["voice"])
+app.include_router(image.router, prefix="/api/v1/image", tags=["image"])
 
 @app.get("/")
 async def root():
@@ -27,6 +30,10 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+@app.get("/docs")
+async def docs_redirect():
+    return {"message": "API documentation available at /docs"}
 
 if __name__ == "__main__":
     uvicorn.run(

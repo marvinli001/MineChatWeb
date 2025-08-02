@@ -94,9 +94,9 @@ class CloudflareD1Service:
                 
             row = data[0]
             return {
-                "conversations": json.loads(row["conversations"]),
-                "settings": json.loads(row["settings"]),
-                "last_sync": row["last_sync"]
+                "conversations": json.loads(row[0]),  # 使用索引而不是键名
+                "settings": json.loads(row[1]),
+                "last_sync": row[2]
             }
         except Exception as e:
             print(f"Get sync data error: {e}")
