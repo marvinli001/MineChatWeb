@@ -30,14 +30,14 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 backdrop-blur-sm bg-white/30 dark:bg-black/30 flex items-center justify-center z-50">
+      <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-white/20 dark:border-gray-700/50 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
         {/* 头部 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">设置</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
           >
             <XMarkIcon className="w-6 h-6" />
           </button>
@@ -45,7 +45,7 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         <div className="flex h-[60vh]">
           {/* 侧边栏 */}
-          <div className="w-64 border-r border-gray-200 dark:border-gray-700 p-4">
+          <div className="w-64 border-r border-gray-200/50 dark:border-gray-700/50 p-4">
             <nav className="space-y-2">
               {tabs.map((tab) => (
                 <button
@@ -53,8 +53,8 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
                     activeTab === tab.id
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      ? 'bg-blue-100/80 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-700/50'
                   }`}
                 >
                   <span className="text-lg">{tab.icon}</span>
@@ -74,7 +74,7 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
         </div>
 
         {/* 底部 */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200/50 dark:border-gray-700/50">
           <Button variant="outline" onClick={onClose}>
             取消
           </Button>

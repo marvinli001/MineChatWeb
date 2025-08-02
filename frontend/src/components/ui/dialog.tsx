@@ -13,10 +13,10 @@ const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, children }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div 
-        className="fixed inset-0 bg-black/50" 
+        className="fixed inset-0 backdrop-blur-sm bg-white/30 dark:bg-black/30" 
         onClick={() => onOpenChange?.(false)}
       />
-      <div className="relative z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+      <div className="relative z-50 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-white/20 dark:border-gray-700/50 rounded-lg shadow-2xl">
         {children}
       </div>
     </div>
