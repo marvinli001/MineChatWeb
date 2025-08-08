@@ -1,216 +1,151 @@
 # MineChatWeb
 
-一个功能强大的AI聊天应用，支持多种AI提供商，使用 Python FastAPI + Next.js 构建。
+MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合了多个主流大语言模型，为用户提供聊天、语音、图片等多模态体验。项目采用 Python FastAPI 作为后端，Next.js + Tailwind CSS 作为前端。
 
-![image1](image1)
+> ⚠️ 项目目前处于早期阶段，接口和 UI 仍在不断迭代中，欢迎反馈问题或贡献代码。
 
-## 功能特性
+## 功能亮点
 
-- 🤖 **多AI提供商支持**: OpenAI, Anthropic, Google Gemini等
-- 🧠 **思考模式**: 支持o1, Claude, Gemini的推理过程显示
-- 🎙️ **语音功能**: 语音转文字、文字转语音
-- 🖼️ **图片处理**: 图片生成和识别
-- ☁️ **云同步**: 支持Milvus向量数据库存储聊天历史
-- 🎨 **现代UI**: 仿OpenAI ChatGPT界面设计
-- 📱 **响应式设计**: 支持桌面和移动设备
-- 🔒 **隐私保护**: 配置保存在本地浏览器
+- **多模型支持**：OpenAI、Anthropic、Google Gemini 等主流提供商
+- **推理展示**：o1、Claude、Gemini 等模型的思考过程可视化
+- **语音能力**：语音转文字 & 文字转语音
+- **图片能力**：图片生成与识别
+- **云端记忆**：可选 Milvus 向量数据库持久化聊天历史
+- **现代界面**：仿 ChatGPT 的响应式 UI，支持深色模式
+- **本地配置**：所有密钥信息仅存储在浏览器
 
 ## 技术栈
 
-### 后端
-- **FastAPI**: 现代Python Web框架
-- **SQLAlchemy**: 数据库ORM
-- **Redis**: 缓存和会话存储
-- **Milvus**: 向量数据库
-- **WebSocket**: 实时通信
+| 层 | 技术 |
+| --- | --- |
+| 后端 | FastAPI · SQLAlchemy · Redis · Milvus · WebSocket |
+| 前端 | Next.js 14 · TypeScript · Tailwind CSS · Zustand · React Markdown |
+| 其他 | Docker Compose · Node.js 18+ · Python 3.9+ |
 
-### 前端
-- **Next.js 14**: React框架
-- **TypeScript**: 类型安全
-- **Tailwind CSS**: 样式框架
-- **Zustand**: 状态管理
-- **React Markdown**: Markdown渲染
+## 目录结构
+
+```
+.
+├── backend/               # FastAPI 服务
+├── frontend/              # Next.js 前端
+├── docker-compose.yml     # 一键启动
+├── models-config.json     # 模型配置示例
+└── README.md
+```
 
 ## 快速开始
 
-### 使用Docker Compose (推荐)
+### 方式一：Docker Compose（推荐）
 
 ```bash
-# 克隆项目
 git clone <your-repo-url>
-cd chatgpt-clone
-
-# 启动所有服务
+cd MineChatWeb
 docker-compose up -d
 
-# 访问应用
 # 前端: http://localhost:3000
-# 后端API: http://localhost:8000
+# 后端: http://localhost:8000
 ```
 
-### 手动安装
+### 方式二：手动启动
 
-#### 后端设置
+#### 后端
 
 ```bash
 cd backend
-
-# 创建虚拟环境
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 安装依赖
 pip install -r requirements.txt
-
-# 运行开发服务器
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-#### 前端设置
+#### 前端
 
 ```bash
 cd frontend
-
-# 安装依赖
 npm install
-
-# 运行开发服务器
 npm run dev
 ```
 
-## 配置说明
+## 配置
 
-### API密钥配置
+在前端设置页面或 `.env` 文件中配置以下内容：
 
-在应用的设置页面中配置以下API密钥：
+### API 密钥
 
-1. **OpenAI API Key**
-   - 获取地址: https://platform.openai.com/api-keys
-   - 支持模型: GPT-4o, GPT-4-turbo, o1-preview等
+1. **OpenAI**：https://platform.openai.com/api-keys  
+2. **Anthropic**：https://console.anthropic.com/  
+3. **Google**：https://aistudio.google.com/app/apikey  
 
-2. **Anthropic API Key**
-   - 获取地址: https://console.anthropic.com/
-   - 支持模型: Claude-3.5-sonnet, Claude-3-opus等
+### Milvus（可选）
 
-3. **Google API Key**
-   - 获取地址: https://aistudio.google.com/app/apikey
-   - 支持模型: Gemini-2.0-flash, Gemini-1.5-pro等
+可自行部署 Milvus 或使用 Zilliz Cloud：
 
-### Milvus向量数据库配置
+```bash
+docker-compose up milvus etcd minio   # 本地部署
+```
 
-支持两种部署方式：
+## API 文档
 
-1. **自部署Milvus**
-   ```bash
-   # 使用docker-compose启动Milvus
-   docker-compose up milvus etcd minio
-   ```
+后端启动后访问：
 
-2. **Zilliz Cloud**
-   - 注册地址: https://zilliz.com/
-   - 获取连接信息后在设置中配置
-
-## API文档
-
-启动后端服务后，访问以下地址查看API文档：
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
-## 主要API端点
+## 环境变量示例
 
-### 聊天相关
-- `POST /api/v1/chat/completion` - 聊天完成
-- `WebSocket /api/v1/chat/stream` - 流式聊天
-- `GET /api/v1/chat/providers` - 获取支持的AI提供商
-- `GET /api/v1/chat/models/{provider}` - 获取模型列表
+`backend/.env`:
 
-### 语音相关
-- `POST /api/v1/voice/transcribe` - 语音转文字
-- `POST /api/v1/voice/synthesize` - 文字转语音
-- `GET /api/v1/voice/voices/{provider}` - 获取语音列表
-
-### 用户认证
-- `POST /api/v1/auth/login` - 用户登录
-- `POST /api/v1/auth/register` - 用户注册
-- `POST /api/v1/auth/logout` - 用户登出
-
-## 环境变量
-
-### 后端环境变量
-
-```bash
-# 数据库
+```env
 DATABASE_URL=sqlite:///./data/chat.db
-
-# Redis
 REDIS_URL=redis://localhost:6379
-
-# JWT
-SECRET_KEY=your-secret-key-change-in-production
+SECRET_KEY=change-me
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# Milvus
 MILVUS_HOST=localhost
 MILVUS_PORT=19530
 ```
 
-### 前端环境变量
+`frontend/.env.local`:
 
-```bash
-# API地址
+```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
 ## 部署
 
-### 生产部署
+1. 构建前端：
 
-1. **构建前端**
-   ```bash
-   cd frontend
-   npm run build
-   ```
+```bash
+cd frontend
+npm run build
+```
 
-2. **构建后端Docker镜像**
-   ```bash
-   cd backend
-   docker build -t chatgpt-clone-backend .
-   ```
+2. 构建后端镜像：
 
-3. **使用docker-compose部署**
-   ```bash
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
+```bash
+cd backend
+docker build -t minechat-backend .
+```
 
-### 环境要求
+3. 启动生产环境：
 
-- **Node.js**: >= 18.0.0
-- **Python**: >= 3.9
-- **Docker**: >= 20.0.0
-- **Docker Compose**: >= 2.0.0
+```bash
+docker-compose -f docker-compose.prod.yml up -d
+```
 
-## 贡献指南
+## 贡献
+
+欢迎 Issue 和 PR！
 
 1. Fork 项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+2. 新建分支：`git checkout -b feature/xxx`
+3. 提交代码：`git commit -m "feat: xxx"`
+4. 推送分支并发起 PR
 
 ## 许可证
 
-本项目基于 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+MIT，详见 [LICENSE](LICENSE)。
 
-## 支持
+---
 
-如果您觉得这个项目有用，请给它一个⭐️！
-
-## 更新日志
-
-### v1.0.0 (2024-12-XX)
-- 初始版本发布
-- 支持OpenAI, Anthropic, Google Gemini
-- 实现思考模式
-- 添加语音功能
-- 集成Milvus向量数据库
+如果这个项目对你有帮助，请点个 ⭐️ 支持！
