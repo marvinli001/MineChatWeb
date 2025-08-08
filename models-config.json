@@ -1,0 +1,204 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2025-01-08T07:02:20Z",
+  "providers": {
+    "openai": {
+      "name": "OpenAI",
+      "description": "OpenAI 官方模型",
+      "supports_thinking": true,
+      "models": {
+        "gpt-4o": {
+          "name": "GPT-4o",
+          "description": "最新的 GPT-4 模型，支持多模态",
+          "api_type": "chat_completions",
+          "context_length": 128000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 5.0,
+            "output": 15.0
+          }
+        },
+        "gpt-4o-mini": {
+          "name": "GPT-4o Mini",
+          "description": "轻量级 GPT-4 模型，速度更快",
+          "api_type": "chat_completions",
+          "context_length": 128000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.15,
+            "output": 0.6
+          }
+        },
+        "o1-preview": {
+          "name": "o1-preview",
+          "description": "推理专用模型，适合复杂问题解决",
+          "api_type": "chat_completions",
+          "context_length": 32000,
+          "supports_vision": false,
+          "supports_function_calling": false,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 15.0,
+            "output": 60.0
+          }
+        },
+        "o1-mini": {
+          "name": "o1-mini",
+          "description": "轻量级推理模型",
+          "api_type": "chat_completions",
+          "context_length": 32000,
+          "supports_vision": false,
+          "supports_function_calling": false,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 3.0,
+            "output": 12.0
+          }
+        },
+        "gpt-4-turbo": {
+          "name": "GPT-4 Turbo",
+          "description": "高性能 GPT-4 模型",
+          "api_type": "chat_completions",
+          "context_length": 128000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 10.0,
+            "output": 30.0
+          }
+        },
+        "chatgpt-4o-latest": {
+          "name": "ChatGPT-4o Latest",
+          "description": "最新的 ChatGPT-4o 模型",
+          "api_type": "responses",
+          "context_length": 128000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 5.0,
+            "output": 15.0
+          }
+        }
+      }
+    },
+    "anthropic": {
+      "name": "Anthropic",
+      "description": "Claude 系列模型",
+      "supports_thinking": true,
+      "models": {
+        "claude-3-5-sonnet-20241022": {
+          "name": "Claude 3.5 Sonnet",
+          "description": "Anthropic 最新最强模型",
+          "api_type": "messages",
+          "context_length": 200000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 3.0,
+            "output": 15.0
+          }
+        },
+        "claude-3-opus-20240229": {
+          "name": "Claude 3 Opus",
+          "description": "最强推理能力的 Claude 模型",
+          "api_type": "messages",
+          "context_length": 200000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 15.0,
+            "output": 75.0
+          }
+        },
+        "claude-3-haiku-20240307": {
+          "name": "Claude 3 Haiku",
+          "description": "快速响应的 Claude 模型",
+          "api_type": "messages",
+          "context_length": 200000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.25,
+            "output": 1.25
+          }
+        }
+      }
+    },
+    "google": {
+      "name": "Google",
+      "description": "Gemini 系列模型",
+      "supports_thinking": false,
+      "models": {
+        "gemini-2.0-flash-exp": {
+          "name": "Gemini 2.0 Flash Exp",
+          "description": "Google 最新实验性模型",
+          "api_type": "generate_content",
+          "context_length": 1000000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.075,
+            "output": 0.3
+          }
+        },
+        "gemini-1.5-pro": {
+          "name": "Gemini 1.5 Pro",
+          "description": "专业级 Gemini 模型",
+          "api_type": "generate_content",
+          "context_length": 2000000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 1.25,
+            "output": 5.0
+          }
+        },
+        "gemini-1.5-flash": {
+          "name": "Gemini 1.5 Flash",
+          "description": "快速 Gemini 模型",
+          "api_type": "generate_content",
+          "context_length": 1000000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.075,
+            "output": 0.3
+          }
+        }
+      }
+    },
+    "deepseek": {
+      "name": "DeepSeek",
+      "description": "DeepSeek 系列模型",
+      "supports_thinking": false,
+      "models": {
+        "deepseek-chat": {
+          "name": "DeepSeek Chat",
+          "description": "通用对话模型",
+          "api_type": "chat_completions",
+          "context_length": 64000,
+          "supports_vision": false,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.14,
+            "output": 0.28
+          }
+        },
+        "deepseek-coder": {
+          "name": "DeepSeek Coder",
+          "description": "专业代码生成模型",
+          "api_type": "chat_completions",
+          "context_length": 64000,
+          "supports_vision": false,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.14,
+            "output": 0.28
+          }
+        }
+      }
+    }
+  }
+}

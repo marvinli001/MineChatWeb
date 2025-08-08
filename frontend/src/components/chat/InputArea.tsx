@@ -463,7 +463,10 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
 
         {/* 底部模型选择和提示文字 */}
         <div className="mt-4 flex items-center justify-center gap-4">
-          <ModelSelector onModelMarketClick={onModelMarketClick} />
+            <ModelSelector 
+              onModelMarketClick={onModelMarketClick} 
+              showDetailedInfo={false} // 欢迎模式下不显示详细信息
+            />
           <div className="text-xs text-gray-500 dark:text-gray-400">
             {settings.thinkingMode && '思考模式已启用'}
           </div>
