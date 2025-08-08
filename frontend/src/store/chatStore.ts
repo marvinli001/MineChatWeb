@@ -125,6 +125,7 @@ export const useChatStore = create<ChatState>()(
             content: msg.content
           }))
 
+          // 修改：使用正确的后端地址
           const response = await fetch('/api/v1/chat/completion', {
             method: 'POST',
             headers: {
@@ -142,11 +143,21 @@ export const useChatStore = create<ChatState>()(
           })
 
           if (!response.ok) {
-            const error = await response.json()
-            throw new Error(error.detail || '请求失败')
+            const errorText = await response.text()
+            console.error('API错误响应:', errorText)
+            let errorMessage = '请求失败'
+            try {
+              const error = JSON.parse(errorText)
+              errorMessage = error.detail || errorMessage
+            } catch {
+              errorMessage = errorText || errorMessage
+            }
+            throw new Error(errorMessage)
           }
 
           const data = await response.json()
+          console.log('API响应:', data) // 添加调试日志
+          
           const assistantMessage: ChatMessage = {
             role: 'assistant',
             content: data.choices[0]?.message?.content || '抱歉，我无法生成回复。',
@@ -178,6 +189,7 @@ export const useChatStore = create<ChatState>()(
           }
 
         } catch (error: any) {
+          console.error('发送消息失败:', error) // 添加调试日志
           if (error.name === 'AbortError') {
             console.log('请求被取消')
           } else {
@@ -214,9 +226,6 @@ export const useChatStore = create<ChatState>()(
               }))
             }
           }
-
-          // 重新抛出错误让InputArea处理toast提示
-          throw error
         }
       },
 
@@ -260,7 +269,7 @@ export const useChatStore = create<ChatState>()(
 
         const { conversations } = get()
         
-        const response = await fetch('/api/v1/sync/upload', {
+        const response = await fetch('http://localhost:8000/api/v1/sync/upload', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -283,7 +292,7 @@ export const useChatStore = create<ChatState>()(
           throw new Error('云同步未启用')
         }
 
-        const response = await fetch('/api/v1/sync/download', {
+        const response = await fetch('http://localhost:8000/api/v1/sync/download', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -299,9 +308,7 @@ export const useChatStore = create<ChatState>()(
         }
 
         const data = await response.json()
-        set({
-          conversations: data.conversations || []
-        })
+        set({ conversations: data.conversations })
       }
     }),
     {

@@ -170,35 +170,26 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  if (!input.trim() || isLoading) return
 
-    // 如果没有对话，创建新对话
-    if (!currentConversation) {
-      createNewConversation()
-    }
+  const messageContent = input.trim()
+  
+  // 先清空输入，避免重复提交
+  setInput('')
+  setSelectedTools([])
+  setAttachedFiles([])
+  setShowTools(false)
 
-    // 准备消息数据
-    const messageData = {
-      content: input.trim(),
-      tools: selectedTools.map(tool => tool.id),
-      files: attachedFiles
-    }
-
-    // 清空输入和选择
-    setInput('')
-    setSelectedTools([])
-    setAttachedFiles([])
-    setShowTools(false)
-
-    // 发送消息
-    try {
-      await sendMessage(messageData.content)
-    } catch (error) {
-      toast.error('发送消息失败')
-    }
+  try {
+    // sendMessage 内部已经处理创建新对话的逻辑，不需要手动调用 createNewConversation
+    await sendMessage(messageContent)
+  } catch (error: any) {
+    console.error('发送消息失败:', error)
+    toast.error(error.message || '发送消息失败')
   }
+}
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
