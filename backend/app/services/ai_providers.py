@@ -1,6 +1,7 @@
 import openai
 import anthropic
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from typing import List, Dict, Any, AsyncGenerator
 
 class AIProviderService:
@@ -202,23 +203,24 @@ class AIProviderService:
         thinking_mode: bool = False
     ) -> Dict[str, Any]:
         """Google Gemini API调用"""
-        genai.configure(api_key=api_key)
-        model_obj = genai.GenerativeModel(model)
+        client = genai.Client(api_key=api_key)
         
-        chat_history = []
-        for msg in messages[:-1]:
+        # 转换消息格式
+        contents = []
+        for msg in messages:
             if msg["role"] == "user":
-                chat_history.append({"role": "user", "parts": [msg["content"]]})
+                contents.append(types.Content(role="user", parts=[types.Part(text=msg["content"])]))
             elif msg["role"] == "assistant":
-                chat_history.append({"role": "model", "parts": [msg["content"]]})
-        
-        chat = model_obj.start_chat(history=chat_history)
+                contents.append(types.Content(role="model", parts=[types.Part(text=msg["content"])]))
         
         prompt = messages[-1]["content"]
         if thinking_mode:
             prompt = f"Please think through this step by step before providing your final answer.\n\n{prompt}"
         
-        response = await chat.send_message_async(prompt)
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=contents
+        )
         
         return {
             "id": f"gemini_{hash(response.text)}",
@@ -243,29 +245,34 @@ class AIProviderService:
         thinking_mode: bool = False
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Google Gemini流式响应"""
-        genai.configure(api_key=api_key)
-        model_obj = genai.GenerativeModel(model)
+        client = genai.Client(api_key=api_key)
         
-        chat_history = []
-        for msg in messages[:-1]:
+        # 转换消息格式
+        contents = []
+        for msg in messages:
             if msg["role"] == "user":
-                chat_history.append({"role": "user", "parts": [msg["content"]]})
+                contents.append(types.Content(role="user", parts=[types.Part(text=msg["content"])]))
             elif msg["role"] == "assistant":
-                chat_history.append({"role": "model", "parts": [msg["content"]]})
-        
-        chat = model_obj.start_chat(history=chat_history)
+                contents.append(types.Content(role="model", parts=[types.Part(text=msg["content"])]))
         
         prompt = messages[-1]["content"]
         if thinking_mode:
             prompt = f"Please think through this step by step before providing your final answer.\n\n{prompt}"
         
-        response = await chat.send_message_async(prompt, stream=True)
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                stream=True
+            )
+        )
         
         async for chunk in response:
-            yield {
-                "choices": [{
-                    "delta": {
-                        "content": chunk.text
-                    }
-                }]
-            }
+            if chunk.text:
+                yield {
+                    "choices": [{
+                        "delta": {
+                            "content": chunk.text
+                        }
+                    }]
+                }
