@@ -1,7 +1,16 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import time
+import logging
 from app.api.v1 import chat, sync, voice, image
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="MineChatWeb API",
@@ -16,6 +25,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 添加请求日志中间件
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start_time = time.time()
+    
+    # 记录请求信息
+    logger.info(f"请求开始: {request.method} {request.url.path}")
+    
+    response = await call_next(request)
+    
+    # 计算处理时间
+    process_time = time.time() - start_time
+    
+    # 记录响应信息
+    logger.info(f"请求完成: {request.method} {request.url.path} - 状态码: {response.status_code} - 耗时: {process_time:.2f}秒")
+    
+    return response
 
 # Include all routers
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
@@ -40,5 +67,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True
+        reload=True,
+        log_level="info"
     )

@@ -2,16 +2,16 @@ import openai
 import anthropic
 from google import genai
 from typing import Dict, List, Any, AsyncGenerator
+import asyncio
 import logging
 
-# 设置日志
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class AIProviderService:
     def __init__(self):
-        pass
-
+        # 设置超时时间
+        self.timeout = 60  # 60秒超时
+        
     async def get_completion(
         self,
         provider: str,
@@ -22,7 +22,7 @@ class AIProviderService:
         thinking_mode: bool = False
     ) -> Dict[str, Any]:
         """获取AI完成响应"""
-        logger.info(f"开始处理请求: provider={provider}, model={model}")
+        logger.info(f"开始调用 {provider} API, 模型: {model}")
         
         try:
             if provider == "openai":
@@ -36,9 +36,13 @@ class AIProviderService:
             elif provider == "google":
                 return await self._google_completion(model, messages, api_key, thinking_mode)
             else:
-                raise ValueError(f"Unsupported provider: {provider}")
+                raise ValueError(f"不支持的提供商: {provider}")
+                
+        except asyncio.TimeoutError:
+            logger.error(f"{provider} API调用超时")
+            raise Exception(f"{provider} API调用超时，请稍后重试")
         except Exception as e:
-            logger.error(f"AI服务调用失败: {str(e)}")
+            logger.error(f"{provider} API调用失败: {str(e)}")
             raise
 
     def _is_openai_responses_api(self, model: str) -> bool:
@@ -59,33 +63,53 @@ class AIProviderService:
         thinking_mode: bool = False
     ) -> Dict[str, Any]:
         """OpenAI Chat Completions API 调用"""
-        logger.info(f"调用OpenAI API: model={model}")
-        
         try:
-            client = openai.AsyncOpenAI(api_key=api_key)
+            client = openai.AsyncOpenAI(
+                api_key=api_key,
+                timeout=self.timeout
+            )
+            
+            logger.info(f"调用OpenAI模型: {model}, 消息数量: {len(messages)}")
             
             # o1 系列模型特殊处理
             if thinking_mode and model in ["o1-preview", "o1-mini"]:
                 filtered_messages = [msg for msg in messages if msg["role"] != "system"]
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=filtered_messages
+                logger.info(f"o1模型过滤后消息数量: {len(filtered_messages)}")
+                response = await asyncio.wait_for(
+                    client.chat.completions.create(
+                        model=model,
+                        messages=filtered_messages
+                    ),
+                    timeout=self.timeout
                 )
             else:
-                response = await client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    stream=stream,
-                    temperature=0.7,
-                    max_tokens=4000
+                response = await asyncio.wait_for(
+                    client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        stream=stream,
+                        temperature=0.7,
+                        max_tokens=4000
+                    ),
+                    timeout=self.timeout
                 )
             
             result = response.model_dump()
-            logger.info("OpenAI API调用成功")
+            logger.info(f"OpenAI API调用成功，返回选择数量: {len(result.get('choices', []))}")
             return result
+            
+        except openai.AuthenticationError as e:
+            logger.error(f"OpenAI认证失败: {str(e)}")
+            raise Exception("OpenAI API密钥无效，请检查您的API密钥")
+        except openai.RateLimitError as e:
+            logger.error(f"OpenAI速率限制: {str(e)}")
+            raise Exception("OpenAI API请求频率过高，请稍后重试")
+        except openai.InternalServerError as e:
+            logger.error(f"OpenAI服务器错误: {str(e)}")
+            raise Exception("OpenAI服务器暂时不可用，请稍后重试")
         except Exception as e:
-            logger.error(f"OpenAI API调用失败: {str(e)}")
-            raise
+            logger.error(f"OpenAI API调用异常: {str(e)}")
+            raise Exception(f"OpenAI API调用失败: {str(e)}")
 
     async def _openai_responses_completion(
         self,
@@ -95,18 +119,33 @@ class AIProviderService:
         thinking_mode: bool = False
     ) -> Dict[str, Any]:
         """OpenAI Responses API 调用"""
-        client = openai.AsyncOpenAI(api_key=api_key)
-        
-        # 构建 Responses API 请求
-        response = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            # Responses API 特有参数
-            modalities=["text"],
-            temperature=0.7
-        )
-        
-        return response.model_dump()
+        try:
+            client = openai.AsyncOpenAI(
+                api_key=api_key,
+                timeout=self.timeout
+            )
+            
+            logger.info(f"调用OpenAI Responses API模型: {model}")
+            
+            # 构建 Responses API 请求
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    # Responses API 特有参数
+                    modalities=["text"],
+                    temperature=0.7
+                ),
+                timeout=self.timeout
+            )
+            
+            result = response.model_dump()
+            logger.info(f"OpenAI Responses API调用成功")
+            return result
+            
+        except Exception as e:
+            logger.error(f"OpenAI Responses API调用失败: {str(e)}")
+            raise Exception(f"OpenAI Responses API调用失败: {str(e)}")
 
     async def _anthropic_completion(
         self,
@@ -116,40 +155,47 @@ class AIProviderService:
         thinking_mode: bool = False
     ) -> Dict[str, Any]:
         """Anthropic Claude API 调用"""
-        logger.info(f"调用Anthropic API: model={model}")
-        
         try:
-            client = anthropic.AsyncAnthropic(api_key=api_key)
+            client = anthropic.AsyncAnthropic(
+                api_key=api_key,
+                timeout=self.timeout
+            )
+            
+            logger.info(f"调用Anthropic模型: {model}")
             
             system_message = ""
-            anthropic_messages = []
+            user_messages = []
             
             for msg in messages:
                 if msg["role"] == "system":
                     system_message = msg["content"]
                 else:
-                    anthropic_messages.append({
-                        "role": msg["role"],
-                        "content": msg["content"]
-                    })
+                    user_messages.append(msg)
             
-            if thinking_mode:
-                system_message += "\n\nPlease think through this step by step before providing your final answer."
+            kwargs = {
+                "model": model,
+                "max_tokens": 4000,
+                "messages": user_messages,
+                "temperature": 0.7
+            }
             
-            response = await client.messages.create(
-                model=model,
-                max_tokens=4000,
-                system=system_message,
-                messages=anthropic_messages
+            if system_message:
+                kwargs["system"] = system_message
+            
+            response = await asyncio.wait_for(
+                client.messages.create(**kwargs),
+                timeout=self.timeout
             )
             
+            # 转换为OpenAI格式
             result = {
-                "id": response.id,
+                "id": f"msg_{response.id}",
                 "choices": [{
                     "message": {
                         "role": "assistant",
-                        "content": response.content[0].text
-                    }
+                        "content": response.content[0].text if response.content else ""
+                    },
+                    "finish_reason": "stop"
                 }],
                 "usage": {
                     "prompt_tokens": response.usage.input_tokens,
@@ -157,11 +203,16 @@ class AIProviderService:
                     "total_tokens": response.usage.input_tokens + response.usage.output_tokens
                 }
             }
-            logger.info("Anthropic API调用成功")
+            
+            logger.info(f"Anthropic API调用成功")
             return result
+            
+        except anthropic.AuthenticationError as e:
+            logger.error(f"Anthropic认证失败: {str(e)}")
+            raise Exception("Anthropic API密钥无效，请检查您的API密钥")
         except Exception as e:
             logger.error(f"Anthropic API调用失败: {str(e)}")
-            raise
+            raise Exception(f"Anthropic API调用失败: {str(e)}")
 
     async def _google_completion(
         self,
@@ -171,47 +222,52 @@ class AIProviderService:
         thinking_mode: bool = False
     ) -> Dict[str, Any]:
         """Google Gemini API 调用"""
-        logger.info(f"调用Google API: model={model}")
-        
         try:
             genai.configure(api_key=api_key)
-            model_instance = genai.GenerativeModel(model)
+            
+            logger.info(f"调用Google模型: {model}")
             
             # 转换消息格式
-            chat_history = []
-            for msg in messages[:-1]:  # 除了最后一条消息
+            history = []
+            for msg in messages[:-1]:  # 除最后一条消息外的历史
                 if msg["role"] == "user":
-                    chat_history.append({"role": "user", "parts": [msg["content"]]})
+                    history.append({"role": "user", "parts": [msg["content"]]})
                 elif msg["role"] == "assistant":
-                    chat_history.append({"role": "model", "parts": [msg["content"]]})
+                    history.append({"role": "model", "parts": [msg["content"]]})
             
-            # 最后一条用户消息
+            model_instance = genai.GenerativeModel(model)
+            chat = model_instance.start_chat(history=history)
+            
+            # 发送最后一条用户消息
             user_message = messages[-1]["content"]
-            if thinking_mode:
-                user_message = f"Please think through this step by step before providing your final answer.\n\n{user_message}"
+            response = await asyncio.wait_for(
+                chat.send_message_async(user_message),
+                timeout=self.timeout
+            )
             
-            chat = model_instance.start_chat(history=chat_history)
-            response = await chat.send_message_async(user_message)
-            
+            # 转换为OpenAI格式
             result = {
-                "id": f"gemini_{hash(response.text)}",
+                "id": f"gemini_{hash(response.text) % 1000000}",
                 "choices": [{
                     "message": {
                         "role": "assistant",
                         "content": response.text
-                    }
+                    },
+                    "finish_reason": "stop"
                 }],
                 "usage": {
-                    "prompt_tokens": 0,  # Gemini API 不提供具体 token 计数
+                    "prompt_tokens": 0,  # Google API不提供token计数
                     "completion_tokens": 0,
                     "total_tokens": 0
                 }
             }
-            logger.info("Google API调用成功")
+            
+            logger.info(f"Google API调用成功")
             return result
+            
         except Exception as e:
             logger.error(f"Google API调用失败: {str(e)}")
-            raise
+            raise Exception(f"Google API调用失败: {str(e)}")
 
     async def stream_completion(
         self,
@@ -221,33 +277,20 @@ class AIProviderService:
         api_key: str,
         thinking_mode: bool = False
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        """流式完成 - 为WebSocket提供支持"""
-        logger.info(f"开始流式处理: provider={provider}, model={model}")
+        """流式完成（WebSocket使用）"""
+        logger.info(f"开始流式调用 {provider} API")
         
         try:
             if provider == "openai":
                 async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode):
                     yield chunk
-            elif provider == "anthropic":
-                async for chunk in self._anthropic_stream_completion(model, messages, api_key, thinking_mode):
-                    yield chunk
             else:
-                # 对于不支持流式的提供商，模拟流式响应
+                # 其他提供商暂不支持流式
                 response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode)
-                content = response["choices"][0]["message"]["content"]
+                yield response
                 
-                # 分块发送
-                words = content.split()
-                for i, word in enumerate(words):
-                    yield {
-                        "choices": [{
-                            "delta": {
-                                "content": word + " " if i < len(words) - 1 else word
-                            }
-                        }]
-                    }
         except Exception as e:
-            logger.error(f"流式处理失败: {str(e)}")
+            logger.error(f"流式调用失败: {str(e)}")
             yield {"error": str(e)}
 
     async def _openai_stream_completion(
@@ -257,57 +300,24 @@ class AIProviderService:
         api_key: str,
         thinking_mode: bool = False
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        """OpenAI 流式完成"""
-        client = openai.AsyncOpenAI(api_key=api_key)
-        
-        stream = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            stream=True,
-            temperature=0.7,
-            max_tokens=4000
-        )
-        
-        async for chunk in stream:
-            yield chunk.model_dump()
-
-    async def _anthropic_stream_completion(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        api_key: str,
-        thinking_mode: bool = False
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        """Anthropic 流式完成"""
-        client = anthropic.AsyncAnthropic(api_key=api_key)
-        
-        system_message = ""
-        anthropic_messages = []
-        
-        for msg in messages:
-            if msg["role"] == "system":
-                system_message = msg["content"]
-            else:
-                anthropic_messages.append({
-                    "role": msg["role"],
-                    "content": msg["content"]
-                })
-        
-        if thinking_mode:
-            system_message += "\n\nPlease think through this step by step before providing your final answer."
-        
-        async with client.messages.stream(
-            model=model,
-            max_tokens=4000,
-            system=system_message,
-            messages=anthropic_messages
-        ) as stream:
+        """OpenAI流式完成"""
+        try:
+            client = openai.AsyncOpenAI(
+                api_key=api_key,
+                timeout=self.timeout
+            )
+            
+            stream = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                stream=True,
+                temperature=0.7,
+                max_tokens=4000
+            )
+            
             async for chunk in stream:
-                if chunk.type == "content_block_delta":
-                    yield {
-                        "choices": [{
-                            "delta": {
-                                "content": chunk.delta.text
-                            }
-                        }]
-                    }
+                yield chunk.model_dump()
+                
+        except Exception as e:
+            logger.error(f"OpenAI流式调用失败: {str(e)}")
+            yield {"error": str(e)}
