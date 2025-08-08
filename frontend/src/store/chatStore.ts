@@ -1,3 +1,5 @@
+'use client'
+
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ChatMessage, Conversation } from '@/lib/types'
@@ -62,9 +64,33 @@ export const useChatStore = create<ChatState>()(
       sendMessage: async (content: string) => {
         const { currentConversation } = get()
         const settings = useSettingsStore.getState().settings
+        let newConversationId: string | null = null
 
+        // 检查配置
+        if (!settings.chatProvider || !settings.chatModel) {
+          throw new Error('请先在设置中配置AI模型')
+        }
+
+        const apiKey = settings.apiKeys[settings.chatProvider]
+        if (!apiKey) {
+          throw new Error(`请先在设置中配置${settings.chatProvider}的API密钥`)
+        }
+
+        // 如果没有当前对话，创建新对话
         if (!currentConversation) {
-          get().createNewConversation()
+          const newConversation: Conversation = {
+            id: generateId(),
+            title: '新对话',
+            messages: [],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+          newConversationId = newConversation.id
+
+          set(state => ({
+            conversations: [newConversation, ...state.conversations],
+            currentConversationId: newConversation.id
+          }))
         }
 
         // 添加用户消息
@@ -93,15 +119,6 @@ export const useChatStore = create<ChatState>()(
         try {
           const { currentConversation: updatedConversation } = get()
           if (!updatedConversation) return
-
-          if (!settings.chatProvider || !settings.chatModel) {
-            throw new Error('请先在设置中配置AI模型')
-          }
-
-          const apiKey = settings.apiKeys[settings.chatProvider]
-          if (!apiKey) {
-            throw new Error(`请先在设置中配置${settings.chatProvider}的API密钥`)
-          }
 
           const messages = updatedConversation.messages.map(msg => ({
             role: msg.role,
@@ -166,26 +183,40 @@ export const useChatStore = create<ChatState>()(
           } else {
             console.error('发送消息失败:', error)
             
-            const errorMessage: ChatMessage = {
-              role: 'assistant',
-              content: `错误: ${error.message}`,
-              timestamp: new Date().toISOString()
-            }
+            // 如果是新创建的对话且发生错误，删除这个对话
+            if (newConversationId) {
+              set(state => ({
+                conversations: state.conversations.filter(conv => conv.id !== newConversationId),
+                currentConversationId: null,
+                isLoading: false,
+                abortController: null
+              }))
+            } else {
+              // 如果是已有对话，添加错误消息
+              const errorMessage: ChatMessage = {
+                role: 'assistant',
+                content: `错误: ${error.message}`,
+                timestamp: new Date().toISOString()
+              }
 
-            set(state => ({
-              conversations: state.conversations.map(conv =>
-                conv.id === state.currentConversationId
-                  ? {
-                      ...conv,
-                      messages: [...conv.messages, errorMessage],
-                      updated_at: new Date().toISOString()
-                    }
-                  : conv
-              )
-            }))
+              set(state => ({
+                conversations: state.conversations.map(conv =>
+                  conv.id === state.currentConversationId
+                    ? {
+                        ...conv,
+                        messages: [...conv.messages, errorMessage],
+                        updated_at: new Date().toISOString()
+                      }
+                    : conv
+                ),
+                isLoading: false,
+                abortController: null
+              }))
+            }
           }
 
-          set({ isLoading: false, abortController: null })
+          // 重新抛出错误让InputArea处理toast提示
+          throw error
         }
       },
 
