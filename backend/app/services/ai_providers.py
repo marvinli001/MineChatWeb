@@ -54,6 +54,10 @@ class AIProviderService:
         ]
         return model in responses_api_models
 
+    def _is_gpt5_model(self, model: str) -> bool:
+        """判断是否为 GPT-5 系列模型"""
+        return model.startswith('gpt-5') or model.startswith('o3')
+
     async def _openai_chat_completion(
         self,
         model: str,
@@ -83,14 +87,22 @@ class AIProviderService:
                     timeout=self.timeout
                 )
             else:
+                # 根据模型类型选择合适的参数
+                completion_params = {
+                    "model": model,
+                    "messages": messages,
+                    "stream": stream,
+                    "temperature": 0.7
+                }
+                
+                # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
+                if self._is_gpt5_model(model):
+                    completion_params["max_completion_tokens"] = 4000
+                else:
+                    completion_params["max_tokens"] = 4000
+                
                 response = await asyncio.wait_for(
-                    client.chat.completions.create(
-                        model=model,
-                        messages=messages,
-                        stream=stream,
-                        temperature=0.7,
-                        max_tokens=4000
-                    ),
+                    client.chat.completions.create(**completion_params),
                     timeout=self.timeout
                 )
             
@@ -307,13 +319,21 @@ class AIProviderService:
                 timeout=self.timeout
             )
             
-            stream = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-                stream=True,
-                temperature=0.7,
-                max_tokens=4000
-            )
+            # 根据模型类型选择合适的参数
+            stream_params = {
+                "model": model,
+                "messages": messages,
+                "stream": True,
+                "temperature": 0.7
+            }
+            
+            # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
+            if self._is_gpt5_model(model):
+                stream_params["max_completion_tokens"] = 4000
+            else:
+                stream_params["max_tokens"] = 4000
+            
+            stream = await client.chat.completions.create(**stream_params)
             
             async for chunk in stream:
                 yield chunk.model_dump()
