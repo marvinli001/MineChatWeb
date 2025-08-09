@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
+import { modelConfigService, ProviderConfig } from '@/services/modelConfigService'
 
 export default function ModelSettings() {
   const { settings, updateSettings } = useSettingsStore()
-  const [providers, setProviders] = useState<any[]>([])
+  const [providers, setProviders] = useState<Record<string, ProviderConfig>>({})
   const [models, setModels] = useState<string[]>([])
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     fetchProviders()
@@ -22,26 +24,37 @@ export default function ModelSettings() {
 
   const fetchProviders = async () => {
     try {
-      const response = await fetch('/api/v1/chat/providers')
-      const data = await response.json()
-      setProviders(data.providers)
+      setLoading(true)
+      const providersData = await modelConfigService.getProviders()
+      setProviders(providersData)
     } catch (error) {
       console.error('获取提供商列表失败:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
   const fetchModels = async (provider: string) => {
     try {
-      const response = await fetch(`/api/v1/chat/models/${provider}`)
-      const data = await response.json()
-      setModels(data.models)
+      const modelsData = await modelConfigService.getProviderModels(provider)
+      setModels(Object.keys(modelsData))
     } catch (error) {
       console.error('获取模型列表失败:', error)
     }
   }
 
-  const currentProvider = providers.find(p => p.id === settings.chatProvider)
+  const currentProvider = providers[settings.chatProvider || '']
   const supportsThinking = currentProvider?.supports_thinking || false
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -71,8 +84,8 @@ export default function ModelSettings() {
               }}
             >
               <option value="">请选择提供商</option>
-              {providers.map((provider) => (
-                <option key={provider.id} value={provider.id}>
+              {Object.entries(providers).map(([providerId, provider]) => (
+                <option key={providerId} value={providerId}>
                   {provider.name}
                 </option>
               ))}
@@ -108,110 +121,22 @@ export default function ModelSettings() {
               onChange={(e) => updateSettings({ thinkingMode: e.target.checked })}
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
             />
-            <label htmlFor="thinking-mode" className="text-sm text-gray-700 dark:text-gray-300">
-              启用思考模式 (显示AI的推理过程)
+            <label htmlFor="thinking-mode" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              启用思考模式
             </label>
           </div>
         )}
       </div>
 
-      {/* 语音模型设置 */}
-      <div className="space-y-4">
-        <h4 className="font-medium text-gray-900 dark:text-white">语音模型</h4>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              语音提供商
-            </label>
-            <Select
-              value={settings.voiceProvider || ''}
-              onValueChange={(value) => updateSettings({ voiceProvider: value })}
-            >
-              <option value="">请选择提供商</option>
-              <option value="openai">OpenAI</option>
-              <option value="azure">Azure Speech</option>
-              <option value="google">Google Cloud</option>
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              语音类型
-            </label>
-            <Select
-              value={settings.voiceModel || ''}
-              onValueChange={(value) => updateSettings({ voiceModel: value })}
-              disabled={!settings.voiceProvider}
-            >
-              <option value="">请选择语音</option>
-              <option value="alloy">Alloy (中性)</option>
-              <option value="echo">Echo (男性)</option>
-              <option value="fable">Fable (中性)</option>
-              <option value="onyx">Onyx (男性)</option>
-              <option value="nova">Nova (女性)</option>
-              <option value="shimmer">Shimmer (女性)</option>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* 图片模型设置 */}
-      <div className="space-y-4">
-        <h4 className="font-medium text-gray-900 dark:text-white">图片模型</h4>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              图片提供商
-            </label>
-            <Select
-              value={settings.imageProvider || ''}
-              onValueChange={(value) => updateSettings({ imageProvider: value })}
-            >
-              <option value="">请选择提供商</option>
-              <option value="openai">OpenAI DALL-E</option>
-              <option value="midjourney">Midjourney</option>
-              <option value="stability">Stability AI</option>
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              图片模型
-            </label>
-            <Select
-              value={settings.imageModel || ''}
-              onValueChange={(value) => updateSettings({ imageModel: value })}
-              disabled={!settings.imageProvider}
-            >
-              <option value="">请选择模型</option>
-              <option value="dall-e-3">DALL-E 3</option>
-              <option value="dall-e-2">DALL-E 2</option>
-            </Select>
-          </div>
-        </div>
-      </div>
-
-      {/* 测试按钮 */}
-      <div className="flex gap-3">
+      {/* 刷新配置按钮 */}
+      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
         <Button
+          onClick={fetchProviders}
           variant="outline"
-          disabled={!settings.chatProvider || !settings.chatModel}
-          onClick={() => {
-            // 测试对话模型
-          }}
+          size="sm"
+          disabled={loading}
         >
-          测试对话模型
-        </Button>
-        <Button
-          variant="outline"
-          disabled={!settings.voiceProvider}
-          onClick={() => {
-            // 测试语音模型
-          }}
-        >
-          测试语音模型
+          {loading ? '刷新中...' : '刷新模型配置'}
         </Button>
       </div>
     </div>
