@@ -5,6 +5,8 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ClipboardIcon, CheckIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline'
 import { ChatMessage } from '@/lib/types'
+import { useSettingsStore } from '@/store/settingsStore'
+import { modelConfigService } from '@/services/modelConfigService'
 import toast from 'react-hot-toast'
 
 interface MessageItemProps {
@@ -15,6 +17,19 @@ interface MessageItemProps {
 export default function MessageItem({ message, isLast }: MessageItemProps) {
   const [copied, setCopied] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [currentModelIcon, setCurrentModelIcon] = useState<string | null>(null)
+  const { settings } = useSettingsStore()
+
+  // 获取当前模型的icon
+  useEffect(() => {
+    const loadModelIcon = async () => {
+      if (settings.chatProvider && settings.chatModel) {
+        const modelConfig = await modelConfigService.getModelConfig(settings.chatProvider, settings.chatModel)
+        setCurrentModelIcon((modelConfig as any)?.icon || null)
+      }
+    }
+    loadModelIcon()
+  }, [settings.chatProvider, settings.chatModel])
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -95,9 +110,24 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
       ) : (
         // AI消息 - 左侧对齐，OpenAI风格
         <div className="flex gap-3 group">
-          {/* AI头像 */}
-          <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
-            🤖
+          {/* AI头像 - 使用模型的icon */}
+          <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {currentModelIcon ? (
+              <img 
+                src={currentModelIcon} 
+                alt="AI Model" 
+                className="w-6 h-6 object-contain"
+                onError={(e) => {
+                  // 如果图片加载失败，显示默认emoji
+                  const target = e.target as HTMLImageElement
+                  target.style.display = 'none'
+                  target.nextElementSibling!.textContent = '🤖'
+                }}
+              />
+            ) : (
+              <span className="text-sm">🤖</span>
+            )}
+            <span className="text-sm hidden">🤖</span>
           </div>
 
           {/* 消息内容 */}
@@ -130,7 +160,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                                 {...props}
                               />
                               <button
-                                onClick={() => copyToClipboard(typeof children === 'string' ? children : (children as any)?.props?.children || '')}
+                                onClick={() => copyToClipboard(typeof children === 'string' ? children : String(children))}
                                 className="absolute top-2 right-2 p-1.5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                                 title="复制代码"
                               >
@@ -142,16 +172,17 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                               </button>
                             </div>
                           ),
-                          code: ({ node, className, ...props }) => (
-                            className ? (
-                              <code {...props} />
-                            ) : (
+                          code: ({ node, ...props }) => {
+                            const { inline, ...restProps } = props as any
+                            return inline ? (
                               <code
                                 className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-sm border border-gray-200 dark:border-gray-600"
-                                {...props}
+                                {...restProps}
                               />
+                            ) : (
+                              <code {...restProps} />
                             )
-                          ),
+                          },
                           table: ({ node, ...props }) => (
                             <div className="overflow-x-auto my-4">
                               <table
