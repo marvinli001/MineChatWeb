@@ -22,7 +22,7 @@ export default function ChatMain({ onModelMarketClick }: ChatMainProps) {
     scrollToBottom()
   }, [currentConversation?.messages])
 
-  if (!currentConversation) {
+  if (!currentConversation || currentConversation.messages.length === 0) {
     return (
       <div className="flex flex-col h-full bg-white dark:bg-gray-900">
         {/* 主内容区域 - 居中显示欢迎信息和输入框 */}
