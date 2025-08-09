@@ -10,7 +10,7 @@
         "gpt-4o": {
           "name": "GPT-4o",
           "description": "最新的 GPT-4 模型，支持多模态",
-          "icon": "https://cdn.oaistatic.com/_next/static/media/openai-logomark.3b794749.svg",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4o.png",
           "api_type": "chat_completions",
           "context_length": 128000,
           "supports_vision": true,
@@ -23,7 +23,7 @@
         "gpt-4o-mini": {
           "name": "GPT-4o Mini",
           "description": "轻量级 GPT-4 模型，速度更快",
-          "icon": "https://cdn.oaistatic.com/_next/static/media/openai-logomark.3b794749.svg",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4o-mini.png",
           "api_type": "chat_completions",
           "context_length": 128000,
           "supports_vision": true,
