@@ -1,6 +1,6 @@
 {
-  "version": "d972cb8",
-  "last_updated": "2025-01-09T17:07:43Z",
+  "version": "7a48021",
+  "last_updated": "2025-08-09T21:15:43Z",
   "providers": {
     "openai": {
       "name": "OpenAI",
@@ -260,8 +260,8 @@
           "supports_vision": true,
           "supports_function_calling": true,
           "pricing": {
-            "input": 3.0,
-            "output": 15.0
+            "input": 15.0,
+            "output": 75.0
           }
         },
         "claude-opus-4-0": {
@@ -286,8 +286,8 @@
           "supports_vision": true,
           "supports_function_calling": true,
           "pricing": {
-            "input": 0.25,
-            "output": 1.25
+            "input": 3.0,
+            "output": 15.0
           }
         }
       }
