@@ -126,6 +126,15 @@ export const useChatStore = create<ChatState>()(
           }))
 
           // 修改：使用正确的后端地址
+          console.log('准备发送请求到:', '/api/v1/chat/completion')
+          console.log('请求体:', {
+            provider: settings.chatProvider,
+            model: settings.chatModel,
+            messages,
+            api_key: apiKey ? '已配置' : '未配置'
+          })
+
+          // 修改：使用正确的后端地址
           const response = await fetch('/api/v1/chat/completion', {
             method: 'POST',
             headers: {
@@ -141,6 +150,9 @@ export const useChatStore = create<ChatState>()(
             }),
             signal: abortController.signal
           })
+
+          console.log('响应状态:', response.status)
+          console.log('响应头:', Object.fromEntries(response.headers.entries()))
 
           if (!response.ok) {
             const errorText = await response.text()
