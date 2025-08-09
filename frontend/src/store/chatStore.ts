@@ -14,10 +14,15 @@ interface ChatState {
   createNewConversation: () => void
   setCurrentConversation: (id: string) => void
   sendMessage: (content: string) => Promise<void>
+  _sendMessageWithStreaming: (content: string, targetConversationId: string, settings: any, apiKey: string) => Promise<void>
+  _sendMessageNormal: (content: string, targetConversationId: string, settings: any, apiKey: string) => Promise<void>
   stopGeneration: () => void
   deleteConversation: (id: string) => void
   updateConversationTitle: (id: string, title: string) => void
   clearAllConversations: () => void
+  syncToCloud: () => Promise<void>
+  syncFromCloud: () => Promise<void>
+  regenerateLastMessage: () => Promise<void>
 }
 
 export const useChatStore = create<ChatState>()(
@@ -82,8 +87,9 @@ export const useChatStore = create<ChatState>()(
       },
 
       sendMessage: async (content: string) => {
-        // 动态导入 settingsStore 以避免循环依赖
+        // 动态导入 settingsStore 和 modelConfigService 以避免循环依赖
         const { useSettingsStore } = await import('./settingsStore')
+        const { modelConfigService } = await import('../services/modelConfigService')
         const settings = useSettingsStore.getState().settings
         
         const { conversations, currentConversationId } = get()
@@ -113,11 +119,165 @@ export const useChatStore = create<ChatState>()(
           throw new Error(`请先配置 ${settings.chatProvider} 的 API 密钥`)
         }
 
+        // 检查模型是否支持流式输出
+        const supportsStreaming = await modelConfigService.supportsStreaming(settings.chatProvider, settings.chatModel)
+        
+        if (supportsStreaming && !settings.thinkingMode) {
+          // 使用流式输出
+          await get()._sendMessageWithStreaming(content, targetConversationId, settings, apiKey)
+        } else {
+          // 使用普通输出
+          await get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
+        }
+      },
+
+      _sendMessageWithStreaming: async (content: string, targetConversationId: string, settings: any, apiKey: string) => {
         // 添加用户消息
         const userMessage: ChatMessage = {
+          id: Date.now().toString(),
           role: 'user',
           content,
-          timestamp: new Date().toISOString()
+          created_at: new Date().toISOString()
+        }
+
+        set(state => ({
+          conversations: state.conversations.map(conv =>
+            conv.id === targetConversationId
+              ? {
+                  ...conv,
+                  messages: [...conv.messages, userMessage],
+                  updated_at: new Date().toISOString()
+                }
+              : conv
+          ),
+          isLoading: true
+        }))
+
+        const abortController = new AbortController()
+        set({ abortController })
+
+        try {
+          const { conversations: updatedConversations } = get()
+          const updatedConversation = updatedConversations.find(conv => conv.id === targetConversationId)
+          
+          if (!updatedConversation) {
+            throw new Error('找不到目标对话')
+          }
+
+          const messages = updatedConversation.messages.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          }))
+
+          // 创建流式AI消息
+          const assistantMessage: ChatMessage = {
+            id: Date.now().toString() + '-assistant',
+            role: 'assistant',
+            content: '',
+            created_at: new Date().toISOString()
+          }
+
+          // 添加空的助手消息
+          set(state => ({
+            conversations: state.conversations.map(conv =>
+              conv.id === targetConversationId
+                ? {
+                    ...conv,
+                    messages: [...conv.messages, assistantMessage],
+                    title: conv.messages.length === 1 ? content.slice(0, 20) + '...' : conv.title,
+                    updated_at: new Date().toISOString()
+                  }
+                : conv
+            )
+          }))
+
+          // 建立WebSocket连接
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+          const host = process.env.NODE_ENV === 'production' ? window.location.host : 'localhost:8000'
+          const wsUrl = `${protocol}//${host}/api/v1/chat/stream`
+          const ws = new WebSocket(wsUrl)
+
+          ws.onopen = () => {
+            const request = {
+              provider: settings.chatProvider,
+              model: settings.chatModel,
+              messages,
+              api_key: apiKey,
+              thinking_mode: settings.thinkingMode || false
+            }
+            ws.send(JSON.stringify(request))
+          }
+
+          ws.onmessage = (event) => {
+            try {
+              const chunk = JSON.parse(event.data)
+              
+              if (chunk.error) {
+                throw new Error(chunk.error)
+              }
+
+              if (chunk.choices && chunk.choices[0]?.delta?.content) {
+                const deltaContent = chunk.choices[0].delta.content
+                
+                // 更新流式内容
+                set(state => ({
+                  conversations: state.conversations.map(conv =>
+                    conv.id === targetConversationId
+                      ? {
+                          ...conv,
+                          messages: conv.messages.map(msg =>
+                            msg.id === assistantMessage.id
+                              ? { ...msg, content: msg.content + deltaContent }
+                              : msg
+                          ),
+                          updated_at: new Date().toISOString()
+                        }
+                      : conv
+                  )
+                }))
+              }
+
+              // 如果流式传输完成
+              if (chunk.choices && chunk.choices[0]?.finish_reason) {
+                ws.close()
+                set({ isLoading: false, abortController: null })
+              }
+            } catch (error) {
+              console.error('解析流式响应失败:', error)
+            }
+          }
+
+          ws.onerror = (error) => {
+            console.error('WebSocket错误:', error)
+            set({ isLoading: false, abortController: null })
+            throw new Error('流式连接失败')
+          }
+
+          ws.onclose = () => {
+            set({ isLoading: false, abortController: null })
+          }
+
+          // 设置abort信号处理
+          abortController.signal.addEventListener('abort', () => {
+            ws.close()
+            set({ isLoading: false, abortController: null })
+          })
+
+        } catch (error: any) {
+          console.error('流式发送消息失败:', error)
+          set({ isLoading: false, abortController: null })
+          throw error
+        }
+      },
+
+      _sendMessageNormal: async (content: string, targetConversationId: string, settings: any, apiKey: string) => {
+
+        // 添加用户消息
+        const userMessage: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'user',
+          content,
+          created_at: new Date().toISOString()
         }
 
         set(state => ({
@@ -189,9 +349,10 @@ export const useChatStore = create<ChatState>()(
           }
 
           const assistantMessage: ChatMessage = {
+            id: Date.now().toString() + '-assistant',
             role: 'assistant',
             content: assistantContent,
-            timestamp: new Date().toISOString()
+            created_at: new Date().toISOString()
           }
 
           set(state => {
@@ -249,6 +410,118 @@ export const useChatStore = create<ChatState>()(
           console.error('发送消息失败:', error)
           set({ isLoading: false, abortController: null })
           throw error
+        }
+      },
+
+      syncToCloud: async () => {
+        const { useSettingsStore } = await import('./settingsStore')
+        const settings = useSettingsStore.getState().settings
+        
+        if (!settings.cloudflareConfig?.accountId || !settings.cloudflareConfig?.databaseId || !settings.cloudflareConfig?.apiToken) {
+          throw new Error('请先配置Cloudflare信息')
+        }
+
+        try {
+          const response = await fetch('/api/v1/sync/upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              cloudflare_config: {
+                accountId: settings.cloudflareConfig.accountId,
+                databaseId: settings.cloudflareConfig.databaseId,
+                apiToken: settings.cloudflareConfig.apiToken
+              },
+              conversations: get().conversations
+            })
+          })
+
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(errorText || '同步到云端失败')
+          }
+        } catch (error: any) {
+          console.error('云端同步失败:', error)
+          throw error
+        }
+      },
+
+      syncFromCloud: async () => {
+        const { useSettingsStore } = await import('./settingsStore')
+        const settings = useSettingsStore.getState().settings
+        
+        if (!settings.cloudflareConfig?.accountId || !settings.cloudflareConfig?.databaseId || !settings.cloudflareConfig?.apiToken) {
+          throw new Error('请先配置Cloudflare信息')
+        }
+
+        try {
+          const response = await fetch('/api/v1/sync/download', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              cloudflare_config: {
+                accountId: settings.cloudflareConfig.accountId,
+                databaseId: settings.cloudflareConfig.databaseId,
+                apiToken: settings.cloudflareConfig.apiToken
+              }
+            })
+          })
+
+          if (!response.ok) {
+            const errorText = await response.text()
+            throw new Error(errorText || '从云端同步失败')
+          }
+
+          const data = await response.json()
+          if (data.conversations) {
+            set({ conversations: data.conversations })
+          }
+        } catch (error: any) {
+          console.error('从云端同步失败:', error)
+          throw error
+        }
+      },
+
+      regenerateLastMessage: async () => {
+        const { conversations, currentConversationId } = get()
+        const currentConversation = conversations.find(conv => conv.id === currentConversationId)
+        
+        if (!currentConversation || currentConversation.messages.length === 0) {
+          throw new Error('没有可重新生成的消息')
+        }
+
+        // 找到最后一条助手消息
+        const lastAssistantIndex = currentConversation.messages.map((msg, idx) => ({ msg, idx }))
+          .reverse()
+          .find(({ msg }) => msg.role === 'assistant')?.idx
+
+        if (lastAssistantIndex === undefined) {
+          throw new Error('没有找到助手消息')
+        }
+
+        // 移除最后一条助手消息
+        const messagesWithoutLast = currentConversation.messages.slice(0, lastAssistantIndex)
+        
+        // 更新对话状态
+        set(state => ({
+          conversations: state.conversations.map(conv =>
+            conv.id === currentConversationId
+              ? { ...conv, messages: messagesWithoutLast }
+              : conv
+          )
+        }))
+
+        // 重新发送最后一条用户消息
+        const lastUserMessage = messagesWithoutLast
+          .slice()
+          .reverse()
+          .find(msg => msg.role === 'user')
+
+        if (lastUserMessage) {
+          await get().sendMessage(lastUserMessage.content)
         }
       }
     }),

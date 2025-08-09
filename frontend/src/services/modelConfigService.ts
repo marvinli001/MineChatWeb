@@ -6,6 +6,7 @@ export interface ModelConfig {
   supports_vision: boolean
   supports_function_calling: boolean
   supports_thinking?: boolean
+  supports_streaming?: boolean
   pricing: {
     input: number
     output: number
@@ -90,17 +91,56 @@ class ModelConfigService {
   }
 
   // OpenAI 模型 API 类型判断
-  isOpenAIResponsesAPI(modelId: string): boolean {
-    const responsesAPIModels = [
-      'chatgpt-4o-latest',
-      'gpt-4o-realtime-preview',
-      'gpt-4o-realtime-preview-2024-10-01'
-    ]
-    return responsesAPIModels.includes(modelId)
+  async isOpenAIResponsesAPI(modelId: string): Promise<boolean> {
+    try {
+      const config = await this.loadConfig()
+      const openaiModels = config.providers.openai?.models || {}
+      const modelConfig = openaiModels[modelId]
+      return modelConfig?.api_type === 'responses'
+    } catch (error) {
+      console.warn('无法检查模型API类型，使用回退逻辑:', error)
+      const responsesAPIModels = [
+        'chatgpt-4o-latest',
+        'gpt-4o-realtime-preview',
+        'gpt-4o-realtime-preview-2024-10-01',
+        'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest',
+        'gpt-4o', 'gpt-4o-mini',
+        'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
+        'o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini'
+      ]
+      return responsesAPIModels.includes(modelId)
+    }
   }
 
-  isOpenAIChatCompletionsAPI(modelId: string): boolean {
-    return !this.isOpenAIResponsesAPI(modelId)
+  async isOpenAIChatCompletionsAPI(modelId: string): Promise<boolean> {
+    return !(await this.isOpenAIResponsesAPI(modelId))
+  }
+
+  // 检查模型是否支持流式输出
+  async supportsStreaming(providerId: string, modelId: string): Promise<boolean> {
+    try {
+      const modelConfig = await this.getModelConfig(providerId, modelId)
+      return modelConfig?.supports_streaming || false
+    } catch (error) {
+      console.warn('无法检查模型流式支持，使用回退逻辑:', error)
+      // 对于OpenAI，除了thinking模型外，默认支持流式
+      if (providerId === 'openai') {
+        const thinkingModels = ['o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini']
+        return !thinkingModels.includes(modelId)
+      }
+      return false
+    }
+  }
+
+  // 检查模型是否为思考模型
+  async isThinkingModel(providerId: string, modelId: string): Promise<boolean> {
+    try {
+      const modelConfig = await this.getModelConfig(providerId, modelId)
+      return modelConfig?.supports_thinking || false
+    } catch (error) {
+      console.warn('无法检查模型思考支持:', error)
+      return false
+    }
   }
 
   // 刷新配置
