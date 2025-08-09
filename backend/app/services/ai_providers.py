@@ -54,6 +54,58 @@ class AIProviderService:
         ]
         return model in responses_api_models
 
+    def _uses_max_completion_tokens(self, model: str) -> bool:
+        """判断模型是否使用 max_completion_tokens 参数"""
+        # 新模型列表，需要使用 max_completion_tokens
+        new_models = [
+            'gpt-5',
+            'gpt-5-turbo',
+        ]
+        # 检查是否是 gpt-5 系列模型
+        return any(model.startswith(prefix) for prefix in ['gpt-5']) or model in new_models
+
+    async def _make_openai_call_with_retry(self, client, **kwargs):
+        """使用重试逻辑进行 OpenAI API 调用，自动处理 max_tokens 参数错误"""
+        model = kwargs.get('model', '')
+        
+        # 首先尝试使用适当的参数
+        if self._uses_max_completion_tokens(model):
+            # 对于新模型，使用 max_completion_tokens
+            if 'max_tokens' in kwargs:
+                kwargs['max_completion_tokens'] = kwargs.pop('max_tokens')
+        
+        try:
+            # 首次尝试
+            return await asyncio.wait_for(
+                client.chat.completions.create(**kwargs),
+                timeout=self.timeout
+            )
+        except Exception as e:
+            error_msg = str(e).lower()
+            
+            # 如果遇到不支持 max_tokens 的错误，尝试使用 max_completion_tokens
+            if "unsupported parameter" in error_msg and "max_tokens" in error_msg:
+                logger.info(f"检测到 max_tokens 参数不支持，尝试使用 max_completion_tokens")
+                if 'max_tokens' in kwargs:
+                    kwargs['max_completion_tokens'] = kwargs.pop('max_tokens')
+                    return await asyncio.wait_for(
+                        client.chat.completions.create(**kwargs),
+                        timeout=self.timeout
+                    )
+            
+            # 如果遇到不支持 max_completion_tokens 的错误，尝试使用 max_tokens
+            elif "unsupported parameter" in error_msg and "max_completion_tokens" in error_msg:
+                logger.info(f"检测到 max_completion_tokens 参数不支持，尝试使用 max_tokens")
+                if 'max_completion_tokens' in kwargs:
+                    kwargs['max_tokens'] = kwargs.pop('max_completion_tokens')
+                    return await asyncio.wait_for(
+                        client.chat.completions.create(**kwargs),
+                        timeout=self.timeout
+                    )
+            
+            # 重新抛出原始错误
+            raise e
+
     async def _openai_chat_completion(
         self,
         model: str,
@@ -75,23 +127,19 @@ class AIProviderService:
             if thinking_mode and model in ["o1-preview", "o1-mini"]:
                 filtered_messages = [msg for msg in messages if msg["role"] != "system"]
                 logger.info(f"o1模型过滤后消息数量: {len(filtered_messages)}")
-                response = await asyncio.wait_for(
-                    client.chat.completions.create(
-                        model=model,
-                        messages=filtered_messages
-                    ),
-                    timeout=self.timeout
+                response = await self._make_openai_call_with_retry(
+                    client,
+                    model=model,
+                    messages=filtered_messages
                 )
             else:
-                response = await asyncio.wait_for(
-                    client.chat.completions.create(
-                        model=model,
-                        messages=messages,
-                        stream=stream,
-                        temperature=0.7,
-                        max_tokens=4000
-                    ),
-                    timeout=self.timeout
+                response = await self._make_openai_call_with_retry(
+                    client,
+                    model=model,
+                    messages=messages,
+                    stream=stream,
+                    temperature=0.7,
+                    max_tokens=4000
                 )
             
             result = response.model_dump()
@@ -307,7 +355,9 @@ class AIProviderService:
                 timeout=self.timeout
             )
             
-            stream = await client.chat.completions.create(
+            # 使用重试逻辑创建流式请求
+            stream = await self._make_openai_call_with_retry(
+                client,
                 model=model,
                 messages=messages,
                 stream=True,
