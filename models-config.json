@@ -326,7 +326,7 @@
         "gemini-2.5-flash-lite": {
           "name": "Gemini 2.5 Flash-Lite",
           "description": "Most cost-efficient model supporting high throughput",
-          "icon": "https://www.gstatic.com/lamda/images/favicon_v1_150160cddceaaa54c55a1faafc6d9c5b40e45fc0.png",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/google-gemini-icon.webp",
           "api_type": "generate_content",
           "context_length": 1000000,
           "supports_vision": true,
