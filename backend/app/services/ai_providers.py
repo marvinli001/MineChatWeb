@@ -91,9 +91,12 @@ class AIProviderService:
                 completion_params = {
                     "model": model,
                     "messages": messages,
-                    "stream": stream,
-                    "temperature": 0.7
+                    "stream": stream
                 }
+                
+                # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
+                if not self._is_gpt5_model(model):
+                    completion_params["temperature"] = 0.7
                 
                 # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
                 if self._is_gpt5_model(model):
@@ -139,15 +142,20 @@ class AIProviderService:
             
             logger.info(f"调用OpenAI Responses API模型: {model}")
             
-            # 构建 Responses API 请求
+            # 构建 Responses API 请求参数
+            responses_params = {
+                "model": model,
+                "messages": messages,
+                # Responses API 特有参数
+                "modalities": ["text"]
+            }
+            
+            # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
+            if not self._is_gpt5_model(model):
+                responses_params["temperature"] = 0.7
+            
             response = await asyncio.wait_for(
-                client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    # Responses API 特有参数
-                    modalities=["text"],
-                    temperature=0.7
-                ),
+                client.chat.completions.create(**responses_params),
                 timeout=self.timeout
             )
             
@@ -323,9 +331,12 @@ class AIProviderService:
             stream_params = {
                 "model": model,
                 "messages": messages,
-                "stream": True,
-                "temperature": 0.7
+                "stream": True
             }
+            
+            # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
+            if not self._is_gpt5_model(model):
+                stream_params["temperature"] = 0.7
             
             # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
             if self._is_gpt5_model(model):
