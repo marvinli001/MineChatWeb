@@ -267,7 +267,7 @@
         "claude-opus-4-0": {
           "name": "Claude Opus 4",
           "description": "Our previous flagship model",
-          "icon": "https://anthropic.com/images/favicon.ico",
+          "icon": "https://github.com/marvinli001/MineChatWeb/blob/main/claude-color.png?raw=true",
           "api_type": "messages",
           "context_length": 200000,
           "supports_vision": true,
@@ -280,7 +280,7 @@
         "claude-sonnet-4-0": {
           "name": "Claude Sonnet 4",
           "description": "High-performance model",
-          "icon": "https://anthropic.com/images/favicon.ico",
+          "icon": "https://github.com/marvinli001/MineChatWeb/blob/main/claude-color.png?raw=true",
           "api_type": "messages",
           "context_length": 200000,
           "supports_vision": true,
@@ -300,7 +300,7 @@
         "gemini-2.5-pro": {
           "name": "Gemini 2.5 Pro",
           "description": "Enhanced thinking and reasoning, multimodal understanding, advanced coding, and more",
-          "icon": "https://www.gstatic.com/lamda/images/favicon_v1_150160cddceaaa54c55a1faafc6d9c5b40e45fc0.png",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/google-gemini-icon.webp",
           "api_type": "generate_content",
           "context_length": 1000000,
           "supports_vision": true,
@@ -313,7 +313,7 @@
         "gemini-2.5-flash": {
           "name": "Gemini 2.5 Flash",
           "description": "Adaptive thinking, cost efficiency",
-          "icon": "https://www.gstatic.com/lamda/images/favicon_v1_150160cddceaaa54c55a1faafc6d9c5b40e45fc0.png",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/google-gemini-icon.webp",
           "api_type": "generate_content",
           "context_length": 2000000,
           "supports_vision": true,
@@ -346,7 +346,7 @@
         "deepseek-chat": {
           "name": "DeepSeek Chat",
           "description": "通用对话模型",
-          "icon": "https://api.deepseek.com/favicon.ico",
+          "icon": "https://github.com/marvinli001/MineChatWeb/blob/main/DeepSeek_logo_icon.png?raw=true",
           "api_type": "chat_completions",
           "context_length": 64000,
           "supports_vision": false,
@@ -359,7 +359,7 @@
         "deepseek-reasoner": {
           "name": "DeepSeek Reasoner",
           "description": "专业推理模型",
-          "icon": "https://api.deepseek.com/favicon.ico",
+          "icon": "https://github.com/marvinli001/MineChatWeb/blob/main/DeepSeek_logo_icon.png?raw=true",
           "api_type": "chat_completions",
           "context_length": 64000,
           "supports_vision": false,
