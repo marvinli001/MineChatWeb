@@ -29,7 +29,6 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# 移除严格的响应模型验证
 @router.post("/completion")
 async def chat_completion(request: ChatRequest):
     """处理聊天完成请求，支持多种AI提供商"""
@@ -79,14 +78,41 @@ async def chat_completion(request: ChatRequest):
             logger.error(f"[{request_id}] AI服务响应中缺少choices字段: {response}")
             raise HTTPException(status_code=500, detail="AI服务响应格式错误")
         
-        # 直接返回原始响应，避免Pydantic验证问题
-        return {
+        # 清理和标准化响应数据，避免Pydantic验证问题
+        cleaned_response = {
             "id": response.get("id", f"chatcmpl-{request_id}"),
-            "choices": response.get("choices", []),
-            "usage": response.get("usage", {}),
+            "choices": [],
+            "usage": {},
             "model": request.model,
             "provider": request.provider
         }
+        
+        # 处理choices
+        for choice in response.get("choices", []):
+            cleaned_choice = {
+                "message": choice.get("message", {}),
+                "finish_reason": choice.get("finish_reason", "stop"),
+                "index": choice.get("index", 0)
+            }
+            cleaned_response["choices"].append(cleaned_choice)
+        
+        # 处理usage，移除可能导致验证错误的字段
+        usage = response.get("usage", {})
+        cleaned_usage = {
+            "prompt_tokens": usage.get("prompt_tokens", 0),
+            "completion_tokens": usage.get("completion_tokens", 0),
+            "total_tokens": usage.get("total_tokens", 0)
+        }
+        
+        # 安全地添加details字段
+        if "completion_tokens_details" in usage:
+            cleaned_usage["completion_tokens_details"] = usage["completion_tokens_details"]
+        if "prompt_tokens_details" in usage:
+            cleaned_usage["prompt_tokens_details"] = usage["prompt_tokens_details"]
+            
+        cleaned_response["usage"] = cleaned_usage
+        
+        return cleaned_response
         
     except HTTPException:
         # 重新抛出HTTP异常

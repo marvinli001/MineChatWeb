@@ -1,50 +1,40 @@
-'use client'
-
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ChatMessage, Conversation } from '@/lib/types'
-import { useSettingsStore } from './settingsStore'
-import { generateId } from '@/lib/utils'
 
-interface ChatState {
+interface ChatStore {
   conversations: Conversation[]
   currentConversationId: string | null
   isLoading: boolean
   abortController: AbortController | null
   
-  // Actions
+  // 添加 currentConversation 计算属性，保持与现有代码兼容
+  currentConversation: Conversation | null
+  
   createNewConversation: () => void
   setCurrentConversation: (id: string) => void
+  deleteConversation: (id: string) => void
   sendMessage: (content: string) => Promise<void>
   stopGeneration: () => void
-  deleteConversation: (id: string) => void
-  updateConversationTitle: (id: string, title: string) => void
-  clearAllConversations: () => void
-  
-  // Cloud sync actions
-  syncToCloud: () => Promise<void>
-  syncFromCloud: () => Promise<void>
-  
-  // Getters
-  currentConversation: Conversation | null
 }
 
-export const useChatStore = create<ChatState>()(
+export const useChatStore = create<ChatStore>()(
   persist(
     (set, get) => ({
       conversations: [],
       currentConversationId: null,
       isLoading: false,
       abortController: null,
-
+      
+      // 计算属性：当前对话
       get currentConversation() {
-        const { conversations, currentConversationId } = get()
-        return conversations.find(c => c.id === currentConversationId) || null
+        const state = get()
+        return state.conversations.find(conv => conv.id === state.currentConversationId) || null
       },
 
       createNewConversation: () => {
         const newConversation: Conversation = {
-          id: generateId(),
+          id: Date.now().toString(),
           title: '新对话',
           messages: [],
           created_at: new Date().toISOString(),
@@ -61,36 +51,58 @@ export const useChatStore = create<ChatState>()(
         set({ currentConversationId: id })
       },
 
+      deleteConversation: (id: string) => {
+        set(state => {
+          const newConversations = state.conversations.filter(conv => conv.id !== id)
+          const newCurrentId = state.currentConversationId === id 
+            ? (newConversations[0]?.id || null)
+            : state.currentConversationId
+          
+          return {
+            conversations: newConversations,
+            currentConversationId: newCurrentId
+          }
+        })
+      },
+
+      stopGeneration: () => {
+        const { abortController } = get()
+        if (abortController) {
+          abortController.abort()
+          set({ isLoading: false, abortController: null })
+        }
+      },
+
       sendMessage: async (content: string) => {
-        const { currentConversation } = get()
+        // 动态导入 settingsStore 以避免循环依赖
+        const { useSettingsStore } = await import('./settingsStore')
         const settings = useSettingsStore.getState().settings
-        let newConversationId: string | null = null
-
-        // 检查配置
-        if (!settings.chatProvider || !settings.chatModel) {
-          throw new Error('请先在设置中配置AI模型')
-        }
-
-        const apiKey = settings.apiKeys[settings.chatProvider]
-        if (!apiKey) {
-          throw new Error(`请先在设置中配置${settings.chatProvider}的API密钥`)
-        }
-
+        
+        const { conversations, currentConversationId } = get()
+        
         // 如果没有当前对话，创建新对话
-        if (!currentConversation) {
+        let targetConversationId = currentConversationId
+        if (!currentConversationId || !conversations.find(conv => conv.id === currentConversationId)) {
           const newConversation: Conversation = {
-            id: generateId(),
+            id: Date.now().toString(),
             title: '新对话',
             messages: [],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }
-          newConversationId = newConversation.id
 
           set(state => ({
             conversations: [newConversation, ...state.conversations],
             currentConversationId: newConversation.id
           }))
+          
+          targetConversationId = newConversation.id
+        }
+
+        // 验证API密钥
+        const apiKey = settings.apiKeys?.[settings.chatProvider]
+        if (!apiKey) {
+          throw new Error(`请先配置 ${settings.chatProvider} 的 API 密钥`)
         }
 
         // 添加用户消息
@@ -102,7 +114,7 @@ export const useChatStore = create<ChatState>()(
 
         set(state => ({
           conversations: state.conversations.map(conv =>
-            conv.id === state.currentConversationId
+            conv.id === targetConversationId
               ? {
                   ...conv,
                   messages: [...conv.messages, userMessage],
@@ -117,26 +129,18 @@ export const useChatStore = create<ChatState>()(
         set({ abortController })
 
         try {
-          const { currentConversation: updatedConversation } = get()
-          if (!updatedConversation) return
+          const { conversations: updatedConversations } = get()
+          const updatedConversation = updatedConversations.find(conv => conv.id === targetConversationId)
+          
+          if (!updatedConversation) {
+            throw new Error('找不到目标对话')
+          }
 
           const messages = updatedConversation.messages.map(msg => ({
             role: msg.role,
             content: msg.content
           }))
 
-          // 修改：使用正确的后端地址
-          console.log('准备发送请求到:', '/api/v1/chat/completion')
-          console.log('请求体:', {
-            provider: settings.chatProvider,
-            model: settings.chatModel,
-            messages,
-            api_key: apiKey ? '已配置' : '未配置',
-            thinking_mode: settings.thinkingMode || false,
-            stream: false
-          })
-
-          // 修改：使用正确的后端地址
           const response = await fetch('/api/v1/chat/completion', {
             method: 'POST',
             headers: {
@@ -153,17 +157,12 @@ export const useChatStore = create<ChatState>()(
             signal: abortController.signal
           })
 
-          console.log('=== 客户端收到响应 ===')
-          console.log('响应状态:', response.status)
-          console.log('响应头:', Object.fromEntries(response.headers.entries()))
-
           if (!response.ok) {
             const errorText = await response.text()
-            console.error('API错误响应:', errorText)
             let errorMessage = '请求失败'
             try {
               const error = JSON.parse(errorText)
-              errorMessage = error.detail || errorMessage
+              errorMessage = error.detail || error.message || errorMessage
             } catch {
               errorMessage = errorText || errorMessage
             }
@@ -171,17 +170,25 @@ export const useChatStore = create<ChatState>()(
           }
 
           const data = await response.json()
-          console.log('API响应:', data) // 添加调试日志
           
+          if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+            throw new Error('API响应格式错误：缺少choices数据')
+          }
+
+          const assistantContent = data.choices[0]?.message?.content
+          if (!assistantContent) {
+            throw new Error('AI响应内容为空')
+          }
+
           const assistantMessage: ChatMessage = {
             role: 'assistant',
-            content: data.choices[0]?.message?.content || '抱歉，我无法生成回复。',
+            content: assistantContent,
             timestamp: new Date().toISOString()
           }
 
-          set(state => ({
-            conversations: state.conversations.map(conv =>
-              conv.id === state.currentConversationId
+          set(state => {
+            const newConversations = state.conversations.map(conv =>
+              conv.id === targetConversationId
                 ? {
                     ...conv,
                     messages: [...conv.messages, assistantMessage],
@@ -189,149 +196,31 @@ export const useChatStore = create<ChatState>()(
                     updated_at: new Date().toISOString()
                   }
                 : conv
-            ),
-            isLoading: false,
-            abortController: null
-          }))
-
-          // 自动同步到云端
-          if (settings.enableCloudSync && settings.autoSync) {
-            try {
-              await get().syncToCloud()
-            } catch (error) {
-              console.warn('自动云同步失败:', error)
+            )
+            
+            return {
+              conversations: newConversations,
+              isLoading: false,
+              abortController: null
             }
+          })
+
+          // 自动同步到云端（如果启用）
+          // TODO: Implement cloud sync service
+          if (settings.enableCloudSync && settings.autoSync) {
+            console.log('Cloud sync is enabled but not implemented yet')
           }
 
         } catch (error: any) {
-          console.error('发送消息失败:', error) // 添加调试日志
-          if (error.name === 'AbortError') {
-            console.log('请求被取消')
-          } else {
-            console.error('发送消息失败:', error)
-            
-            // 如果是新创建的对话且发生错误，删除这个对话
-            if (newConversationId) {
-              set(state => ({
-                conversations: state.conversations.filter(conv => conv.id !== newConversationId),
-                currentConversationId: null,
-                isLoading: false,
-                abortController: null
-              }))
-            } else {
-              // 如果是已有对话，添加错误消息
-              const errorMessage: ChatMessage = {
-                role: 'assistant',
-                content: `错误: ${error.message}`,
-                timestamp: new Date().toISOString()
-              }
-
-              set(state => ({
-                conversations: state.conversations.map(conv =>
-                  conv.id === state.currentConversationId
-                    ? {
-                        ...conv,
-                        messages: [...conv.messages, errorMessage],
-                        updated_at: new Date().toISOString()
-                      }
-                    : conv
-                ),
-                isLoading: false,
-                abortController: null
-              }))
-            }
-          }
-        }
-      },
-
-      stopGeneration: () => {
-        const { abortController } = get()
-        if (abortController) {
-          abortController.abort()
+          console.error('发送消息失败:', error)
           set({ isLoading: false, abortController: null })
+          throw error
         }
-      },
-
-      deleteConversation: (id: string) => {
-        set(state => ({
-          conversations: state.conversations.filter(conv => conv.id !== id),
-          currentConversationId: state.currentConversationId === id ? null : state.currentConversationId
-        }))
-      },
-
-      updateConversationTitle: (id: string, title: string) => {
-        set(state => ({
-          conversations: state.conversations.map(conv =>
-            conv.id === id
-              ? { ...conv, title, updated_at: new Date().toISOString() }
-              : conv
-          )
-        }))
-      },
-
-      clearAllConversations: () => {
-        set({
-          conversations: [],
-          currentConversationId: null
-        })
-      },
-
-      syncToCloud: async () => {
-        const settings = useSettingsStore.getState().settings
-        if (!settings.enableCloudSync) {
-          throw new Error('云同步未启用')
-        }
-
-        const { conversations } = get()
-        
-        const response = await fetch('http://localhost:8000/api/v1/sync/upload', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            conversations,
-            cloudflare_config: settings.cloudflareConfig
-          })
-        })
-
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.detail || '同步到云端失败')
-        }
-      },
-
-      syncFromCloud: async () => {
-        const settings = useSettingsStore.getState().settings
-        if (!settings.enableCloudSync) {
-          throw new Error('云同步未启用')
-        }
-
-        const response = await fetch('http://localhost:8000/api/v1/sync/download', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            cloudflare_config: settings.cloudflareConfig
-          })
-        })
-
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.detail || '从云端同步失败')
-        }
-
-        const data = await response.json()
-        set({ conversations: data.conversations })
       }
     }),
     {
       name: 'chat-store',
-      partialize: (state) => ({
-        conversations: state.conversations,
-        currentConversationId: state.currentConversationId
-      })
+      version: 1
     }
   )
 )
