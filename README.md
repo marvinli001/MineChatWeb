@@ -6,13 +6,14 @@ MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合�
 
 ## 功能亮点
 
-- **多模型支持**：OpenAI、Anthropic、Google Gemini 等主流提供商
+- **多模型支持**：OpenAI、Anthropic、Google Gemini、DeepSeek 等主流提供商
 - **推理展示**：o1、Claude、Gemini 等模型的思考过程可视化
 - **语音能力**：语音转文字 & 文字转语音
 - **图片能力**：图片生成与识别
 - **云端记忆**：可选 Milvus 向量数据库持久化聊天历史
 - **现代界面**：仿 ChatGPT 的响应式 UI，支持深色模式
 - **本地配置**：所有密钥信息仅存储在浏览器
+- **模型市场**：可视化选择模型，支持在线刷新模型配置
 
 ## 技术栈
 
@@ -29,9 +30,14 @@ MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合�
 ├── backend/               # FastAPI 服务
 ├── frontend/              # Next.js 前端
 ├── docker-compose.yml     # 一键启动
-├── models-config.json     # 模型配置示例
+├── models-config.json     # 模型市场配置
 └── README.md
 ```
+
+## 模型市场与配置
+
+前端内置 **模型市场**，会从 `models-config.json` 自动加载模型列表，并支持在线刷新与一键切换模型。
+如需自定义，可修改该文件或在 fork 仓库后更新远程配置。
 
 ## 快速开始
 
@@ -72,9 +78,12 @@ npm run dev
 
 ### API 密钥
 
-1. **OpenAI**：https://platform.openai.com/api-keys  
-2. **Anthropic**：https://console.anthropic.com/  
-3. **Google**：https://aistudio.google.com/app/apikey  
+1. **OpenAI**：https://platform.openai.com/api-keys
+2. **Anthropic**：https://console.anthropic.com/
+3. **Google**：https://aistudio.google.com/app/apikey
+4. **DeepSeek**：https://platform.deepseek.com/
+5. **Azure OpenAI**：https://portal.azure.com/
+6. **Moonshot（Kimi）**：https://platform.moonshot.cn/
 
 ### Milvus（可选）
 
@@ -100,52 +109,3 @@ DATABASE_URL=sqlite:///./data/chat.db
 REDIS_URL=redis://localhost:6379
 SECRET_KEY=change-me
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-MILVUS_HOST=localhost
-MILVUS_PORT=19530
-```
-
-`frontend/.env.local`:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-## 部署
-
-1. 构建前端：
-
-```bash
-cd frontend
-npm run build
-```
-
-2. 构建后端镜像：
-
-```bash
-cd backend
-docker build -t minechat-backend .
-```
-
-3. 启动生产环境：
-
-```bash
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-## 贡献
-
-欢迎 Issue 和 PR！
-
-1. Fork 项目
-2. 新建分支：`git checkout -b feature/xxx`
-3. 提交代码：`git commit -m "feat: xxx"`
-4. 推送分支并发起 PR
-
-## 许可证
-
-MIT，详见 [LICENSE](LICENSE)。
-
----
-
-如果这个项目对你有帮助，请点个 ⭐️ 支持！
