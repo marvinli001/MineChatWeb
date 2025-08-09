@@ -1,36 +1,32 @@
+'use client'
+
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ChatMessage, Conversation } from '@/lib/types'
 
-interface ChatStore {
+interface ChatState {
   conversations: Conversation[]
   currentConversationId: string | null
   isLoading: boolean
   abortController: AbortController | null
   
-  // 添加 currentConversation 计算属性，保持与现有代码兼容
-  currentConversation: Conversation | null
-  
+  // Actions
   createNewConversation: () => void
   setCurrentConversation: (id: string) => void
-  deleteConversation: (id: string) => void
   sendMessage: (content: string) => Promise<void>
   stopGeneration: () => void
+  deleteConversation: (id: string) => void
+  updateConversationTitle: (id: string, title: string) => void
+  clearAllConversations: () => void
 }
 
-export const useChatStore = create<ChatStore>()(
+export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
       conversations: [],
       currentConversationId: null,
       isLoading: false,
       abortController: null,
-      
-      // 计算属性：当前对话
-      get currentConversation() {
-        const state = get()
-        return state.conversations.find(conv => conv.id === state.currentConversationId) || null
-      },
 
       createNewConversation: () => {
         const newConversation: Conversation = {
@@ -71,6 +67,18 @@ export const useChatStore = create<ChatStore>()(
           abortController.abort()
           set({ isLoading: false, abortController: null })
         }
+      },
+
+      updateConversationTitle: (id: string, title: string) => {
+        set(state => ({
+          conversations: state.conversations.map(conv =>
+            conv.id === id ? { ...conv, title } : conv
+          )
+        }))
+      },
+
+      clearAllConversations: () => {
+        set({ conversations: [], currentConversationId: null })
       },
 
       sendMessage: async (content: string) => {
@@ -205,10 +213,36 @@ export const useChatStore = create<ChatStore>()(
             }
           })
 
-          // 自动同步到云端（如果启用）
-          // TODO: Implement cloud sync service
-          if (settings.enableCloudSync && settings.autoSync) {
-            console.log('Cloud sync is enabled but not implemented yet')
+          if (settings.enableCloudSync && 
+              settings.autoSync && 
+              settings.cloudflareConfig?.accountId && 
+              settings.cloudflareConfig?.databaseId && 
+              settings.cloudflareConfig?.apiToken) {
+            try {
+              // 调用云同步服务
+              const syncResponse = await fetch('/api/v1/sync/upload', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  cloudflare_config: {
+                    accountId: settings.cloudflareConfig.accountId,
+                    databaseId: settings.cloudflareConfig.databaseId,
+                    apiToken: settings.cloudflareConfig.apiToken
+                  },
+                  conversations: get().conversations
+                })
+              })
+
+              if (syncResponse.ok) {
+                console.log('云同步成功')
+              } else {
+                console.warn('云同步失败:', await syncResponse.text())
+              }
+            } catch (error) {
+              console.warn('云端同步失败:', error)
+            }
           }
 
         } catch (error: any) {
@@ -224,3 +258,10 @@ export const useChatStore = create<ChatStore>()(
     }
   )
 )
+
+// 添加选择器函数来获取当前对话
+export const useCurrentConversation = () => {
+  return useChatStore((state) => 
+    state.conversations.find(conv => conv.id === state.currentConversationId) || null
+  )
+}

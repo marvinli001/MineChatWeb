@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { PaperAirplaneIcon, MicrophoneIcon, PhotoIcon, StopIcon, PlusIcon, WrenchScrewdriverIcon, XMarkIcon, CheckIcon, PaperClipIcon } from '@heroicons/react/24/outline'
 import { MagnifyingGlassIcon, CubeIcon, FolderIcon } from '@heroicons/react/24/outline'
-import { useChatStore } from '@/store/chatStore'
+import { useChatStore, useCurrentConversation } from '@/store/chatStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Button } from '@/components/ui/button'
 import ModelSelector from '@/components/ui/ModelSelector'
@@ -57,10 +57,10 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   const { 
     sendMessage, 
     isLoading, 
-    currentConversation,
     createNewConversation 
   } = useChatStore()
   
+  const currentConversation = useCurrentConversation()
   const { settings } = useSettingsStore()
 
   // 自动调整文本框高度
