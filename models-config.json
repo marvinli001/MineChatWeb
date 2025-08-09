@@ -254,7 +254,7 @@
         "claude-opus-4-1": {
           "name": "Claude Opus 4.1",
           "description": "Our most capable model",
-          "icon": "https://anthropic.com/images/favicon.ico",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
           "api_type": "messages",
           "context_length": 200000,
           "supports_vision": true,
@@ -267,7 +267,7 @@
         "claude-opus-4-0": {
           "name": "Claude Opus 4",
           "description": "Our previous flagship model",
-          "icon": "https://github.com/marvinli001/MineChatWeb/blob/main/claude-color.png?raw=true",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
           "api_type": "messages",
           "context_length": 200000,
           "supports_vision": true,
@@ -280,7 +280,7 @@
         "claude-sonnet-4-0": {
           "name": "Claude Sonnet 4",
           "description": "High-performance model",
-          "icon": "https://github.com/marvinli001/MineChatWeb/blob/main/claude-color.png?raw=true",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
           "api_type": "messages",
           "context_length": 200000,
           "supports_vision": true,
