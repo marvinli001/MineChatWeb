@@ -108,7 +108,7 @@
         "gpt-4o": {
           "name": "GPT-4o",
           "description": "Fast, intelligent, flexible GPT model",
-          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4o.png",
+          "icon": "https://github.com/marvinli001/MineChatWeb/blob/main/ChatGPT-Logo.svg.png?raw=true",
           "api_type": "responses",
           "context_length": 128000,
           "supports_vision": true,
