@@ -131,7 +131,9 @@ export const useChatStore = create<ChatState>()(
             provider: settings.chatProvider,
             model: settings.chatModel,
             messages,
-            api_key: apiKey ? '已配置' : '未配置'
+            api_key: apiKey ? '已配置' : '未配置',
+            thinking_mode: settings.thinkingMode || false,
+            stream: false
           })
 
           // 修改：使用正确的后端地址
@@ -151,6 +153,7 @@ export const useChatStore = create<ChatState>()(
             signal: abortController.signal
           })
 
+          console.log('=== 客户端收到响应 ===')
           console.log('响应状态:', response.status)
           console.log('响应头:', Object.fromEntries(response.headers.entries()))
 

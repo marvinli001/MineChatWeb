@@ -3,8 +3,13 @@ import { NextRequest, NextResponse } from 'next/server'
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
 
 export async function POST(request: NextRequest) {
+  console.log('🚀 前端API路由被调用了！')
+  console.log('🚀 时间:', new Date().toISOString())
+  console.log('🚀 BACKEND_URL:', BACKEND_URL)
+  
   try {
     const body = await request.json()
+    console.log('🚀 收到请求体:', JSON.stringify(body, null, 2))
     
     // 转发请求到后端
     const response = await fetch(`${BACKEND_URL}/api/v1/chat/completion`, {
@@ -14,6 +19,8 @@ export async function POST(request: NextRequest) {
       },
       body: JSON.stringify(body),
     })
+
+    console.log('🚀 后端响应状态:', response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -27,7 +34,7 @@ export async function POST(request: NextRequest) {
     const data = await response.json()
     return NextResponse.json(data)
   } catch (error: any) {
-    console.error('Proxy error:', error)
+    console.error('🚀 Proxy error:', error)
     return NextResponse.json(
       { error: 'Proxy error', message: error.message },
       { status: 500 }

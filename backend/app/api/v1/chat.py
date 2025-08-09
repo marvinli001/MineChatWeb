@@ -29,7 +29,8 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-@router.post("/completion", response_model=ChatResponse)
+# 移除严格的响应模型验证
+@router.post("/completion")
 async def chat_completion(request: ChatRequest):
     """处理聊天完成请求，支持多种AI提供商"""
     start_time = time.time()
@@ -78,13 +79,14 @@ async def chat_completion(request: ChatRequest):
             logger.error(f"[{request_id}] AI服务响应中缺少choices字段: {response}")
             raise HTTPException(status_code=500, detail="AI服务响应格式错误")
         
-        return ChatResponse(
-            id=response.get("id", f"chatcmpl-{request_id}"),
-            choices=response.get("choices", []),
-            usage=response.get("usage", {}),
-            model=request.model,
-            provider=request.provider
-        )
+        # 直接返回原始响应，避免Pydantic验证问题
+        return {
+            "id": response.get("id", f"chatcmpl-{request_id}"),
+            "choices": response.get("choices", []),
+            "usage": response.get("usage", {}),
+            "model": request.model,
+            "provider": request.provider
+        }
         
     except HTTPException:
         # 重新抛出HTTP异常
