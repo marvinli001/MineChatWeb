@@ -695,7 +695,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                   type="submit"
                   size="sm"
                   disabled={!input.trim()}
-                  className="px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  className={`px-4 py-3 rounded-full transition-colors ${
+                    input.trim() 
+                      ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200' 
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                  }`}
                 >
                   <PaperAirplaneIcon className="w-4 h-4" />
                 </Button>
