@@ -4,6 +4,8 @@ from google import genai
 from typing import Dict, List, Any, AsyncGenerator
 import asyncio
 import logging
+import json
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +13,19 @@ class AIProviderService:
     def __init__(self):
         # 设置超时时间
         self.timeout = 60  # 60秒超时
+        self._models_config = None
+        
+    def _load_models_config(self) -> Dict[str, Any]:
+        """加载模型配置"""
+        if self._models_config is None:
+            config_path = os.path.join(os.path.dirname(__file__), "../../../models-config.json")
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    self._models_config = json.load(f)
+            except Exception as e:
+                logger.warning(f"无法加载模型配置: {e}")
+                self._models_config = {}
+        return self._models_config
         
     async def get_completion(
         self,
@@ -47,12 +62,39 @@ class AIProviderService:
 
     def _is_openai_responses_api(self, model: str) -> bool:
         """判断是否为 OpenAI Responses API 模型"""
-        responses_api_models = [
-            'chatgpt-4o-latest',
-            'gpt-4o-realtime-preview',
-            'gpt-4o-realtime-preview-2024-10-01'
-        ]
-        return model in responses_api_models
+        try:
+            config = self._load_models_config()
+            openai_models = config.get('providers', {}).get('openai', {}).get('models', {})
+            model_config = openai_models.get(model, {})
+            return model_config.get('api_type') == 'responses'
+        except Exception as e:
+            logger.warning(f"无法检查模型API类型: {e}")
+            # 回退到硬编码列表
+            fallback_models = [
+                'chatgpt-4o-latest',
+                'gpt-4o-realtime-preview',
+                'gpt-4o-realtime-preview-2024-10-01',
+                'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest',
+                'gpt-4o', 'gpt-4o-mini',
+                'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
+                'o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini'
+            ]
+            return model in fallback_models
+
+    def _supports_streaming(self, provider: str, model: str) -> bool:
+        """检查模型是否支持流式输出"""
+        try:
+            config = self._load_models_config()
+            provider_models = config.get('providers', {}).get(provider, {}).get('models', {})
+            model_config = provider_models.get(model, {})
+            return model_config.get('supports_streaming', False)
+        except Exception as e:
+            logger.warning(f"无法检查模型流式支持: {e}")
+            # 对于OpenAI，除了thinking模型外，默认支持流式
+            if provider == 'openai':
+                thinking_models = ['o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini']
+                return model not in thinking_models
+            return False
 
     def _is_gpt5_model(self, model: str) -> bool:
         """判断是否为 GPT-5 系列模型"""
@@ -143,17 +185,25 @@ class AIProviderService:
             logger.info(f"调用OpenAI Responses API模型: {model}")
             
             # 构建 Responses API 请求参数
+            # 注意：实际的Responses API可能有不同的参数格式
+            # 这里保持与Chat Completions API兼容，但使用responses的概念
             responses_params = {
                 "model": model,
-                "messages": messages,
-                # Responses API 特有参数
-                "modalities": ["text"]
+                "messages": messages
             }
             
             # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
             if not self._is_gpt5_model(model):
                 responses_params["temperature"] = 0.7
             
+            # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
+            if self._is_gpt5_model(model):
+                responses_params["max_completion_tokens"] = 4000
+            else:
+                responses_params["max_tokens"] = 4000
+            
+            # 对于目前的实现，我们仍然使用chat.completions.create
+            # 但这代表了对Responses API的调用
             response = await asyncio.wait_for(
                 client.chat.completions.create(**responses_params),
                 timeout=self.timeout
@@ -302,8 +352,15 @@ class AIProviderService:
         
         try:
             if provider == "openai":
-                async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode):
-                    yield chunk
+                # 检查模型是否支持流式输出
+                if self._supports_streaming(provider, model):
+                    async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode):
+                        yield chunk
+                else:
+                    # 不支持流式的模型，直接返回完整响应
+                    logger.info(f"模型 {model} 不支持流式输出，使用普通请求")
+                    response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode)
+                    yield response
             else:
                 # 其他提供商暂不支持流式
                 response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode)

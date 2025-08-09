@@ -11,10 +11,11 @@
           "name": "GPT-5",
           "description": "The best model for coding and agentic tasks across domains",
           "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5.png",
-          "api_type": "chat_completions",
+          "api_type": "responses",
           "context_length": 400000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 1.25,
             "output": 10.00
@@ -24,10 +25,11 @@
           "name": "GPT-5 mini",
           "description": "A faster, more cost-efficient version of GPT-5 for well-defined tasks",
           "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5-mini.png",
-          "api_type": "chat_completions",
+          "api_type": "responses",
           "context_length": 400000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 0.25,
             "output": 2.00
@@ -37,10 +39,11 @@
           "name": "GPT-5 nano",
           "description": "A faster, more cost-efficient version of GPT-5 for well-defined tasks",
           "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5-nano.png",
-          "api_type": "chat_completions",
+          "api_type": "responses",
           "context_length": 400000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 0.05,
             "output": 0.40
@@ -50,10 +53,11 @@
           "name": "GPT-5 Chat",
           "description": "GPT-5 model used in ChatGPT",
           "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5-chat-latest.png",
-          "api_type": "chat_completions",
+          "api_type": "responses",
           "context_length": 400000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 0.05,
             "output": 0.40
@@ -63,23 +67,53 @@
           "name": "GPT-4.1",
           "description": "Excels at function calling and instruction following",
           "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4.1.png",
-          "api_type": "chat_completions",
+          "api_type": "responses",
           "context_length": 400000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 0.05,
             "output": 0.40
+          }
+        },
+        "gpt-4.1-mini": {
+          "name": "GPT-4.1 Mini",
+          "description": "A faster, more cost-efficient version of GPT-4.1 for well-defined tasks",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4.1-mini.png",
+          "api_type": "responses",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_streaming": true,
+          "pricing": {
+            "input": 0.025,
+            "output": 0.20
+          }
+        },
+        "gpt-4.1-nano": {
+          "name": "GPT-4.1 Nano",
+          "description": "Ultra-fast, most cost-efficient version of GPT-4.1",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4.1-nano.png",
+          "api_type": "responses",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_streaming": true,
+          "pricing": {
+            "input": 0.01,
+            "output": 0.10
           }
         },
         "gpt-4o": {
           "name": "GPT-4o",
           "description": "Fast, intelligent, flexible GPT model",
           "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4o.png",
-          "api_type": "chat_completions",
+          "api_type": "responses",
           "context_length": 128000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 2.50,
             "output": 15.0
@@ -89,10 +123,11 @@
           "name": "GPT-4o Mini",
           "description": "轻量级 GPT-4 模型，速度更快",
           "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4o-mini.png",
-          "api_type": "chat_completions",
+          "api_type": "responses",
           "context_length": 128000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 0.15,
             "output": 0.6
@@ -102,7 +137,7 @@
           "name": "o1-preview",
           "description": "推理专用模型，适合复杂问题解决",
           "icon": "https://cdn.oaistatic.com/_next/static/media/openai-logomark.3b794749.svg",
-          "api_type": "chat_completions",
+          "api_type": "responses",
           "context_length": 32000,
           "supports_vision": false,
           "supports_function_calling": false,
@@ -116,7 +151,7 @@
           "name": "o1-mini",
           "description": "轻量级推理模型",
           "icon": "https://cdn.oaistatic.com/_next/static/media/openai-logomark.3b794749.svg",
-          "api_type": "chat_completions",
+          "api_type": "responses",
           "context_length": 32000,
           "supports_vision": false,
           "supports_function_calling": false,
@@ -124,6 +159,62 @@
           "pricing": {
             "input": 3.0,
             "output": 12.0
+          }
+        },
+        "o1": {
+          "name": "o1",
+          "description": "Advanced reasoning model for complex problem solving",
+          "icon": "https://cdn.oaistatic.com/_next/static/media/openai-logomark.3b794749.svg",
+          "api_type": "responses",
+          "context_length": 32000,
+          "supports_vision": false,
+          "supports_function_calling": false,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 20.0,
+            "output": 80.0
+          }
+        },
+        "o3": {
+          "name": "o3",
+          "description": "Latest generation reasoning model with enhanced capabilities",
+          "icon": "https://cdn.oaistatic.com/_next/static/media/openai-logomark.3b794749.svg",
+          "api_type": "responses",
+          "context_length": 64000,
+          "supports_vision": false,
+          "supports_function_calling": false,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 30.0,
+            "output": 120.0
+          }
+        },
+        "o3-mini": {
+          "name": "o3-mini",
+          "description": "Compact version of o3 reasoning model",
+          "icon": "https://cdn.oaistatic.com/_next/static/media/openai-logomark.3b794749.svg",
+          "api_type": "responses",
+          "context_length": 64000,
+          "supports_vision": false,
+          "supports_function_calling": false,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 5.0,
+            "output": 20.0
+          }
+        },
+        "o4-mini": {
+          "name": "o4-mini",
+          "description": "Next-generation compact reasoning model",
+          "icon": "https://cdn.oaistatic.com/_next/static/media/openai-logomark.3b794749.svg",
+          "api_type": "responses",
+          "context_length": 64000,
+          "supports_vision": false,
+          "supports_function_calling": false,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 7.5,
+            "output": 30.0
           }
         },
         "gpt-4-turbo": {
@@ -147,6 +238,7 @@
           "context_length": 128000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 5.0,
             "output": 15.0

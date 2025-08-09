@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ClipboardIcon, CheckIcon, SpeakerWaveIcon } from '@heroicons/react/24/outline'
+import { ClipboardIcon, CheckIcon, SpeakerWaveIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import { ChatMessage } from '@/lib/types'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useChatStore } from '@/store/chatStore'
 import { modelConfigService } from '@/services/modelConfigService'
 import toast from 'react-hot-toast'
 
@@ -17,8 +18,10 @@ interface MessageItemProps {
 export default function MessageItem({ message, isLast }: MessageItemProps) {
   const [copied, setCopied] = useState(false)
   const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isRegenerating, setIsRegenerating] = useState(false)
   const [currentModelIcon, setCurrentModelIcon] = useState<string | null>(null)
   const { settings } = useSettingsStore()
+  const { regenerateLastMessage, isLoading } = useChatStore()
 
   // 获取当前模型的icon
   useEffect(() => {
@@ -51,6 +54,29 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
       speechSynthesis.speak(utterance)
     } else {
       toast.error('您的浏览器不支持语音合成')
+    }
+  }
+
+  const handleRegenerate = async () => {
+    if (!isLast || message.role !== 'assistant') {
+      toast.error('只能重新生成最后一条AI消息')
+      return
+    }
+
+    if (isLoading || isRegenerating) {
+      toast.error('正在生成中，请稍候...')
+      return
+    }
+
+    try {
+      setIsRegenerating(true)
+      await regenerateLastMessage()
+      toast.success('消息已重新生成')
+    } catch (error: any) {
+      console.error('重新生成失败:', error)
+      toast.error(error.message || '重新生成失败，请稍后重试')
+    } finally {
+      setIsRegenerating(false)
     }
   }
 
@@ -235,6 +261,19 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
               >
                 <SpeakerWaveIcon className="w-4 h-4" />
               </button>
+              {/* 重新生成按钮 - 只在最后一条AI消息上显示 */}
+              {isLast && (
+                <button
+                  onClick={handleRegenerate}
+                  disabled={isLoading || isRegenerating}
+                  className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                    isRegenerating ? 'text-blue-600 animate-spin' : 'text-gray-500'
+                  } ${(isLoading || isRegenerating) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title="重新生成"
+                >
+                  <ArrowPathIcon className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>
