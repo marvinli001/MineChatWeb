@@ -1,22 +1,87 @@
 {
-  "version": "a25c44c",
-  "last_updated": "2025-01-08T07:02:20Z",
+  "version": "d972cb8",
+  "last_updated": "2025-01-09T17:07:43Z",
   "providers": {
     "openai": {
       "name": "OpenAI",
       "description": "OpenAI 官方模型",
       "supports_thinking": true,
       "models": {
+        "gpt-5": {
+          "name": "GPT-5",
+          "description": "The best model for coding and agentic tasks across domains",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5.png",
+          "api_type": "chat_completions",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 1.25,
+            "output": 10.00
+          }
+        },
+        "gpt-5-mini": {
+          "name": "GPT-5 mini",
+          "description": "A faster, more cost-efficient version of GPT-5 for well-defined tasks",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5-mini.png",
+          "api_type": "chat_completions",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.25,
+            "output": 2.00
+          }
+        },
+        "gpt-5-nano": {
+          "name": "GPT-5 nano",
+          "description": "A faster, more cost-efficient version of GPT-5 for well-defined tasks",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5-nano.png",
+          "api_type": "chat_completions",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.05,
+            "output": 0.40
+          }
+        },
+        "gpt-5-chat-latest": {
+          "name": "GPT-5 Chat",
+          "description": "GPT-5 model used in ChatGPT",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5-chat-latest.png",
+          "api_type": "chat_completions",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.05,
+            "output": 0.40
+          }
+        },
+        "gpt-4.1": {
+          "name": "GPT-4.1",
+          "description": "Excels at function calling and instruction following",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4.1.png",
+          "api_type": "chat_completions",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "pricing": {
+            "input": 0.05,
+            "output": 0.40
+          }
+        },
         "gpt-4o": {
           "name": "GPT-4o",
-          "description": "最新的 GPT-4 模型，支持多模态",
+          "description": "Fast, intelligent, flexible GPT model",
           "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4o.png",
           "api_type": "chat_completions",
           "context_length": 128000,
           "supports_vision": true,
           "supports_function_calling": true,
           "pricing": {
-            "input": 5.0,
+            "input": 2.50,
             "output": 15.0
           }
         },
