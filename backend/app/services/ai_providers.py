@@ -1,7 +1,7 @@
 import openai
 import anthropic
 from google import genai
-from typing import Dict, List, Any, AsyncGenerator
+from typing import Dict, List, Any, AsyncGenerator, Union
 import asyncio
 import logging
 import json
@@ -14,6 +14,14 @@ class AIProviderService:
         # 设置超时时间
         self.timeout = 60  # 60秒超时
         self._models_config = None
+        
+    def _get_message_attr(self, msg: Union[Dict[str, Any], Any], attr: str) -> str:
+        """安全地获取消息属性，支持字典和Pydantic对象"""
+        if isinstance(msg, dict):
+            return msg.get(attr, "")
+        else:
+            # Pydantic对象，使用属性访问
+            return getattr(msg, attr, "")
         
     def _load_models_config(self) -> Dict[str, Any]:
         """加载模型配置"""
@@ -31,7 +39,7 @@ class AIProviderService:
         self,
         provider: str,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         stream: bool = False,
         thinking_mode: bool = False
@@ -103,7 +111,7 @@ class AIProviderService:
     async def _openai_chat_completion(
         self,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         stream: bool = False,
         thinking_mode: bool = False
@@ -119,7 +127,7 @@ class AIProviderService:
             
             # o1 系列模型特殊处理
             if thinking_mode and model in ["o1-preview", "o1-mini"]:
-                filtered_messages = [msg for msg in messages if msg["role"] != "system"]
+                filtered_messages = [msg for msg in messages if self._get_message_attr(msg, "role") != "system"]
                 logger.info(f"o1模型过滤后消息数量: {len(filtered_messages)}")
                 response = await asyncio.wait_for(
                     client.chat.completions.create(
@@ -171,7 +179,7 @@ class AIProviderService:
     async def _openai_responses_completion(
         self,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         thinking_mode: bool = False
     ) -> Dict[str, Any]:
@@ -220,7 +228,7 @@ class AIProviderService:
     async def _anthropic_completion(
         self,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         thinking_mode: bool = False
     ) -> Dict[str, Any]:
@@ -237,10 +245,17 @@ class AIProviderService:
             user_messages = []
             
             for msg in messages:
-                if msg["role"] == "system":
-                    system_message = msg["content"]
+                role = self._get_message_attr(msg, "role")
+                content = self._get_message_attr(msg, "content")
+                
+                if role == "system":
+                    system_message = content
                 else:
-                    user_messages.append(msg)
+                    # 为了确保向后兼容，如果是Pydantic对象，转换为字典
+                    if isinstance(msg, dict):
+                        user_messages.append(msg)
+                    else:
+                        user_messages.append({"role": role, "content": content})
             
             kwargs = {
                 "model": model,
@@ -287,7 +302,7 @@ class AIProviderService:
     async def _google_completion(
         self,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         thinking_mode: bool = False
     ) -> Dict[str, Any]:
@@ -300,16 +315,19 @@ class AIProviderService:
             # 转换消息格式
             history = []
             for msg in messages[:-1]:  # 除最后一条消息外的历史
-                if msg["role"] == "user":
-                    history.append({"role": "user", "parts": [msg["content"]]})
-                elif msg["role"] == "assistant":
-                    history.append({"role": "model", "parts": [msg["content"]]})
+                role = self._get_message_attr(msg, "role")
+                content = self._get_message_attr(msg, "content")
+                
+                if role == "user":
+                    history.append({"role": "user", "parts": [content]})
+                elif role == "assistant":
+                    history.append({"role": "model", "parts": [content]})
             
             model_instance = genai.GenerativeModel(model)
             chat = model_instance.start_chat(history=history)
             
             # 发送最后一条用户消息
-            user_message = messages[-1]["content"]
+            user_message = self._get_message_attr(messages[-1], "content")
             response = await asyncio.wait_for(
                 chat.send_message_async(user_message),
                 timeout=self.timeout
@@ -343,7 +361,7 @@ class AIProviderService:
         self,
         provider: str,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         thinking_mode: bool = False
     ) -> AsyncGenerator[Dict[str, Any], None]:
@@ -373,7 +391,7 @@ class AIProviderService:
     async def _openai_stream_completion(
         self,
         model: str,
-        messages: List[Dict[str, str]],
+        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         thinking_mode: bool = False
     ) -> AsyncGenerator[Dict[str, Any], None]:
