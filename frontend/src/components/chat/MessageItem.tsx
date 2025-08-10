@@ -8,6 +8,7 @@ import { ChatMessage } from '@/lib/types'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useChatStore } from '@/store/chatStore'
 import { modelConfigService } from '@/services/modelConfigService'
+import ThinkingChain from './ThinkingChain'
 import toast from 'react-hot-toast'
 
 interface MessageItemProps {
@@ -158,6 +159,11 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
 
           {/* 消息内容 */}
           <div className="flex-1 min-w-0">
+            {/* 显示推理链（仅当消息有reasoning字段时） */}
+            {message.reasoning && (
+              <ThinkingChain reasoning={message.reasoning} className="mb-4" />
+            )}
+            
             <div className="prose prose-gray dark:prose-invert max-w-none">
               {contentParts.map((part, index) => {
                 if (part.type === 'thinking') {

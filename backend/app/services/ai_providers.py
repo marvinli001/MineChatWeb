@@ -42,7 +42,8 @@ class AIProviderService:
         messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         stream: bool = False,
-        thinking_mode: bool = False
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto"
     ) -> Dict[str, Any]:
         """获取AI完成响应"""
         logger.info(f"开始调用 {provider} API, 模型: {model}")
@@ -51,9 +52,9 @@ class AIProviderService:
             if provider == "openai":
                 # 判断是否使用 Responses API
                 if self._is_openai_responses_api(model):
-                    return await self._openai_responses_completion(model, messages, api_key, thinking_mode)
+                    return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries)
                 else:
-                    return await self._openai_chat_completion(model, messages, api_key, stream, thinking_mode)
+                    return await self._openai_chat_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries)
             elif provider == "anthropic":
                 return await self._anthropic_completion(model, messages, api_key, thinking_mode)
             elif provider == "google":
@@ -67,6 +68,16 @@ class AIProviderService:
         except Exception as e:
             logger.error(f"{provider} API调用失败: {str(e)}")
             raise
+
+    def _is_thinking_model(self, model: str) -> bool:
+        """判断是否为思考模型"""
+        thinking_models = [
+            'o1', 'o1-preview', 'o1-mini', 'o1-pro',
+            'o3', 'o3-mini', 'o3-pro',
+            'o4-mini', 'o4-mini-high',
+            'gpt-5-thinking', 'gpt-5-thinking-mini', 'gpt-5-thinking-nano'
+        ]
+        return model in thinking_models
 
     def _is_openai_responses_api(self, model: str) -> bool:
         """判断是否为 OpenAI Responses API 模型"""
@@ -114,7 +125,8 @@ class AIProviderService:
         messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         stream: bool = False,
-        thinking_mode: bool = False
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto"
     ) -> Dict[str, Any]:
         """OpenAI Chat Completions API 调用"""
         try:
@@ -125,15 +137,23 @@ class AIProviderService:
             
             logger.info(f"调用OpenAI模型: {model}, 消息数量: {len(messages)}")
             
-            # o1 系列模型特殊处理
-            if thinking_mode and model in ["o1-preview", "o1-mini"]:
+            # 思考模型特殊处理
+            if self._is_thinking_model(model):
+                # 对于思考模型，过滤掉system消息并添加reasoning_summaries参数
                 filtered_messages = [msg for msg in messages if self._get_message_attr(msg, "role") != "system"]
-                logger.info(f"o1模型过滤后消息数量: {len(filtered_messages)}")
+                logger.info(f"思考模型 {model} 过滤后消息数量: {len(filtered_messages)}")
+                
+                completion_params = {
+                    "model": model,
+                    "messages": filtered_messages
+                }
+                
+                # 为思考模型添加reasoning_summaries参数
+                if reasoning_summaries and reasoning_summaries != "hide":
+                    completion_params["reasoning_summaries"] = reasoning_summaries
+                
                 response = await asyncio.wait_for(
-                    client.chat.completions.create(
-                        model=model,
-                        messages=filtered_messages
-                    ),
+                    client.chat.completions.create(**completion_params),
                     timeout=self.timeout
                 )
             else:
@@ -181,7 +201,8 @@ class AIProviderService:
         model: str,
         messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
-        thinking_mode: bool = False
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto"
     ) -> Dict[str, Any]:
         """OpenAI Responses API 调用"""
         try:
@@ -193,12 +214,20 @@ class AIProviderService:
             logger.info(f"调用OpenAI Responses API模型: {model}")
             
             # 构建 Responses API 请求参数
-            # 注意：实际的Responses API可能有不同的参数格式
-            # 这里保持与Chat Completions API兼容，但使用responses的概念
             responses_params = {
                 "model": model,
                 "messages": messages
             }
+            
+            # 思考模型处理
+            if self._is_thinking_model(model):
+                # 过滤system消息
+                filtered_messages = [msg for msg in messages if self._get_message_attr(msg, "role") != "system"]
+                responses_params["messages"] = filtered_messages
+                
+                # 添加reasoning_summaries参数
+                if reasoning_summaries and reasoning_summaries != "hide":
+                    responses_params["reasoning_summaries"] = reasoning_summaries
             
             # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
             if not self._is_gpt5_model(model):
@@ -363,7 +392,8 @@ class AIProviderService:
         model: str,
         messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
-        thinking_mode: bool = False
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto"
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """流式完成（WebSocket使用）"""
         logger.info(f"开始流式调用 {provider} API")
@@ -372,16 +402,16 @@ class AIProviderService:
             if provider == "openai":
                 # 检查模型是否支持流式输出
                 if self._supports_streaming(provider, model):
-                    async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode):
+                    async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries):
                         yield chunk
                 else:
                     # 不支持流式的模型，直接返回完整响应
                     logger.info(f"模型 {model} 不支持流式输出，使用普通请求")
-                    response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode)
+                    response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries)
                     yield response
             else:
                 # 其他提供商暂不支持流式
-                response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode)
+                response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries)
                 yield response
                 
         except Exception as e:
@@ -393,7 +423,8 @@ class AIProviderService:
         model: str,
         messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
-        thinking_mode: bool = False
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto"
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """OpenAI流式完成"""
         try:
