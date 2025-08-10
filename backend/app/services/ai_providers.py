@@ -126,6 +126,55 @@ class AIProviderService:
         """判断模型是否支持 thinking mode (通过 reasoning_effort 参数)"""
         return self._is_gpt5_model(model)
 
+    def _convert_responses_to_chat_format(self, responses_result: Dict[str, Any]) -> Dict[str, Any]:
+        """将 Responses API 格式转换为标准 Chat Completions 格式"""
+        if "choices" in responses_result:
+            # 已经是标准格式，直接返回
+            return responses_result
+        
+        if "output" not in responses_result:
+            # 不是 Responses API 格式，直接返回
+            return responses_result
+        
+        # 转换 Responses API 格式
+        output = responses_result.get("output", [])
+        choices = []
+        
+        for item in output:
+            if item.get("type") == "message" and item.get("role") == "assistant":
+                content = ""
+                message_content = item.get("content", [])
+                
+                # 提取文本内容
+                for content_item in message_content:
+                    if content_item.get("type") == "output_text":
+                        content = content_item.get("text", "")
+                        break
+                
+                choice = {
+                    "message": {
+                        "role": "assistant",
+                        "content": content
+                    },
+                    "finish_reason": "stop",
+                    "index": 0
+                }
+                choices.append(choice)
+                break  # 只取第一个 assistant 消息
+        
+        # 构造标准格式响应
+        converted_result = {
+            "id": responses_result.get("id", f"resp_{hash(str(output)) % 1000000}"),
+            "choices": choices,
+            "usage": responses_result.get("usage", {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0
+            })
+        }
+        
+        return converted_result
+
     async def _openai_chat_completion(
         self,
         model: str,
@@ -305,7 +354,10 @@ class AIProviderService:
             
             result = response.model_dump()
             logger.info(f"OpenAI Responses API调用成功")
-            return result
+            
+            # 转换 Responses API 格式为标准 Chat Completions 格式
+            converted_result = self._convert_responses_to_chat_format(result)
+            return converted_result
             
         except Exception as e:
             logger.error(f"OpenAI Responses API调用失败: {str(e)}")
