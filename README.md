@@ -7,10 +7,11 @@ MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合�
 ## 功能亮点
 
 - **多模型支持**：OpenAI、Anthropic、Google Gemini、DeepSeek 等主流提供商
-- **推理展示**：o1、Claude、Gemini 等模型的思考过程可视化
+- **推理展示**：支持 o 系列、GPT-5 等思考模型的推理过程可视化
 - **语音能力**：语音转文字 & 文字转语音
 - **图片能力**：图片生成与识别
 - **云端记忆**：可选 Milvus 向量数据库持久化聊天历史
+- **云端同步**：试验性 Cloudflare D1 同步聊天记录与设置
 - **现代界面**：仿 ChatGPT 的响应式 UI，支持深色模式
 - **本地配置**：所有密钥信息仅存储在浏览器
 - **模型市场**：可视化选择模型，支持在线刷新模型配置
@@ -36,53 +37,7 @@ MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合�
 
 ## 模型市场与配置
 
-前端内置 **模型市场**，会从 `models-config.json` 自动加载模型列表，并支持在线刷新与一键切换模型。
-如需自定义，可修改该文件或在 fork 仓库后更新远程配置。
-
-## 快速开始
-
-### 方式一：Docker Compose（推荐）
-
-```bash
-git clone <your-repo-url>
-cd MineChatWeb
-docker-compose up -d
-
-# 前端: http://localhost:3000
-# 后端: http://localhost:8000
-```
-
-### 方式二：手动启动
-
-#### 后端
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-#### 前端
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## 配置
-
-在前端设置页面或 `.env` 文件中配置以下内容：
-
-### API 密钥
-
-1. **OpenAI**：https://platform.openai.com/api-keys
-2. **Anthropic**：https://console.anthropic.com/
-3. **Google**：https://aistudio.google.com/app/apikey
-4. **DeepSeek**：https://platform.deepseek.com/
-5. **Azure OpenAI**：https://portal.azure.com/
+@@ -86,26 +87,35 @@ npm run dev
 6. **Moonshot（Kimi）**：https://platform.moonshot.cn/
 
 ### Milvus（可选）
@@ -109,3 +64,12 @@ DATABASE_URL=sqlite:///./data/chat.db
 REDIS_URL=redis://localhost:6379
 SECRET_KEY=change-me
 ALGORITHM=HS256
+```
+
+## 未来开发计划
+
+- 实现完整且兼容性的云同步（聊天记录、设置偏好、附加对话工具配置等）
+- 解决 Thinking 模型无法展示完整思维链的问题，持续优化流式输出
+- 增强 OpenAI O 系列、GPT-5 系列模型的支持与研究
+- 实现上传图片/文件后自动 embedding 作为对话附件
+- 支持更多附加工具：搜索、向量、图片生成等
