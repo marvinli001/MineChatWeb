@@ -4,6 +4,7 @@ export interface ChatMessage {
   content: string
   reasoning?: string
   timestamp?: string
+  created_at?: string
 }
 
 export interface Conversation {
