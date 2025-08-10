@@ -3,6 +3,7 @@
 import { PlusIcon, ChatBubbleLeftIcon, Cog6ToothIcon, UserIcon, CubeIcon, PuzzlePieceIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { useChatStore } from '@/store/chatStore'
 import { Button } from '@/components/ui/button'
+import { Conversation } from '@/lib/types'
 
 interface ChatSidebarProps {
   onSettingsClick: () => void
@@ -103,7 +104,7 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
             <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 font-medium">
               {date}
             </div>
-            {convs.map((conversation) => (
+            {(convs as Conversation[]).map((conversation) => (
               <div
                 key={conversation.id}
                 onClick={() => setCurrentConversation(conversation.id)}

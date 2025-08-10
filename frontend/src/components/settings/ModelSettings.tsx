@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import { modelConfigService, ProviderConfig } from '@/services/modelConfigService'
+import ThinkingModeToggle from '@/components/ui/ThinkingModeToggle'
+import { modelConfigService, ProviderConfig, ModelConfig } from '@/services/modelConfigService'
 
 export default function ModelSettings() {
   const { settings, updateSettings } = useSettingsStore()
   const [providers, setProviders] = useState<Record<string, ProviderConfig>>({})
-  const [models, setModels] = useState<string[]>([])
+  const [models, setModels] = useState<Record<string, ModelConfig>>({})
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -37,14 +38,33 @@ export default function ModelSettings() {
   const fetchModels = async (provider: string) => {
     try {
       const modelsData = await modelConfigService.getProviderModels(provider)
-      setModels(Object.keys(modelsData))
+      setModels(modelsData)
     } catch (error) {
       console.error('获取模型列表失败:', error)
     }
   }
 
-  const currentProvider = providers[settings.chatProvider || '']
-  const supportsThinking = currentProvider?.supports_thinking || false
+  // 检查是否为GPT-5系列模型
+  const isGPT5Model = (model: string): boolean => {
+    const gpt5Models = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest']
+    return gpt5Models.includes(model)
+  }
+
+  // 检查当前选择的模型是否支持thinking mode
+  const currentModelSupportsThinking = (): boolean => {
+    if (!settings.chatModel || !settings.chatProvider) return false
+    
+    // 对于OpenAI，只有GPT-5系列支持thinking mode
+    if (settings.chatProvider === 'openai') {
+      return isGPT5Model(settings.chatModel)
+    }
+    
+    // 对于其他提供商，检查模型配置
+    const currentModel = models[settings.chatModel]
+    return currentModel?.supports_thinking || false
+  }
+
+  const showThinkingToggle = currentModelSupportsThinking()
 
   if (loading) {
     return (
@@ -102,28 +122,32 @@ export default function ModelSettings() {
               disabled={!settings.chatProvider}
             >
               <option value="">请选择模型</option>
-              {models.map((model) => (
-                <option key={model} value={model}>
-                  {model}
+              {Object.entries(models).map(([modelId, modelConfig]) => (
+                <option key={modelId} value={modelId}>
+                  {modelConfig.name}
                 </option>
               ))}
             </Select>
           </div>
         </div>
 
-        {/* 思考模式 */}
-        {supportsThinking && (
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="thinking-mode"
-              checked={settings.thinkingMode || false}
-              onChange={(e) => updateSettings({ thinkingMode: e.target.checked })}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-            />
-            <label htmlFor="thinking-mode" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              启用思考模式
-            </label>
+        {/* GPT-5 Thinking模式切换 */}
+        {showThinkingToggle && (
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h5 className="font-medium text-gray-900 dark:text-white">
+                  GPT-5 思考模式
+                </h5>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  启用深度推理和思维链，提供更详细的分析过程
+                </p>
+              </div>
+              <ThinkingModeToggle
+                enabled={settings.thinkingMode || false}
+                onChange={(enabled) => updateSettings({ thinkingMode: enabled })}
+              />
+            </div>
           </div>
         )}
       </div>
