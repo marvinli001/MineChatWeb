@@ -148,9 +148,10 @@ class AIProviderService:
                     "messages": filtered_messages
                 }
                 
-                # 为思考模型添加reasoning_summaries参数
-                if reasoning_summaries and reasoning_summaries != "hide":
-                    completion_params["reasoning_summaries"] = reasoning_summaries
+                # 注意：reasoning_summaries 参数在当前 OpenAI API 版本中可能不被支持
+                # 如果需要支持该参数，请检查 OpenAI API 文档和库版本
+                # if reasoning_summaries and reasoning_summaries != "hide":
+                #     completion_params["reasoning_summaries"] = reasoning_summaries
                 
                 response = await asyncio.wait_for(
                     client.chat.completions.create(**completion_params),
@@ -213,8 +214,9 @@ class AIProviderService:
             
             logger.info(f"调用OpenAI Responses API模型: {model}")
             
-            # 构建 Responses API 请求参数
-            responses_params = {
+            # 构建请求参数 - 对于标记为 Responses API 的模型，仍使用 Chat Completions
+            # 但需要正确处理思维链参数
+            completion_params = {
                 "model": model,
                 "messages": messages
             }
@@ -223,25 +225,26 @@ class AIProviderService:
             if self._is_thinking_model(model):
                 # 过滤system消息
                 filtered_messages = [msg for msg in messages if self._get_message_attr(msg, "role") != "system"]
-                responses_params["messages"] = filtered_messages
+                completion_params["messages"] = filtered_messages
                 
-                # 添加reasoning_summaries参数，使用正确的格式
-                if reasoning_summaries and reasoning_summaries != "hide":
-                    responses_params["reasoning"] = {"summary": reasoning_summaries}
+                # 注意：reasoning_summaries 参数在当前 OpenAI API 版本中可能不被支持
+                # 如果需要支持该参数，请检查 OpenAI API 文档和库版本
+                # if reasoning_summaries and reasoning_summaries != "hide":
+                #     completion_params["reasoning_summaries"] = reasoning_summaries
             
             # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
             if not self._is_gpt5_model(model):
-                responses_params["temperature"] = 0.7
+                completion_params["temperature"] = 0.7
             
             # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
             if self._is_gpt5_model(model):
-                responses_params["max_completion_tokens"] = 4000
+                completion_params["max_completion_tokens"] = 4000
             else:
-                responses_params["max_tokens"] = 4000
+                completion_params["max_tokens"] = 4000
             
-            # 使用正确的 Responses API
+            # 使用 Chat Completions API
             response = await asyncio.wait_for(
-                client.responses.create(**responses_params),
+                client.chat.completions.create(**completion_params),
                 timeout=self.timeout
             )
             
