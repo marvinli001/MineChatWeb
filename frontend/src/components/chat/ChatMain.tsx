@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useChatStore, useCurrentConversation } from '@/store/chatStore'
 import MessageItem from './MessageItem'
 import InputArea from './InputArea'
+import BreathingAnimation from './BreathingAnimation'
 
 interface ChatMainProps {
   onModelMarketClick?: () => void
@@ -56,10 +57,7 @@ export default function ChatMain({ onModelMarketClick }: ChatMainProps) {
           ))}
           {isLoading && (
             <div className="flex justify-center py-4">
-              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                AI正在思考...
-              </div>
+              <BreathingAnimation />
             </div>
           )}
           <div ref={messagesEndRef} />

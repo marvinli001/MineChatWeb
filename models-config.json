@@ -217,6 +217,76 @@
             "output": 4.40
           }
         },
+        "o3-pro": {
+          "name": "o3-pro",
+          "description": "Professional reasoning model with enhanced capabilities",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/o3-pro.png",
+          "api_type": "responses",
+          "context_length": 200000,
+          "supports_vision": false,
+          "supports_function_calling": false,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 5.00,
+            "output": 20.00
+          }
+        },
+        "o4-mini-high": {
+          "name": "o4-mini-high",
+          "description": "Enhanced o4-mini with higher performance",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/o4-mini-high.png",
+          "api_type": "responses",
+          "context_length": 200000,
+          "supports_vision": false,
+          "supports_function_calling": false,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 2.20,
+            "output": 8.80
+          }
+        },
+        "gpt-5-thinking": {
+          "name": "GPT-5 Thinking",
+          "description": "GPT-5 with enhanced reasoning capabilities",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5-thinking.png",
+          "api_type": "responses",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 2.50,
+            "output": 20.00
+          }
+        },
+        "gpt-5-thinking-mini": {
+          "name": "GPT-5 Thinking Mini",
+          "description": "Compact version of GPT-5 with thinking capabilities",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5-thinking-mini.png",
+          "api_type": "responses",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 0.50,
+            "output": 4.00
+          }
+        },
+        "gpt-5-thinking-nano": {
+          "name": "GPT-5 Thinking Nano",
+          "description": "Ultra-compact GPT-5 with basic thinking capabilities",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5-thinking-nano.png",
+          "api_type": "responses",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 0.10,
+            "output": 0.80
+          }
+        },
         "gpt-4-turbo": {
           "name": "GPT-4 Turbo",
           "description": "An older high-intelligence GPT model",

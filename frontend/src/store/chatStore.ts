@@ -203,7 +203,8 @@ export const useChatStore = create<ChatState>()(
               model: settings.chatModel,
               messages,
               api_key: apiKey,
-              thinking_mode: settings.thinkingMode || false
+              thinking_mode: settings.thinkingMode || false,
+              reasoning_summaries: 'auto'  // Default to auto mode as recommended by OpenAI
             }
             ws.send(JSON.stringify(request))
           }
@@ -228,6 +229,28 @@ export const useChatStore = create<ChatState>()(
                           messages: conv.messages.map(msg =>
                             msg.id === assistantMessage.id
                               ? { ...msg, content: msg.content + deltaContent }
+                              : msg
+                          ),
+                          updated_at: new Date().toISOString()
+                        }
+                      : conv
+                  )
+                }))
+              }
+
+              // Handle reasoning data in streaming response
+              if (chunk.choices && chunk.choices[0]?.delta?.reasoning) {
+                const deltaReasoning = chunk.choices[0].delta.reasoning
+                
+                // 更新reasoning内容
+                set(state => ({
+                  conversations: state.conversations.map(conv =>
+                    conv.id === targetConversationId
+                      ? {
+                          ...conv,
+                          messages: conv.messages.map(msg =>
+                            msg.id === assistantMessage.id
+                              ? { ...msg, reasoning: (msg.reasoning || '') + deltaReasoning }
                               : msg
                           ),
                           updated_at: new Date().toISOString()
@@ -320,6 +343,7 @@ export const useChatStore = create<ChatState>()(
               messages,
               api_key: apiKey,
               thinking_mode: settings.thinkingMode || false,
+              reasoning_summaries: 'auto',  // Default to auto mode as recommended by OpenAI
               stream: false
             }),
             signal: abortController.signal
@@ -348,11 +372,15 @@ export const useChatStore = create<ChatState>()(
             throw new Error('AI响应内容为空')
           }
 
+          // Extract reasoning data if available
+          const reasoningContent = data.choices[0]?.message?.reasoning
+
           const assistantMessage: ChatMessage = {
             id: Date.now().toString() + '-assistant',
             role: 'assistant',
             content: assistantContent,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            ...(reasoningContent && { reasoning: reasoningContent })
           }
 
           set(state => {
