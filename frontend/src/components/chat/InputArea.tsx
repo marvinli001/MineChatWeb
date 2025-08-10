@@ -7,6 +7,7 @@ import { useChatStore, useCurrentConversation } from '@/store/chatStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Button } from '@/components/ui/button'
 import ModelSelector from '@/components/ui/ModelSelector'
+import ThinkingModeToggle from '@/components/ui/ThinkingModeToggle'
 import toast from 'react-hot-toast'
 
 interface InputAreaProps {
@@ -61,7 +62,25 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   } = useChatStore()
   
   const currentConversation = useCurrentConversation()
-  const { settings } = useSettingsStore()
+  const { settings, updateSettings } = useSettingsStore()
+
+  // 检查是否为GPT-5系列模型
+  const isGPT5Model = (model: string): boolean => {
+    const gpt5Models = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest']
+    return gpt5Models.includes(model)
+  }
+
+  // 检查当前选择的模型是否支持thinking mode
+  const showThinkingToggle = (): boolean => {
+    if (!settings.chatModel || !settings.chatProvider) return false
+    
+    // 对于OpenAI，只有GPT-5系列支持thinking mode
+    if (settings.chatProvider === 'openai') {
+      return isGPT5Model(settings.chatModel)
+    }
+    
+    return false
+  }
 
   // 自动调整文本框高度
   useEffect(() => {
@@ -458,8 +477,15 @@ const handleSubmit = async (e: React.FormEvent) => {
               onModelMarketClick={onModelMarketClick} 
               showDetailedInfo={false} // 欢迎模式下不显示详细信息
             />
+            {/* GPT-5 Thinking模式切换 */}
+            {showThinkingToggle() && (
+              <ThinkingModeToggle
+                enabled={settings.thinkingMode || false}
+                onChange={(enabled) => updateSettings({ thinkingMode: enabled })}
+              />
+            )}
           <div className="text-xs text-gray-500 dark:text-gray-400">
-            {settings.thinkingMode && '思考模式已启用'}
+            {settings.thinkingMode && showThinkingToggle() && 'GPT-5 思考模式已启用'}
           </div>
         </div>
       </div>
@@ -718,8 +744,15 @@ const handleSubmit = async (e: React.FormEvent) => {
         </form>
 
         {/* 当前模型显示 */}
-        <div className="mt-2 flex items-center justify-center">
+        <div className="mt-2 flex items-center justify-center gap-4">
           <ModelSelector onModelMarketClick={onModelMarketClick} />
+          {/* GPT-5 Thinking模式切换 */}
+          {showThinkingToggle() && (
+            <ThinkingModeToggle
+              enabled={settings.thinkingMode || false}
+              onChange={(enabled) => updateSettings({ thinkingMode: enabled })}
+            />
+          )}
         </div>
       </div>
     </div>

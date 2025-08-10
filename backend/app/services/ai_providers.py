@@ -46,12 +46,15 @@ class AIProviderService:
         reasoning_summaries: str = "auto"
     ) -> Dict[str, Any]:
         """获取AI完成响应"""
-        logger.info(f"开始调用 {provider} API, 模型: {model}")
+        logger.info(f"开始调用 {provider} API, 模型: {model}, 思考模式: {thinking_mode}")
         
         try:
             if provider == "openai":
-                # 判断是否使用 Responses API
-                if self._is_openai_responses_api(model):
+                # 对于 GPT-5 系列模型，根据 thinking_mode 选择 API
+                if self._is_gpt5_model(model) and thinking_mode:
+                    return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries)
+                # 判断是否使用 Responses API (对于其他模型)
+                elif self._is_openai_responses_api(model):
                     return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries)
                 else:
                     return await self._openai_chat_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries)
@@ -74,8 +77,7 @@ class AIProviderService:
         thinking_models = [
             'o1', 'o1-preview', 'o1-mini', 'o1-pro',
             'o3', 'o3-mini', 'o3-pro',
-            'o4-mini', 'o4-mini-high',
-            'gpt-5-thinking', 'gpt-5-thinking-mini', 'gpt-5-thinking-nano'
+            'o4-mini', 'o4-mini-high'
         ]
         return model in thinking_models
 
@@ -117,7 +119,12 @@ class AIProviderService:
 
     def _is_gpt5_model(self, model: str) -> bool:
         """判断是否为 GPT-5 系列模型"""
-        return model.startswith('gpt-5') or model.startswith('o3')
+        gpt5_models = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest']
+        return model in gpt5_models
+
+    def _supports_thinking_mode(self, model: str) -> bool:
+        """判断模型是否支持 thinking mode (通过 reasoning_effort 参数)"""
+        return self._is_gpt5_model(model)
 
     async def _openai_chat_completion(
         self,
@@ -212,41 +219,65 @@ class AIProviderService:
                 timeout=self.timeout
             )
             
-            logger.info(f"调用OpenAI Responses API模型: {model}")
+            logger.info(f"调用OpenAI Responses API模型: {model}, 思考模式: {thinking_mode}")
             
-            # 构建请求参数 - 对于标记为 Responses API 的模型，仍使用 Chat Completions
-            # 但需要正确处理思维链参数
-            completion_params = {
-                "model": model,
-                "messages": messages
-            }
-            
-            # 思考模型处理
-            if self._is_thinking_model(model):
-                # 过滤system消息
-                filtered_messages = [msg for msg in messages if self._get_message_attr(msg, "role") != "system"]
-                completion_params["messages"] = filtered_messages
+            # 对于 GPT-5 系列模型，使用 Responses API 支持 thinking mode
+            if self._is_gpt5_model(model) and thinking_mode:
+                # 使用 Responses API 和 reasoning_effort 参数
+                completion_params = {
+                    "model": model,
+                    "messages": messages,
+                    "reasoning_effort": "medium",
+                    "reasoning": {"summary": reasoning_summaries}
+                }
                 
-                # 注意：reasoning_summaries 参数在当前 OpenAI API 版本中可能不被支持
-                # 如果需要支持该参数，请检查 OpenAI API 文档和库版本
-                # if reasoning_summaries and reasoning_summaries != "hide":
-                #     completion_params["reasoning_summaries"] = reasoning_summaries
-            
-            # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
-            if not self._is_gpt5_model(model):
-                completion_params["temperature"] = 0.7
-            
-            # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
-            if self._is_gpt5_model(model):
+                # GPT-5 系列模型使用 max_completion_tokens
                 completion_params["max_completion_tokens"] = 4000
+                
+                logger.info(f"使用 Responses API 和 reasoning_effort=medium")
+                
+                # 注意：这里假设 OpenAI 库支持 responses.create() 方法
+                # 如果不支持，可能需要使用 chat.completions.create() 作为 fallback
+                try:
+                    response = await asyncio.wait_for(
+                        client.responses.create(**completion_params),
+                        timeout=self.timeout
+                    )
+                except AttributeError:
+                    # Fallback to chat completions if responses API not available
+                    logger.warning("Responses API 不可用，回退到 Chat Completions API")
+                    response = await asyncio.wait_for(
+                        client.chat.completions.create(**completion_params),
+                        timeout=self.timeout
+                    )
             else:
-                completion_params["max_tokens"] = 4000
-            
-            # 使用 Chat Completions API
-            response = await asyncio.wait_for(
-                client.chat.completions.create(**completion_params),
-                timeout=self.timeout
-            )
+                # 标准的 Responses API 调用（对于其他标记为 responses 的模型）
+                completion_params = {
+                    "model": model,
+                    "messages": messages
+                }
+                
+                # 思考模型处理
+                if self._is_thinking_model(model):
+                    # 过滤system消息
+                    filtered_messages = [msg for msg in messages if self._get_message_attr(msg, "role") != "system"]
+                    completion_params["messages"] = filtered_messages
+                
+                # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
+                if not self._is_gpt5_model(model):
+                    completion_params["temperature"] = 0.7
+                
+                # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
+                if self._is_gpt5_model(model):
+                    completion_params["max_completion_tokens"] = 4000
+                else:
+                    completion_params["max_tokens"] = 4000
+                
+                # 使用 Chat Completions API
+                response = await asyncio.wait_for(
+                    client.chat.completions.create(**completion_params),
+                    timeout=self.timeout
+                )
             
             result = response.model_dump()
             logger.info(f"OpenAI Responses API调用成功")
