@@ -223,21 +223,39 @@ class AIProviderService:
             
             # 对于 GPT-5 系列模型，使用 Responses API 支持 thinking mode
             if self._is_gpt5_model(model) and thinking_mode:
-                # 使用 Responses API 和 reasoning_effort 参数
+                # 转换消息格式为 Responses API 所需的 input 格式
+                # Responses API 使用不同的参数结构，不接受 messages 参数
+                input_text = ""
+                instructions_text = ""
+                
+                for msg in messages:
+                    role = self._get_message_attr(msg, "role")
+                    content = self._get_message_attr(msg, "content")
+                    
+                    if role == "system":
+                        instructions_text = content
+                    elif role == "user":
+                        input_text += f"{content}\n"
+                    elif role == "assistant":
+                        input_text += f"Assistant: {content}\n"
+                
+                # 使用 Responses API 参数结构
                 completion_params = {
                     "model": model,
-                    "messages": messages,
-                    "reasoning_effort": "medium",
+                    "input": input_text.strip(),
                     "reasoning": {"summary": reasoning_summaries}
                 }
                 
-                # GPT-5 系列模型使用 max_completion_tokens
-                completion_params["max_completion_tokens"] = 4000
+                # 添加 instructions 如果有 system 消息
+                if instructions_text:
+                    completion_params["instructions"] = instructions_text
                 
-                logger.info(f"使用 Responses API 和 reasoning_effort=medium")
+                # GPT-5 系列模型使用 max_output_tokens (不是 max_completion_tokens)
+                completion_params["max_output_tokens"] = 4000
                 
-                # 注意：这里假设 OpenAI 库支持 responses.create() 方法
-                # 如果不支持，可能需要使用 chat.completions.create() 作为 fallback
+                logger.info(f"使用 Responses API 参数格式")
+                
+                # 调用 Responses API
                 try:
                     response = await asyncio.wait_for(
                         client.responses.create(**completion_params),
@@ -246,8 +264,14 @@ class AIProviderService:
                 except AttributeError:
                     # Fallback to chat completions if responses API not available
                     logger.warning("Responses API 不可用，回退到 Chat Completions API")
+                    # 为 chat completions 重新构造参数
+                    chat_params = {
+                        "model": model,
+                        "messages": messages,
+                        "max_completion_tokens": 4000
+                    }
                     response = await asyncio.wait_for(
-                        client.chat.completions.create(**completion_params),
+                        client.chat.completions.create(**chat_params),
                         timeout=self.timeout
                     )
             else:
