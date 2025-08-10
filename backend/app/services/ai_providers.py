@@ -225,9 +225,9 @@ class AIProviderService:
                 filtered_messages = [msg for msg in messages if self._get_message_attr(msg, "role") != "system"]
                 responses_params["messages"] = filtered_messages
                 
-                # 添加reasoning_summaries参数
+                # 添加reasoning_summaries参数，使用正确的格式
                 if reasoning_summaries and reasoning_summaries != "hide":
-                    responses_params["reasoning_summaries"] = reasoning_summaries
+                    responses_params["reasoning"] = {"summary": reasoning_summaries}
             
             # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
             if not self._is_gpt5_model(model):
@@ -239,10 +239,9 @@ class AIProviderService:
             else:
                 responses_params["max_tokens"] = 4000
             
-            # 对于目前的实现，我们仍然使用chat.completions.create
-            # 但这代表了对Responses API的调用
+            # 使用正确的 Responses API
             response = await asyncio.wait_for(
-                client.chat.completions.create(**responses_params),
+                client.responses.create(**responses_params),
                 timeout=self.timeout
             )
             
