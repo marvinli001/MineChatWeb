@@ -143,6 +143,20 @@ async def websocket_chat(websocket: WebSocket):
             data = await websocket.receive_text()
             request_data = json.loads(data)
             
+            # Handle heartbeat messages
+            if request_data.get("type") == "heartbeat":
+                logger.debug(f"收到心跳消息，时间戳: {request_data.get('timestamp')}")
+                # Send heartbeat response
+                await manager.send_personal_message(
+                    json.dumps({
+                        "type": "heartbeat", 
+                        "timestamp": request_data.get("timestamp"),
+                        "server_time": time.time() * 1000
+                    }), 
+                    websocket
+                )
+                continue
+            
             logger.info(f"WebSocket收到请求: {request_data.get('provider', 'unknown')}")
             
             ai_service = AIProviderService()
