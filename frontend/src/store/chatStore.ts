@@ -194,7 +194,22 @@ export const useChatStore = create<ChatState>()(
           // 建立WebSocket连接
           const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
           const host = process.env.NODE_ENV === 'production' ? window.location.host : 'localhost:8000'
-          const wsUrl = `${protocol}//${host}/api/v1/chat/stream`
+          const getWebSocketUrl = () => {
+            if (process.env.NODE_ENV === 'development') {
+              return 'ws://localhost:8000/api/v1/chat/stream'
+            } else {
+              // 生产环境：优先使用环境变量，否则使用当前域名
+              const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 
+                                process.env.NEXT_PUBLIC_API_BASE_URL ||
+                                `${window.location.protocol}//${window.location.host}`
+              
+              return backendUrl
+                .replace('https:', 'wss:')
+                .replace('http:', 'ws:') + '/api/v1/chat/stream'
+            }
+          }
+
+          const wsUrl = getWebSocketUrl()
           const ws = new WebSocket(wsUrl)
 
           ws.onopen = () => {
