@@ -10,6 +10,14 @@ interface ChatState {
   isLoading: boolean
   abortController: AbortController | null
   
+  // WebSocket connection state
+  wsConnection: WebSocket | null
+  wsReconnectAttempts: number
+  wsMaxReconnectAttempts: number
+  wsReconnectDelay: number
+  wsHeartbeatInterval: NodeJS.Timeout | null
+  wsLastHeartbeat: number
+  
   // Actions
   createNewConversation: () => void
   setCurrentConversation: (id: string) => void
@@ -23,6 +31,11 @@ interface ChatState {
   syncToCloud: () => Promise<void>
   syncFromCloud: () => Promise<void>
   regenerateLastMessage: () => Promise<void>
+  
+  // WebSocket management
+  _createWebSocketConnection: (url: string) => Promise<WebSocket>
+  _setupHeartbeat: (ws: WebSocket) => void
+  _cleanupWebSocket: () => void
 }
 
 export const useChatStore = create<ChatState>()(
@@ -32,6 +45,14 @@ export const useChatStore = create<ChatState>()(
       currentConversationId: null,
       isLoading: false,
       abortController: null,
+      
+      // WebSocket connection state
+      wsConnection: null,
+      wsReconnectAttempts: 0,
+      wsMaxReconnectAttempts: 3,
+      wsReconnectDelay: 1000,
+      wsHeartbeatInterval: null,
+      wsLastHeartbeat: 0,
 
       createNewConversation: () => {
         const newConversation: Conversation = {
@@ -72,6 +93,67 @@ export const useChatStore = create<ChatState>()(
           abortController.abort()
           set({ isLoading: false, abortController: null })
         }
+        // Also cleanup WebSocket if active
+        get()._cleanupWebSocket()
+      },
+
+      _createWebSocketConnection: async (url: string): Promise<WebSocket> => {
+        return new Promise((resolve, reject) => {
+          const ws = new WebSocket(url)
+          
+          const timeout = setTimeout(() => {
+            ws.close()
+            reject(new Error('WebSocket connection timeout'))
+          }, 10000) // 10 second timeout
+          
+          ws.onopen = () => {
+            clearTimeout(timeout)
+            console.log('WebSocket connected successfully')
+            set({ wsReconnectAttempts: 0 })
+            resolve(ws)
+          }
+          
+          ws.onerror = (error) => {
+            clearTimeout(timeout)
+            console.error('WebSocket connection error:', error)
+            reject(new Error('WebSocket connection failed'))
+          }
+        })
+      },
+
+      _setupHeartbeat: (ws: WebSocket) => {
+        // Clear existing heartbeat
+        const { wsHeartbeatInterval } = get()
+        if (wsHeartbeatInterval) {
+          clearInterval(wsHeartbeatInterval)
+        }
+        
+        // Send heartbeat every 30 seconds
+        const interval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'heartbeat', timestamp: Date.now() }))
+            set({ wsLastHeartbeat: Date.now() })
+          }
+        }, 30000)
+        
+        set({ wsHeartbeatInterval: interval })
+      },
+
+      _cleanupWebSocket: () => {
+        const { wsConnection, wsHeartbeatInterval } = get()
+        
+        // Clear heartbeat interval
+        if (wsHeartbeatInterval) {
+          clearInterval(wsHeartbeatInterval)
+          set({ wsHeartbeatInterval: null })
+        }
+        
+        // Close WebSocket connection
+        if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+          wsConnection.close()
+        }
+        
+        set({ wsConnection: null, wsReconnectAttempts: 0 })
       },
 
       updateConversationTitle: (id: string, title: string) => {
@@ -191,9 +273,7 @@ export const useChatStore = create<ChatState>()(
             )
           }))
 
-          // 建立WebSocket连接
-          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-          const host = process.env.NODE_ENV === 'production' ? window.location.host : 'localhost:8000'
+          // WebSocket URL configuration
           const getWebSocketUrl = () => {
             if (process.env.NODE_ENV === 'development') {
               return 'ws://localhost:8000/api/v1/chat/stream'
@@ -210,101 +290,160 @@ export const useChatStore = create<ChatState>()(
           }
 
           const wsUrl = getWebSocketUrl()
-          const ws = new WebSocket(wsUrl)
-
-          ws.onopen = () => {
-            const request = {
-              provider: settings.chatProvider,
-              model: settings.chatModel,
-              messages,
-              api_key: apiKey,
-              thinking_mode: settings.thinkingMode || false,
-              reasoning_summaries: 'auto'  // Default to auto mode as recommended by OpenAI
-            }
-            ws.send(JSON.stringify(request))
-          }
-
-          ws.onmessage = (event) => {
+          
+          // Try WebSocket with reconnection logic
+          const attemptWebSocketConnection = async (attempt: number = 0): Promise<void> => {
             try {
-              const chunk = JSON.parse(event.data)
+              const ws = await get()._createWebSocketConnection(wsUrl)
+              set({ wsConnection: ws })
               
-              if (chunk.error) {
-                throw new Error(chunk.error)
+              // Setup heartbeat
+              get()._setupHeartbeat(ws)
+
+              const request = {
+                provider: settings.chatProvider,
+                model: settings.chatModel,
+                messages,
+                api_key: apiKey,
+                thinking_mode: settings.thinkingMode || false,
+                reasoning_summaries: 'auto'
               }
 
-              if (chunk.choices && chunk.choices[0]?.delta?.content) {
-                const deltaContent = chunk.choices[0].delta.content
-                
-                // 更新流式内容
-                set(state => ({
-                  conversations: state.conversations.map(conv =>
-                    conv.id === targetConversationId
-                      ? {
-                          ...conv,
-                          messages: conv.messages.map(msg =>
-                            msg.id === assistantMessage.id
-                              ? { ...msg, content: msg.content + deltaContent }
-                              : msg
-                          ),
-                          updated_at: new Date().toISOString()
-                        }
-                      : conv
-                  )
-                }))
+              ws.onmessage = (event) => {
+                try {
+                  const chunk = JSON.parse(event.data)
+                  
+                  // Handle heartbeat response
+                  if (chunk.type === 'heartbeat') {
+                    return
+                  }
+                  
+                  if (chunk.error) {
+                    throw new Error(chunk.error)
+                  }
+
+                  if (chunk.choices && chunk.choices[0]?.delta?.content) {
+                    const deltaContent = chunk.choices[0].delta.content
+                    
+                    // 更新流式内容
+                    set(state => ({
+                      conversations: state.conversations.map(conv =>
+                        conv.id === targetConversationId
+                          ? {
+                              ...conv,
+                              messages: conv.messages.map(msg =>
+                                msg.id === assistantMessage.id
+                                  ? { ...msg, content: msg.content + deltaContent }
+                                  : msg
+                              ),
+                              updated_at: new Date().toISOString()
+                            }
+                          : conv
+                      )
+                    }))
+                  }
+
+                  // Handle reasoning data in streaming response
+                  if (chunk.choices && chunk.choices[0]?.delta?.reasoning) {
+                    const deltaReasoning = chunk.choices[0].delta.reasoning
+                    
+                    // 更新reasoning内容
+                    set(state => ({
+                      conversations: state.conversations.map(conv =>
+                        conv.id === targetConversationId
+                          ? {
+                              ...conv,
+                              messages: conv.messages.map(msg =>
+                                msg.id === assistantMessage.id
+                                  ? { ...msg, reasoning: (msg.reasoning || '') + deltaReasoning }
+                                  : msg
+                              ),
+                              updated_at: new Date().toISOString()
+                            }
+                          : conv
+                      )
+                    }))
+                  }
+
+                  // 如果流式传输完成
+                  if (chunk.choices && chunk.choices[0]?.finish_reason) {
+                    get()._cleanupWebSocket()
+                    set({ isLoading: false, abortController: null })
+                  }
+                } catch (error) {
+                  console.error('解析流式响应失败:', error)
+                }
               }
 
-              // Handle reasoning data in streaming response
-              if (chunk.choices && chunk.choices[0]?.delta?.reasoning) {
-                const deltaReasoning = chunk.choices[0].delta.reasoning
-                
-                // 更新reasoning内容
-                set(state => ({
-                  conversations: state.conversations.map(conv =>
-                    conv.id === targetConversationId
-                      ? {
-                          ...conv,
-                          messages: conv.messages.map(msg =>
-                            msg.id === assistantMessage.id
-                              ? { ...msg, reasoning: (msg.reasoning || '') + deltaReasoning }
-                              : msg
-                          ),
-                          updated_at: new Date().toISOString()
-                        }
-                      : conv
-                  )
-                }))
+              ws.onerror = (error) => {
+                console.error('WebSocket错误:', error)
+                get()._cleanupWebSocket()
+                // Try to reconnect if we haven't exceeded max attempts
+                if (attempt < get().wsMaxReconnectAttempts) {
+                  console.log(`WebSocket连接失败，尝试重连 (${attempt + 1}/${get().wsMaxReconnectAttempts})`)
+                  setTimeout(() => {
+                    attemptWebSocketConnection(attempt + 1)
+                  }, get().wsReconnectDelay * Math.pow(2, attempt)) // Exponential backoff
+                } else {
+                  // Fallback to HTTP after max attempts
+                  console.log('WebSocket重连失败，切换到HTTP模式')
+                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
+                }
               }
 
-              // 如果流式传输完成
-              if (chunk.choices && chunk.choices[0]?.finish_reason) {
-                ws.close()
-                set({ isLoading: false, abortController: null })
+              ws.onclose = (event) => {
+                get()._cleanupWebSocket()
+                if (!event.wasClean && attempt < get().wsMaxReconnectAttempts) {
+                  console.log(`WebSocket连接断开，尝试重连 (${attempt + 1}/${get().wsMaxReconnectAttempts})`)
+                  setTimeout(() => {
+                    attemptWebSocketConnection(attempt + 1)
+                  }, get().wsReconnectDelay * Math.pow(2, attempt))
+                } else if (!event.wasClean && attempt >= get().wsMaxReconnectAttempts) {
+                  console.log('WebSocket连接断开且重连失败，切换到HTTP模式')
+                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
+                } else {
+                  set({ isLoading: false, abortController: null })
+                }
               }
-            } catch (error) {
-              console.error('解析流式响应失败:', error)
+
+              // Send initial request
+              ws.send(JSON.stringify(request))
+
+            } catch (error: any) {
+              console.error(`WebSocket连接失败 (attempt ${attempt + 1}):`, error)
+              if (attempt < get().wsMaxReconnectAttempts) {
+                setTimeout(() => {
+                  attemptWebSocketConnection(attempt + 1)
+                }, get().wsReconnectDelay * Math.pow(2, attempt))
+              } else {
+                console.log('WebSocket连接彻底失败，切换到HTTP模式')
+                get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
+              }
             }
           }
 
-          ws.onerror = (error) => {
-            console.error('WebSocket错误:', error)
-            set({ isLoading: false, abortController: null })
-            throw new Error('流式连接失败')
-          }
-
-          ws.onclose = () => {
-            set({ isLoading: false, abortController: null })
-          }
+          // Start WebSocket connection attempt
+          await attemptWebSocketConnection()
 
           // 设置abort信号处理
           abortController.signal.addEventListener('abort', () => {
-            ws.close()
+            get()._cleanupWebSocket()
             set({ isLoading: false, abortController: null })
           })
 
         } catch (error: any) {
           console.error('流式发送消息失败:', error)
+          get()._cleanupWebSocket()
           set({ isLoading: false, abortController: null })
-          throw error
+          
+          // Final fallback to HTTP
+          try {
+            console.log('尝试HTTP fallback')
+            await get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
+          } catch (httpError: any) {
+            console.error('HTTP fallback也失败了:', httpError)
+            throw httpError
+          }
         }
       },
 
