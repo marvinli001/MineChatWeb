@@ -6,6 +6,7 @@ import asyncio
 import logging
 import json
 import os
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +24,16 @@ class AIProviderService:
             # Pydantic对象，使用属性访问
             return getattr(msg, attr, "")
         
-    def _load_models_config(self) -> Dict[str, Any]:
+    async def _load_models_config(self) -> Dict[str, Any]:
         """加载模型配置"""
         if self._models_config is None:
-            config_path = os.path.join(os.path.dirname(__file__), "../../../models-config.json")
-            try:
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    self._models_config = json.load(f)
-            except Exception as e:
-                logger.warning(f"无法加载模型配置: {e}")
-                self._models_config = {}
+            config_url = "https://raw.githubusercontent.com/marvinli001/MineChatWeb/main/models-config.json"
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(config_url)
+                self._models_config = json.load(f)
+                response.raise_for_status()
+                self._models_config = response.json()
+                logger.info("成功从远程加载模型配置")
         return self._models_config
         
     async def get_completion(
