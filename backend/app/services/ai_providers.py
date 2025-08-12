@@ -82,10 +82,10 @@ class AIProviderService:
         ]
         return model in thinking_models
 
-    def _is_openai_responses_api(self, model: str) -> bool:
+    async def _is_openai_responses_api(self, model: str) -> bool:
         """判断是否为 OpenAI Responses API 模型"""
         try:
-            config = self._load_models_config()
+            config = await self._load_models_config()  # 添加 await
             openai_models = config.get('providers', {}).get('openai', {}).get('models', {})
             model_config = openai_models.get(model, {})
             return model_config.get('api_type') == 'responses'
@@ -103,10 +103,10 @@ class AIProviderService:
             ]
             return model in fallback_models
 
-    def _supports_streaming(self, provider: str, model: str) -> bool:
+    async def _supports_streaming(self, provider: str, model: str) -> bool:
         """检查模型是否支持流式输出"""
         try:
-            config = self._load_models_config()
+            config = await self._load_models_config()  # 添加 await
             provider_models = config.get('providers', {}).get(provider, {}).get('models', {})
             model_config = provider_models.get(model, {})
             return model_config.get('supports_streaming', False)
