@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useChatStore, useCurrentConversation } from '@/store/chatStore'
 import MessageItem from './MessageItem'
 import InputArea from './InputArea'
-import BreathingAnimation from './BreathingAnimation'
+import TypewriterEffect from './TypewriterEffect'
 
 interface ChatMainProps {
   onModelMarketClick?: () => void
@@ -57,7 +57,7 @@ export default function ChatMain({ onModelMarketClick }: ChatMainProps) {
           ))}
           {isLoading && (
             <div className="flex justify-center py-4">
-              <BreathingAnimation />
+              <TypewriterEffect />
             </div>
           )}
           <div ref={messagesEndRef} />
