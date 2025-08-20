@@ -12,8 +12,11 @@ logger = logging.getLogger(__name__)
 
 class AIProviderService:
     def __init__(self):
-        # 设置超时时间
-        self.timeout = 60  # 60秒超时
+        # 设置不同操作的超时时间
+        self.default_timeout = 60  # 默认60秒超时
+        self.responses_api_timeout = 180  # Responses API 使用更长的超时时间
+        self.config_timeout = 30  # 配置加载超时
+        self.max_retries = 2  # 最大重试次数
         self._models_config = None
         
     def _get_message_attr(self, msg: Union[Dict[str, Any], Any], attr: str) -> str:
@@ -28,9 +31,8 @@ class AIProviderService:
         """加载模型配置"""
         if self._models_config is None:
             config_url = "https://raw.githubusercontent.com/marvinli001/MineChatWeb/main/models-config.json"
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=self.config_timeout) as client:
                 response = await client.get(config_url)
-                self._models_config = json.load(f)
                 response.raise_for_status()
                 self._models_config = response.json()
                 logger.info("成功从远程加载模型配置")
@@ -49,29 +51,52 @@ class AIProviderService:
         """获取AI完成响应"""
         logger.info(f"开始调用 {provider} API, 模型: {model}, 思考模式: {thinking_mode}")
         
-        try:
-            if provider == "openai":
-                # 对于 GPT-5 系列模型，根据 thinking_mode 选择 API
-                if self._is_gpt5_model(model) and thinking_mode:
-                    return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries)
-                # 判断是否使用 Responses API (对于其他模型)
-                elif self._is_openai_responses_api(model):
-                    return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries)
+        # 使用重试机制
+        last_exception = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                if provider == "openai":
+                    # 对于 GPT-5 系列模型，根据 thinking_mode 选择 API
+                    if self._is_gpt5_model(model) and thinking_mode:
+                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries)
+                    # 判断是否使用 Responses API (对于其他模型)
+                    elif await self._is_openai_responses_api(model):
+                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries)
+                    else:
+                        return await self._openai_chat_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries)
+                elif provider == "anthropic":
+                    return await self._anthropic_completion(model, messages, api_key, thinking_mode)
+                elif provider == "google":
+                    return await self._google_completion(model, messages, api_key, thinking_mode)
                 else:
-                    return await self._openai_chat_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries)
-            elif provider == "anthropic":
-                return await self._anthropic_completion(model, messages, api_key, thinking_mode)
-            elif provider == "google":
-                return await self._google_completion(model, messages, api_key, thinking_mode)
-            else:
-                raise ValueError(f"不支持的提供商: {provider}")
-                
-        except asyncio.TimeoutError:
-            logger.error(f"{provider} API调用超时")
-            raise Exception(f"{provider} API调用超时，请稍后重试")
-        except Exception as e:
-            logger.error(f"{provider} API调用失败: {str(e)}")
-            raise
+                    raise ValueError(f"不支持的提供商: {provider}")
+                    
+            except asyncio.TimeoutError as e:
+                last_exception = e
+                logger.warning(f"{provider} API调用超时 (尝试 {attempt + 1}/{self.max_retries + 1})")
+                if attempt < self.max_retries:
+                    await asyncio.sleep(2 ** attempt)  # 指数退避
+                    continue
+                else:
+                    logger.error(f"{provider} API调用在 {self.max_retries + 1} 次尝试后仍然超时")
+                    raise Exception(f"{provider} API调用超时，已重试{self.max_retries}次，请稍后重试")
+            except Exception as e:
+                last_exception = e
+                # 对于某些错误类型，不进行重试
+                if any(keyword in str(e).lower() for keyword in ['authentication', 'authorization', 'api key', 'invalid']):
+                    logger.error(f"{provider} API调用失败 (认证错误): {str(e)}")
+                    raise
+                elif attempt < self.max_retries:
+                    logger.warning(f"{provider} API调用失败 (尝试 {attempt + 1}/{self.max_retries + 1}): {str(e)}")
+                    await asyncio.sleep(2 ** attempt)  # 指数退避
+                    continue
+                else:
+                    logger.error(f"{provider} API调用在 {self.max_retries + 1} 次尝试后仍然失败: {str(e)}")
+                    raise
+        
+        # 这行不应该到达，但为了类型安全
+        if last_exception:
+            raise last_exception
 
     def _is_thinking_model(self, model: str) -> bool:
         """判断是否为思考模型"""
@@ -189,7 +214,7 @@ class AIProviderService:
         try:
             client = openai.AsyncOpenAI(
                 api_key=api_key,
-                timeout=self.timeout
+                timeout=self.default_timeout
             )
             
             logger.info(f"调用OpenAI模型: {model}, 消息数量: {len(messages)}")
@@ -212,7 +237,7 @@ class AIProviderService:
                 
                 response = await asyncio.wait_for(
                     client.chat.completions.create(**completion_params),
-                    timeout=self.timeout
+                    timeout=self.default_timeout
                 )
             else:
                 # 根据模型类型选择合适的参数
@@ -234,7 +259,7 @@ class AIProviderService:
                 
                 response = await asyncio.wait_for(
                     client.chat.completions.create(**completion_params),
-                    timeout=self.timeout
+                    timeout=self.default_timeout
                 )
             
             result = response.model_dump()
@@ -264,9 +289,11 @@ class AIProviderService:
     ) -> Dict[str, Any]:
         """OpenAI Responses API 调用"""
         try:
+            # 使用更长的超时时间，因为 Responses API 通常需要更多时间
+            timeout = self.responses_api_timeout if self._is_gpt5_model(model) or thinking_mode else self.default_timeout
             client = openai.AsyncOpenAI(
                 api_key=api_key,
-                timeout=self.timeout
+                timeout=timeout
             )
             
             logger.info(f"调用OpenAI Responses API模型: {model}, 思考模式: {thinking_mode}")
@@ -309,7 +336,7 @@ class AIProviderService:
                 try:
                     response = await asyncio.wait_for(
                         client.responses.create(**completion_params),
-                        timeout=self.timeout
+                        timeout=timeout
                     )
                 except AttributeError:
                     # Fallback to chat completions if responses API not available
@@ -322,7 +349,7 @@ class AIProviderService:
                     }
                     response = await asyncio.wait_for(
                         client.chat.completions.create(**chat_params),
-                        timeout=self.timeout
+                        timeout=timeout
                     )
             else:
                 # 标准的 Responses API 调用（对于其他标记为 responses 的模型）
@@ -350,7 +377,7 @@ class AIProviderService:
                 # 使用 Chat Completions API
                 response = await asyncio.wait_for(
                     client.chat.completions.create(**completion_params),
-                    timeout=self.timeout
+                    timeout=timeout
                 )
             
             result = response.model_dump()
@@ -375,7 +402,7 @@ class AIProviderService:
         try:
             client = anthropic.AsyncAnthropic(
                 api_key=api_key,
-                timeout=self.timeout
+                timeout=self.default_timeout
             )
             
             logger.info(f"调用Anthropic模型: {model}")
@@ -408,7 +435,7 @@ class AIProviderService:
             
             response = await asyncio.wait_for(
                 client.messages.create(**kwargs),
-                timeout=self.timeout
+                timeout=self.default_timeout
             )
             
             # 转换为OpenAI格式
@@ -469,7 +496,7 @@ class AIProviderService:
             user_message = self._get_message_attr(messages[-1], "content")
             response = await asyncio.wait_for(
                 chat.send_message_async(user_message),
-                timeout=self.timeout
+                timeout=self.default_timeout
             )
             
             # 转换为OpenAI格式
@@ -511,7 +538,7 @@ class AIProviderService:
         try:
             if provider == "openai":
                 # 检查模型是否支持流式输出
-                if self._supports_streaming(provider, model):
+                if await self._supports_streaming(provider, model):
                     async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries):
                         yield chunk
                 else:
@@ -540,7 +567,7 @@ class AIProviderService:
         try:
             client = openai.AsyncOpenAI(
                 api_key=api_key,
-                timeout=self.timeout
+                timeout=self.default_timeout
             )
             
             # 根据模型类型选择合适的参数

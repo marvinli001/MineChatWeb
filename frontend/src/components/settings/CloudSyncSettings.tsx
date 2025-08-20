@@ -225,9 +225,9 @@ export default function CloudSyncSettings() {
         <ol className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
           <li>1. 登录 <a href="https://dash.cloudflare.com/" target="_blank" className="text-blue-600 hover:underline">Cloudflare 控制台</a></li>
           <li>2. 创建一个新的 D1 数据库</li>
-          <li>3. 在 "我的个人资料" → "API 令牌" 中创建具有 D1:Edit 权限的 API Token</li>
+          <li>3. 在 &quot;我的个人资料&quot; → &quot;API 令牌&quot; 中创建具有 D1:Edit 权限的 API Token</li>
           <li>4. 复制 Account ID、API Token 和 Database ID 到上方表单</li>
-          <li>5. 点击"测试连接"验证配置</li>
+          <li>5. 点击&quot;测试连接&quot;验证配置</li>
         </ol>
       </div>
 
