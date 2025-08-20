@@ -6,10 +6,6 @@
   "installCommand": "cd frontend && npm install",
   "devCommand": "cd frontend && npm run dev",
   "regions": ["iad1"],
-  "env": {
-    "NEXT_PUBLIC_BACKEND_URL": "@backend_url",
-    "NEXT_PUBLIC_API_BASE_URL": "@api_base_url"
-  },
   "functions": {
     "frontend/src/app/api/**/*.ts": {
       "runtime": "nodejs18.x"
