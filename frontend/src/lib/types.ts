@@ -49,6 +49,9 @@ export interface AuthResponse {
   user: User
 }
 
+// 思考预算类型定义
+export type ThinkingBudget = 'low' | 'medium' | 'high'
+
 // React Syntax Highlighter 类型定义
 export interface SyntaxHighlighterProps {
   children: string
