@@ -84,11 +84,25 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     return false
   }
 
-  // 自动调整文本框高度
+  // 自动调整文本框高度，限制最大高度
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px'
+      const scrollHeight = textareaRef.current.scrollHeight
+      
+      // 计算最大高度：基础高度 + 8行内容（约192px）
+      const baseHeight = 56 // 基础最小高度
+      const lineHeight = 24 // 每行大约24px
+      const maxLines = 8 // 最多显示8行
+      const maxHeight = baseHeight + (lineHeight * (maxLines - 1))
+      
+      if (scrollHeight <= maxHeight) {
+        textareaRef.current.style.height = scrollHeight + 'px'
+        textareaRef.current.style.overflowY = 'hidden'
+      } else {
+        textareaRef.current.style.height = maxHeight + 'px'
+        textareaRef.current.style.overflowY = 'auto'
+      }
     }
   }, [input])
 
@@ -230,7 +244,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           {/* 两行一体式容器 - 固定宽度作为默认形态 */}
           <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto">
             
-            {/* 第一行：输入框 + 右侧按钮组 */}
+            {/* 第一行：输入框 */}
             <div className="relative">
               <textarea
                 ref={textareaRef}
@@ -238,61 +252,15 @@ const handleSubmit = async (e: React.FormEvent) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="询问任何问题..."
-                className="w-full resize-none border-none rounded-none px-6 py-4 pr-24 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-base leading-6"
+                className="w-full resize-none border-none rounded-none px-6 py-4 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-base leading-6"
                 rows={1}
                 disabled={isLoading}
-                style={{ minHeight: '56px' }}
+                style={{ minHeight: '56px', lineHeight: '24px' }}
               />
-              
-              {/* 右下角按钮组 - 绝对定位 */}
-              <div className="absolute bottom-3 right-3 flex items-center gap-2 z-10">
-                {/* 语音按钮 */}
-                <button
-                  type="button"
-                  onClick={isRecording ? stopRecording : startRecording}
-                  className={`p-2 rounded-full transition-colors ${
-                    isRecording 
-                      ? 'bg-red-500 text-white animate-pulse' 
-                      : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                  }`}
-                  title={isRecording ? '停止录音' : '开始录音'}
-                >
-                  {isRecording ? (
-                    <StopIcon className="w-4 h-4" />
-                  ) : (
-                    <MicrophoneIcon className="w-4 h-4" />
-                  )}
-                </button>
-
-                {/* 发送按钮 */}
-                {isLoading ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled
-                    className="px-4 py-3 bg-gray-300 cursor-not-allowed rounded-full"
-                  >
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={!input.trim()}
-                    className={`px-4 py-3 rounded-full transition-colors ${
-                      input.trim() 
-                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200' 
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <PaperAirplaneIcon className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
             </div>
 
-            {/* 第二行：按钮组 + 工具 Chips */}
-            <div className="flex items-center gap-2 px-6 py-3 min-h-[56px]">
+            {/* 第二行：按钮组 + 工具 Chips + 右侧操作按钮 */}
+            <div className="relative flex items-center gap-2 px-6 py-3 min-h-[56px]">
               {/* 左侧：按钮组 */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="relative">
@@ -471,6 +439,52 @@ const handleSubmit = async (e: React.FormEvent) => {
                   ))}
                 </div>
               )}
+              
+              {/* 右侧操作按钮 - 绝对定位在右下角 */}
+              <div className="absolute bottom-3 right-3 flex items-center gap-2 z-10">
+                {/* 语音按钮 */}
+                <button
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  className={`p-2 rounded-full transition-colors ${
+                    isRecording 
+                      ? 'bg-red-500 text-white animate-pulse' 
+                      : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                  }`}
+                  title={isRecording ? '停止录音' : '开始录音'}
+                >
+                  {isRecording ? (
+                    <StopIcon className="w-4 h-4" />
+                  ) : (
+                    <MicrophoneIcon className="w-4 h-4" />
+                  )}
+                </button>
+
+                {/* 发送按钮 */}
+                {isLoading ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled
+                    className="px-4 py-3 bg-gray-300 cursor-not-allowed rounded-full"
+                  >
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={!input.trim()}
+                    className={`px-4 py-3 rounded-full transition-colors ${
+                      input.trim() 
+                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200' 
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <PaperAirplaneIcon className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -503,7 +517,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           {/* 两行一体式容器 - 固定宽度作为默认形态 */}
           <div className="relative bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-2xl shadow-sm transition-all duration-300">
             
-            {/* 第一行：输入框 + 右侧按钮组 */}
+            {/* 第一行：输入框 */}
             <div className="relative">
               <textarea
                 ref={textareaRef}
@@ -511,61 +525,15 @@ const handleSubmit = async (e: React.FormEvent) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="询问任何问题..."
-                className="w-full resize-none border-none rounded-none px-4 py-3 pr-20 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-sm"
+                className="w-full resize-none border-none rounded-none px-4 py-3 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-sm"
                 rows={1}
                 disabled={isLoading}
-                style={{ minHeight: '48px' }}
+                style={{ minHeight: '48px', lineHeight: '20px' }}
               />
-              
-              {/* 右下角按钮组 - 绝对定位 */}
-              <div className="absolute bottom-2 right-2 flex items-center gap-2 z-10">
-                {/* 语音按钮 */}
-                <button
-                  type="button"
-                  onClick={isRecording ? stopRecording : startRecording}
-                  className={`p-2 rounded-full transition-colors ${
-                    isRecording 
-                      ? 'bg-red-500 text-white animate-pulse' 
-                      : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
-                  }`}
-                  title={isRecording ? '停止录音' : '开始录音'}
-                >
-                  {isRecording ? (
-                    <StopIcon className="w-4 h-4" />
-                  ) : (
-                    <MicrophoneIcon className="w-4 h-4" />
-                  )}
-                </button>
-
-                {/* 发送按钮 */}
-                {isLoading ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled
-                    className="px-4 py-3 bg-gray-300 cursor-not-allowed"
-                  >
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={!input.trim()}
-                    className={`px-4 py-3 rounded-full transition-colors ${
-                      input.trim() 
-                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200' 
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <PaperAirplaneIcon className="w-4 h-4" />
-                  </Button>
-                )}
-              </div>
             </div>
 
-            {/* 第二行：按钮组 + 工具 Chips */}
-            <div className="flex items-center gap-2 px-4 py-3 min-h-[48px]">
+            {/* 第二行：按钮组 + 工具 Chips + 右侧操作按钮 */}
+            <div className="relative flex items-center gap-2 px-4 py-3 min-h-[48px]">
               {/* 左侧：按钮组 */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="relative">
@@ -744,6 +712,52 @@ const handleSubmit = async (e: React.FormEvent) => {
                   ))}
                 </div>
               )}
+              
+              {/* 右侧操作按钮 - 绝对定位在右下角 */}
+              <div className="absolute bottom-2 right-2 flex items-center gap-2 z-10">
+                {/* 语音按钮 */}
+                <button
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  className={`p-2 rounded-full transition-colors ${
+                    isRecording 
+                      ? 'bg-red-500 text-white animate-pulse' 
+                      : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                  }`}
+                  title={isRecording ? '停止录音' : '开始录音'}
+                >
+                  {isRecording ? (
+                    <StopIcon className="w-4 h-4" />
+                  ) : (
+                    <MicrophoneIcon className="w-4 h-4" />
+                  )}
+                </button>
+
+                {/* 发送按钮 */}
+                {isLoading ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled
+                    className="px-4 py-3 bg-gray-300 cursor-not-allowed"
+                  >
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={!input.trim()}
+                    className={`px-4 py-3 rounded-full transition-colors ${
+                      input.trim() 
+                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200' 
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <PaperAirplaneIcon className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
