@@ -48,12 +48,12 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
   }, {} as Record<string, typeof conversations>)
 
   return (
-    <div className="w-64 bg-gray-50 dark:bg-gray-800 flex flex-col">
+    <div className="w-64 bg-gray-50 dark:bg-gray-800 flex flex-col h-screen">
       {/* 头部 - 新建对话 */}
-      <div className="p-4">
+      <div className="p-4 animate-in fade-in-0 slide-in-from-top-2 duration-300">
         <Button
           onClick={handleNewChat}
-          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <PlusIcon className="w-4 h-4" />
           新建对话
@@ -61,60 +61,61 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
       </div>
 
       {/* 模型市场按钮 */}
-      <div className="px-4 pb-2">
+      <div className="px-4 pb-2 animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-100">
         <button
           onClick={handleModelMarketClick}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors text-left"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 text-left hover:scale-105 hover:translate-x-1 group"
         >
-          <SparklesIcon className="w-4 h-4 text-purple-500" />
+          <SparklesIcon className="w-4 h-4 text-purple-500 transition-transform duration-200 group-hover:rotate-12" />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">模型市场</span>
         </button>
       </div>
 
       {/* 插件市场按钮 */}
-      <div className="px-4 pb-2">
+      <div className="px-4 pb-2 animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-150">
         <button
           onClick={handlePluginMarketClick}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors text-left"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 text-left hover:scale-105 hover:translate-x-1 group"
         >
-          <PuzzlePieceIcon className="w-4 h-4 text-blue-500" />
+          <PuzzlePieceIcon className="w-4 h-4 text-blue-500 transition-transform duration-200 group-hover:rotate-12" />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">插件市场</span>
         </button>
       </div>
 
       {/* 设置按钮 */}
-      <div className="px-4 pb-4">
+      <div className="px-4 pb-4 animate-in fade-in-0 slide-in-from-left-2 duration-300 delay-200">
         <button
           onClick={onSettingsClick}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors text-left"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-all duration-200 text-left hover:scale-105 hover:translate-x-1 group"
         >
-          <Cog6ToothIcon className="w-4 h-4 text-gray-500" />
+          <Cog6ToothIcon className="w-4 h-4 text-gray-500 transition-transform duration-200 group-hover:rotate-90" />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">设置</span>
         </button>
       </div>
 
       {/* 对话列表 */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-2">
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-2 animate-in fade-in-0 slide-in-from-bottom-3 duration-500 delay-250">
         <div className="px-2 py-2">
           <span className="text-xs font-medium text-gray-500 dark:text-gray-400">聊天记录</span>
         </div>
         
-        {Object.entries(groupedConversations).map(([date, convs]) => (
-          <div key={date} className="mb-4">
+        {Object.entries(groupedConversations).map(([date, convs], groupIndex) => (
+          <div key={date} className="mb-4 animate-in fade-in-0 slide-in-from-left-2 duration-300" style={{ animationDelay: `${(groupIndex + 5) * 100}ms` }}>
             <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 font-medium">
               {date}
             </div>
-            {(convs as Conversation[]).map((conversation) => (
+            {(convs as Conversation[]).map((conversation, convIndex) => (
               <div
                 key={conversation.id}
                 onClick={() => setCurrentConversation(conversation.id)}
                 className={`
-                  flex items-center gap-2 p-2 rounded-lg cursor-pointer group
+                  flex items-center gap-2 p-2 rounded-lg cursor-pointer group transition-all duration-200 animate-in fade-in-0 slide-in-from-right-2
                   ${currentConversationId === conversation.id 
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100' 
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 scale-105' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1'
                   }
                 `}
+                style={{ animationDelay: `${(groupIndex + 5) * 100 + convIndex * 50}ms` }}
               >
                 <ChatBubbleLeftIcon className="w-4 h-4 flex-shrink-0" />
                 <span className="flex-1 truncate text-sm">
@@ -125,7 +126,7 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
                     e.stopPropagation()
                     deleteConversation(conversation.id)
                   }}
-                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity"
+                  className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all duration-200 hover:scale-110 hover:rotate-90"
                 >
                   ×
                 </button>

@@ -41,31 +41,32 @@ function ThinkingBudgetPopover({ current, onChange, onClose }: ThinkingBudgetPop
     <>
       {/* 背景遮罩 */}
       <div 
-        className="fixed inset-0 z-10" 
+        className="fixed inset-0 z-10 animate-in fade-in-0 duration-200" 
         onClick={onClose}
         aria-hidden="true"
       />
       
       {/* Popover 内容 */}
-      <div className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20">
+      <div className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
         <div className="p-3">
-          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3 px-2">
+          <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3 px-2 animate-in fade-in-0 slide-in-from-left-1 duration-300 delay-75">
             思考预算
           </div>
           
-          {budgetOptions.map((option) => (
+          {budgetOptions.map((option, index) => (
             <button
               key={option.value}
               type="button"
               onClick={() => handleSelect(option.value)}
               onKeyDown={(e) => handleKeyDown(e, option.value)}
-              className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors ${
+              className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 animate-in fade-in-0 slide-in-from-left-1 ${
                 current === option.value
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 scale-[1.02]'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1'
               }`}
               role="menuitem"
               tabIndex={0}
+              style={{ animationDelay: `${(index + 1) * 50}ms` }}
             >
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm">{option.label}</div>
@@ -74,7 +75,7 @@ function ThinkingBudgetPopover({ current, onChange, onClose }: ThinkingBudgetPop
                 </div>
               </div>
               {current === option.value && (
-                <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0" />
+                <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0 animate-in fade-in-0 scale-in-0 duration-200 delay-100" />
               )}
             </button>
           ))}
@@ -94,7 +95,7 @@ export default function ThinkingBudgetButton({ budget, onChange, className = "" 
       <button
         type="button"
         onClick={() => setShowPopover(!showPopover)}
-        className={`p-2 rounded-full transition-colors ${
+        className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
           showPopover
             ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
             : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'

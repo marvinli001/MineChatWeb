@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useChatStore, useCurrentConversation } from '@/store/chatStore'
 import MessageItem from './MessageItem'
 import InputArea from './InputArea'
@@ -10,14 +10,33 @@ interface ChatMainProps {
   onModelMarketClick?: () => void
 }
 
+// 欢迎页随机标题文案
+const welcomeTitles = [
+  "我们先从哪里开始呢？",
+  "您在忙什么？",
+  "我能帮什么忙吗？",
+  "今天有什么议程？",
+  "您今天在想什么？",
+  "您好。准备好开始了吗？",
+  "在时刻准备着。",
+  "您今天想聊什么？"
+]
+
 export default function ChatMain({ onModelMarketClick }: ChatMainProps) {
   const { isLoading } = useChatStore()
   const currentConversation = useCurrentConversation()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [welcomeTitle, setWelcomeTitle] = useState("")
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
+
+  // 设置随机欢迎标题
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * welcomeTitles.length)
+    setWelcomeTitle(welcomeTitles[randomIndex])
+  }, [])
 
   useEffect(() => {
     scrollToBottom()
@@ -29,8 +48,8 @@ export default function ChatMain({ onModelMarketClick }: ChatMainProps) {
         {/* 主内容区域 - 居中显示欢迎信息和输入框 */}
         <div className="flex-1 flex flex-col items-center justify-center">
           <div className="text-center max-w-2xl mx-auto px-4 mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-8">
-              您今天想聊什么？
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-8 animate-in fade-in-0 slide-in-from-bottom-3 duration-500">
+              {welcomeTitle}
             </h1>
           </div>
           
