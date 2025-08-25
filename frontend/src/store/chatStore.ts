@@ -22,8 +22,8 @@ interface ChatState {
   createNewConversation: () => void
   setCurrentConversation: (id: string) => void
   sendMessage: (content: string) => Promise<void>
-  _sendMessageWithStreaming: (content: string, targetConversationId: string, settings: any, apiKey: string) => Promise<void>
-  _sendMessageNormal: (content: string, targetConversationId: string, settings: any, apiKey: string) => Promise<void>
+  _sendMessageWithStreaming: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => Promise<void>
+  _sendMessageNormal: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => Promise<void>
   stopGeneration: () => void
   deleteConversation: (id: string) => void
   updateConversationTitle: (id: string, title: string) => void
@@ -201,20 +201,11 @@ export const useChatStore = create<ChatState>()(
           throw new Error(`请先配置 ${settings.chatProvider} 的 API 密钥`)
         }
 
-        // 检查模型是否支持流式输出
-        const supportsStreaming = await modelConfigService.supportsStreaming(settings.chatProvider, settings.chatModel)
-        
-        if (supportsStreaming && !settings.thinkingMode) {
-          // 使用流式输出
-          await get()._sendMessageWithStreaming(content, targetConversationId, settings, apiKey)
-        } else {
-          // 使用普通输出
-          await get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
-        }
-      },
+        // 检查是否为GPT-5系列模型，如果是则默认开启推理模式
+        const isGPT5Model = settings.chatModel?.includes('gpt-5') || false
+        const effectiveThinkingMode = isGPT5Model ? true : (settings.thinkingMode || false)
 
-      _sendMessageWithStreaming: async (content: string, targetConversationId: string, settings: any, apiKey: string) => {
-        // 添加用户消息
+        // 立即添加用户消息和空的AI消息
         const userMessage: ChatMessage = {
           id: Date.now().toString(),
           role: 'user',
@@ -222,12 +213,22 @@ export const useChatStore = create<ChatState>()(
           created_at: new Date().toISOString()
         }
 
+        const assistantMessage: ChatMessage = {
+          id: Date.now().toString() + '-assistant',
+          role: 'assistant',
+          content: '',
+          created_at: new Date().toISOString(),
+          thinking_start_time: Date.now()  // 记录思考开始时间
+        }
+
+        // 立即更新UI显示消息
         set(state => ({
           conversations: state.conversations.map(conv =>
             conv.id === targetConversationId
               ? {
                   ...conv,
-                  messages: [...conv.messages, userMessage],
+                  messages: [...conv.messages, userMessage, assistantMessage],
+                  title: conv.messages.length === 0 ? content.slice(0, 20) + '...' : conv.title,
                   updated_at: new Date().toISOString()
                 }
               : conv
@@ -235,6 +236,19 @@ export const useChatStore = create<ChatState>()(
           isLoading: true
         }))
 
+        // 检查模型是否支持流式输出
+        const supportsStreaming = await modelConfigService.supportsStreaming(settings.chatProvider, settings.chatModel)
+        
+        if (supportsStreaming && !effectiveThinkingMode) {
+          // 使用流式输出
+          await get()._sendMessageWithStreaming(content, targetConversationId, settings, apiKey, assistantMessage.id)
+        } else {
+          // 使用普通输出（推理模型或不支持流式的模型）
+          await get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessage.id)
+        }
+      },
+
+      _sendMessageWithStreaming: async (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => {
         const abortController = new AbortController()
         set({ abortController })
 
@@ -246,33 +260,13 @@ export const useChatStore = create<ChatState>()(
             throw new Error('找不到目标对话')
           }
 
-          const messages = updatedConversation.messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          }))
-
-          // 创建流式AI消息
-          const assistantMessage: ChatMessage = {
-            id: Date.now().toString() + '-assistant',
-            role: 'assistant',
-            content: '',
-            created_at: new Date().toISOString(),
-            thinking_start_time: Date.now()  // 记录思考开始时间
-          }
-
-          // 添加空的助手消息
-          set(state => ({
-            conversations: state.conversations.map(conv =>
-              conv.id === targetConversationId
-                ? {
-                    ...conv,
-                    messages: [...conv.messages, assistantMessage],
-                    title: conv.messages.length === 1 ? content.slice(0, 20) + '...' : conv.title,
-                    updated_at: new Date().toISOString()
-                  }
-                : conv
-            )
-          }))
+          // 过滤掉空的AI消息，只发送有内容的消息到API
+          const messages = updatedConversation.messages
+            .filter(msg => !(msg.role === 'assistant' && msg.content === ''))
+            .map(msg => ({
+              role: msg.role,
+              content: msg.content
+            }))
 
           // WebSocket URL configuration
           const getWebSocketUrl = () => {
@@ -306,8 +300,9 @@ export const useChatStore = create<ChatState>()(
                 model: settings.chatModel,
                 messages,
                 api_key: apiKey,
-                thinking_mode: settings.thinkingMode || false,
-                reasoning_summaries: 'auto'
+                thinking_mode: settings.thinkingMode || settings.chatModel?.includes('gpt-5') || false,
+                reasoning_summaries: 'auto',
+                reasoning: settings.reasoning || 'medium'
               }
 
               ws.onmessage = (event) => {
@@ -333,7 +328,7 @@ export const useChatStore = create<ChatState>()(
                           ? {
                               ...conv,
                               messages: conv.messages.map(msg =>
-                                msg.id === assistantMessage.id
+                                msg.id === assistantMessageId
                                   ? { ...msg, content: msg.content + deltaContent }
                                   : msg
                               ),
@@ -355,7 +350,7 @@ export const useChatStore = create<ChatState>()(
                           ? {
                               ...conv,
                               messages: conv.messages.map(msg =>
-                                msg.id === assistantMessage.id
+                                msg.id === assistantMessageId
                                   ? { ...msg, reasoning: (msg.reasoning || '') + deltaReasoning }
                                   : msg
                               ),
@@ -388,7 +383,7 @@ export const useChatStore = create<ChatState>()(
                 } else {
                   // Fallback to HTTP after max attempts
                   console.log('WebSocket重连失败，切换到HTTP模式')
-                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
+                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId)
                 }
               }
 
@@ -401,7 +396,7 @@ export const useChatStore = create<ChatState>()(
                   }, get().wsReconnectDelay * Math.pow(2, attempt))
                 } else if (!event.wasClean && attempt >= get().wsMaxReconnectAttempts) {
                   console.log('WebSocket连接断开且重连失败，切换到HTTP模式')
-                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
+                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId)
                 } else {
                   set({ isLoading: false, abortController: null })
                 }
@@ -418,7 +413,7 @@ export const useChatStore = create<ChatState>()(
                 }, get().wsReconnectDelay * Math.pow(2, attempt))
               } else {
                 console.log('WebSocket连接彻底失败，切换到HTTP模式')
-                get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
+                get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId)
               }
             }
           }
@@ -440,7 +435,7 @@ export const useChatStore = create<ChatState>()(
           // Final fallback to HTTP
           try {
             console.log('尝试HTTP fallback')
-            await get()._sendMessageNormal(content, targetConversationId, settings, apiKey)
+            await get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId)
           } catch (httpError: any) {
             console.error('HTTP fallback也失败了:', httpError)
             throw httpError
@@ -448,29 +443,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
-      _sendMessageNormal: async (content: string, targetConversationId: string, settings: any, apiKey: string) => {
-
-        // 添加用户消息
-        const userMessage: ChatMessage = {
-          id: Date.now().toString(),
-          role: 'user',
-          content,
-          created_at: new Date().toISOString()
-        }
-
-        set(state => ({
-          conversations: state.conversations.map(conv =>
-            conv.id === targetConversationId
-              ? {
-                  ...conv,
-                  messages: [...conv.messages, userMessage],
-                  updated_at: new Date().toISOString()
-                }
-              : conv
-          ),
-          isLoading: true
-        }))
-
+      _sendMessageNormal: async (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => {
         const abortController = new AbortController()
         set({ abortController })
 
@@ -482,10 +455,13 @@ export const useChatStore = create<ChatState>()(
             throw new Error('找不到目标对话')
           }
 
-          const messages = updatedConversation.messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          }))
+          // 过滤掉空的AI消息，只发送有内容的消息到API
+          const messages = updatedConversation.messages
+            .filter(msg => !(msg.role === 'assistant' && msg.content === ''))
+            .map(msg => ({
+              role: msg.role,
+              content: msg.content
+            }))
 
           const response = await fetch('/api/v1/chat/completion', {
             method: 'POST',
@@ -497,8 +473,9 @@ export const useChatStore = create<ChatState>()(
               model: settings.chatModel,
               messages,
               api_key: apiKey,
-              thinking_mode: settings.thinkingMode || false,
+              thinking_mode: settings.thinkingMode || settings.chatModel?.includes('gpt-5') || false,
               reasoning_summaries: 'auto',  // Default to auto mode as recommended by OpenAI
+              reasoning: settings.reasoning || 'medium',
               stream: false
             }),
             signal: abortController.signal
@@ -530,22 +507,22 @@ export const useChatStore = create<ChatState>()(
           // Extract reasoning data if available
           const reasoningContent = data.choices[0]?.message?.reasoning
 
-          const assistantMessage: ChatMessage = {
-            id: Date.now().toString() + '-assistant',
-            role: 'assistant',
-            content: assistantContent,
-            created_at: new Date().toISOString(),
-            thinking_start_time: Date.now(),  // 记录思考开始时间
-            ...(reasoningContent && { reasoning: reasoningContent })
-          }
-
+          // 更新已存在的AI消息
           set(state => {
             const newConversations = state.conversations.map(conv =>
               conv.id === targetConversationId
                 ? {
                     ...conv,
-                    messages: [...conv.messages, assistantMessage],
-                    title: conv.messages.length === 1 ? content.slice(0, 20) + '...' : conv.title,
+                    messages: conv.messages.map(msg =>
+                      msg.id === assistantMessageId
+                        ? {
+                            ...msg,
+                            content: assistantContent,
+                            ...(reasoningContent && { reasoning: reasoningContent })
+                          }
+                        : msg
+                    ),
+                    title: conv.messages.length <= 2 ? content.slice(0, 20) + '...' : conv.title,
                     updated_at: new Date().toISOString()
                   }
                 : conv

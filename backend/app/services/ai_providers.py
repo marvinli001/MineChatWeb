@@ -46,7 +46,8 @@ class AIProviderService:
         api_key: str,
         stream: bool = False,
         thinking_mode: bool = False,
-        reasoning_summaries: str = "auto"
+        reasoning_summaries: str = "auto",
+        reasoning: str = "medium"
     ) -> Dict[str, Any]:
         """获取AI完成响应"""
         logger.info(f"开始调用 {provider} API, 模型: {model}, 思考模式: {thinking_mode}")
@@ -58,10 +59,10 @@ class AIProviderService:
                 if provider == "openai":
                     # 对于 GPT-5 系列模型，根据 thinking_mode 选择 API
                     if self._is_gpt5_model(model) and thinking_mode:
-                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries)
+                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning)
                     # 判断是否使用 Responses API (对于其他模型)
                     elif await self._is_openai_responses_api(model):
-                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries)
+                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning)
                     else:
                         return await self._openai_chat_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries)
                 elif provider == "anthropic":
@@ -301,7 +302,8 @@ class AIProviderService:
         messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         thinking_mode: bool = False,
-        reasoning_summaries: str = "auto"
+        reasoning_summaries: str = "auto",
+        reasoning: str = "medium"
     ) -> Dict[str, Any]:
         """OpenAI Responses API 调用"""
         try:
@@ -337,7 +339,7 @@ class AIProviderService:
                     "model": model,
                     "input": input_text.strip(),
                     "reasoning": {
-                        "effort": "medium",
+                        "effort": reasoning,
                         "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                     }
                 }
@@ -549,7 +551,8 @@ class AIProviderService:
         messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         thinking_mode: bool = False,
-        reasoning_summaries: str = "auto"
+        reasoning_summaries: str = "auto",
+        reasoning: str = "medium"
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """流式完成（WebSocket使用）"""
         logger.info(f"开始流式调用 {provider} API")
@@ -563,11 +566,11 @@ class AIProviderService:
                 else:
                     # 不支持流式的模型，直接返回完整响应
                     logger.info(f"模型 {model} 不支持流式输出，使用普通请求")
-                    response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries)
+                    response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries, reasoning)
                     yield response
             else:
                 # 其他提供商暂不支持流式
-                response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries)
+                response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries, reasoning)
                 yield response
                 
         except Exception as e:

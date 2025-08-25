@@ -53,7 +53,6 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   const [isRecording, setIsRecording] = useState(false)
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
   const [audioChunks, setAudioChunks] = useState<Blob[]>([])
-  const [thinkingBudget, setThinkingBudget] = useState<ThinkingBudget>('medium')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -393,8 +392,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                 {/* 思考预算按钮 - 仅在思考模式启用时显示 */}
                 {showThinkingToggle() && (
                   <ThinkingBudgetButton
-                    budget={thinkingBudget}
-                    onChange={setThinkingBudget}
+                    budget={settings.reasoning}
+                    onChange={(budget) => updateSettings({ reasoning: budget })}
                   />
                 )}
               </div>
@@ -668,8 +667,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                 {/* 思考预算按钮 - 仅在思考模式启用时显示 */}
                 {showThinkingToggle() && (
                   <ThinkingBudgetButton
-                    budget={thinkingBudget}
-                    onChange={setThinkingBudget}
+                    budget={settings.reasoning}
+                    onChange={(budget) => updateSettings({ reasoning: budget })}
                   />
                 )}
               </div>

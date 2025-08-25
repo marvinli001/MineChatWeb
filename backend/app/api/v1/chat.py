@@ -65,7 +65,8 @@ async def chat_completion(request: ChatRequest):
             api_key=request.api_key,
             stream=request.stream,
             thinking_mode=request.thinking_mode,
-            reasoning_summaries=request.reasoning_summaries
+            reasoning_summaries=request.reasoning_summaries,
+            reasoning=request.reasoning
         )
         
         logger.info(f"[{request_id}] AI服务调用成功，耗时: {time.time() - start_time:.2f}秒")
@@ -167,7 +168,8 @@ async def websocket_chat(websocket: WebSocket):
                 messages=request_data["messages"],
                 api_key=request_data["api_key"],
                 thinking_mode=request_data.get("thinking_mode", False),
-                reasoning_summaries=request_data.get("reasoning_summaries", "auto")
+                reasoning_summaries=request_data.get("reasoning_summaries", "auto"),
+                reasoning=request_data.get("reasoning", "medium")
             ):
                 await manager.send_personal_message(
                     json.dumps(chunk), 

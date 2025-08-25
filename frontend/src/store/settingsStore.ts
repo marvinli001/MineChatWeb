@@ -16,6 +16,7 @@ export interface Settings {
   // 功能设置
   thinkingMode: boolean
   streamMode: boolean
+  reasoning: 'low' | 'medium' | 'high'
   
   // 界面设置
   theme: 'light' | 'dark' | 'auto'
@@ -51,6 +52,7 @@ const defaultSettings: Settings = {
   imageModel: '',
   thinkingMode: false,
   streamMode: true,
+  reasoning: 'medium',
   theme: 'auto',
   language: 'zh-CN',
   enableCloudSync: false,

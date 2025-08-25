@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useChatStore, useCurrentConversation } from '@/store/chatStore'
 import MessageItem from './MessageItem'
 import InputArea from './InputArea'
-import TypewriterEffect from './TypewriterEffect'
 
 interface ChatMainProps {
   onModelMarketClick?: () => void
@@ -74,11 +73,6 @@ export default function ChatMain({ onModelMarketClick }: ChatMainProps) {
               isLast={index === currentConversation.messages.length - 1}
             />
           ))}
-          {isLoading && (
-            <div className="flex justify-center py-4">
-              <TypewriterEffect />
-            </div>
-          )}
           <div ref={messagesEndRef} />
         </div>
       </div>

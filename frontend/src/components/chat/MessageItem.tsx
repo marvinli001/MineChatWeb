@@ -9,6 +9,7 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { useChatStore } from '@/store/chatStore'
 import { modelConfigService } from '@/services/modelConfigService'
 import ThinkingChain from './ThinkingChain'
+import TypewriterEffect from './TypewriterEffect'
 import toast from 'react-hot-toast'
 
 interface MessageItemProps {
@@ -21,19 +22,25 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [currentModelIcon, setCurrentModelIcon] = useState<string | null>(null)
+  const [isReasoningModel, setIsReasoningModel] = useState(false)
   const { settings } = useSettingsStore()
   const { regenerateLastMessage, isLoading } = useChatStore()
 
-  // 获取当前模型的icon
+  // 获取当前模型的icon和推理模型状态
   useEffect(() => {
     const loadModelIcon = async () => {
       if (settings.chatProvider && settings.chatModel) {
         const modelConfig = await modelConfigService.getModelConfig(settings.chatProvider, settings.chatModel)
         setCurrentModelIcon((modelConfig as any)?.icon || null)
+        
+        // 检测是否是推理模型
+        const reasoningModels = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini']
+        const isReasoning = reasoningModels.some(model => settings.chatModel.includes(model)) || settings.thinkingMode
+        setIsReasoningModel(isReasoning)
       }
     }
     loadModelIcon()
-  }, [settings.chatProvider, settings.chatModel])
+  }, [settings.chatProvider, settings.chatModel, settings.thinkingMode])
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -124,12 +131,47 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
   return (
     <div className="mb-6 px-4">
       {isUser ? (
-        // 用户消息 - 右侧对齐，暗灰色气泡
+        // 用户消息 - 右侧对齐，暗灰色气泡，默认markdown渲染
         <div className="flex justify-end">
           <div className="max-w-[70%]">
             <div className="bg-gray-700 text-white rounded-2xl px-4 py-3">
-              <div className="text-sm">
-                {message.content}
+              <div className="prose prose-sm prose-invert max-w-none text-sm">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ node, ...props }) => (
+                      <p className="mb-1 last:mb-0" {...props} />
+                    ),
+                    ul: ({ node, ...props }) => (
+                      <ul className="mb-1 ml-4" {...props} />
+                    ),
+                    ol: ({ node, ...props }) => (
+                      <ol className="mb-1 ml-4" {...props} />
+                    ),
+                    li: ({ node, ...props }) => (
+                      <li className="mb-0" {...props} />
+                    ),
+                    code: ({ node, ...props }) => {
+                      const { inline, ...restProps } = props as any
+                      return inline ? (
+                        <code
+                          className="bg-gray-600 px-1 py-0.5 rounded text-xs"
+                          {...restProps}
+                        />
+                      ) : (
+                        <code {...restProps} />
+                      )
+                    },
+                    pre: ({ node, ...props }) => (
+                      <pre
+                        className="bg-gray-600 rounded p-2 overflow-x-auto text-xs mt-2"
+                        {...props}
+                      />
+                    ),
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
               </div>
             </div>
           </div>
@@ -159,95 +201,40 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
 
           {/* 消息内容 */}
           <div className="flex-1 min-w-0">
-            {/* 显示推理链（仅当消息有reasoning字段时） */}
-            {message.reasoning && (
+            {/* 显示推理链（当有reasoning内容或者是正在加载的推理模型时） */}
+            {(message.reasoning || (isReasoningModel && isLoading && isLast)) && (
               <ThinkingChain 
-                reasoning={message.reasoning} 
+                reasoning={message.reasoning || ''} 
                 startTime={message.thinking_start_time}
+                isComplete={!isLoading || !isLast}
                 className="mb-4" 
               />
             )}
             
-            <div className="prose prose-gray dark:prose-invert max-w-none">
-              {contentParts.map((part, index) => {
-                if (part.type === 'thinking') {
-                  return (
-                    <details key={index} className="my-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg border-l-4 border-yellow-400">
-                      <summary className="cursor-pointer font-medium text-yellow-600 dark:text-yellow-400 mb-2">
-                        💭 思考过程
-                      </summary>
-                      <div className="text-sm text-gray-700 dark:text-gray-300 mt-2">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {part.text}
-                        </ReactMarkdown>
-                      </div>
-                    </details>
-                  )
-                } else {
-                  return (
-                    <div key={index}>
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          pre: ({ node, children, ...props }) => (
-                            <div className="relative">
-                              <pre
-                                className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 overflow-x-auto border border-gray-200 dark:border-gray-600"
-                                {...props}
-                              />
-                              <button
-                                onClick={() => copyToClipboard(typeof children === 'string' ? children : String(children))}
-                                className="absolute top-2 right-2 p-1.5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                                title="复制代码"
-                              >
-                                {copied ? (
-                                  <CheckIcon className="w-4 h-4 text-green-600" />
-                                ) : (
-                                  <ClipboardIcon className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                                )}
-                              </button>
-                            </div>
-                          ),
-                          code: ({ node, ...props }) => {
-                            const { inline, ...restProps } = props as any
-                            return inline ? (
-                              <code
-                                className="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-sm border border-gray-200 dark:border-gray-600"
-                                {...restProps}
-                              />
-                            ) : (
-                              <code {...restProps} />
-                            )
-                          },
-                          table: ({ node, ...props }) => (
-                            <div className="overflow-x-auto my-4">
-                              <table
-                                className="min-w-full border border-gray-200 dark:border-gray-600 rounded-lg"
-                                {...props}
-                              />
-                            </div>
-                          ),
-                          th: ({ node, ...props }) => (
-                            <th
-                              className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 px-4 py-2 text-left font-medium"
-                              {...props}
-                            />
-                          ),
-                          td: ({ node, ...props }) => (
-                            <td
-                              className="border-b border-gray-200 dark:border-gray-600 px-4 py-2"
-                              {...props}
-                            />
-                          ),
-                        }}
-                      >
+            {/* 使用打字机效果渲染AI消息内容 */}
+            <TypewriterEffect
+              text={message.content}
+              isComplete={!isLoading || !isLast}
+            />
+            
+            {/* 处理旧的thinking标签格式兼容性 */}
+            {hasThinking && contentParts.map((part, index) => {
+              if (part.type === 'thinking') {
+                return (
+                  <details key={index} className="my-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg border-l-4 border-yellow-400">
+                    <summary className="cursor-pointer font-medium text-yellow-600 dark:text-yellow-400 mb-2">
+                      💭 思考过程
+                    </summary>
+                    <div className="text-sm text-gray-700 dark:text-gray-300 mt-2">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {part.text}
                       </ReactMarkdown>
                     </div>
-                  )
-                }
-              })}
-            </div>
+                  </details>
+                )
+              }
+              return null
+            })}
 
             {/* 操作按钮 - 只在AI消息上显示，hover时出现 */}
             <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
