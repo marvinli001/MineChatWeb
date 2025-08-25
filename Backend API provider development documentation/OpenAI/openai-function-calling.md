@@ -1,36 +1,75 @@
-# Function calling (Tools) — OpenAI API
+Function calling
+================
 
-给模型接入**外部功能与数据**，让它在生成回复时主动**调用你的工具/函数**。本页整理了要点、完整示例、流式事件与自定义语法约束。
+Give models access to new functionality and data they can use to follow instructions and respond to prompts.
 
----
+**Function calling** (also known as **tool calling**) provides a powerful and flexible way for OpenAI models to interface with external systems and access data outside their training data. This guide shows how you can connect a model to data and actions provided by your application. We'll show how to use function tools (defined by a JSON schema) and custom tools which work with free form text inputs and outputs.
 
-## 核心概念
+How it works
+------------
 
-- **Tool / Function（工具 / 函数）**：你暴露给模型的能力。例：`get_weather(location)`、`refund(order_id)`、`lookup_user(user_id)` 等。
-- **Tool call（工具调用）**：模型在思考后认为需要外部能力，会返回一个**调用请求**（包含工具名与参数）。
-- **Tool call output（工具返回）**：你的后端执行工具后得到的结果（文本或 JSON），再带着**call_id**回传给模型，模型据此完成最终回答。
+Let's begin by understanding a few key terms about tool calling. After we have a shared vocabulary for tool calling, we'll show you how it's done with some practical examples.
 
-> 术语：**Function 是 Tool 的一种**（以 JSON Schema 定义参数）。此外还有**自定义工具**（自由文本输入/输出），以及平台**内置工具**（web 搜索、代码执行、MCP 服务器等）。
+Tools - functionality we give the model
 
----
+A **function** or **tool** refers in the abstract to a piece of functionality that we tell the model it has access to. As a model generates a response to a prompt, it may decide that it needs data or functionality provided by a tool to follow the prompt's instructions.
 
-## 标准调用流程（5 步）
+You could give the model access to tools that:
 
-1. **请求**：携带可用的 `tools` 列表向模型发起请求。  
-2. **接收调用**：模型返回一个或多个 `function_call` / `custom_tool_call`。  
-3. **执行工具**：你的后端根据调用参数实际执行代码或外部 API。  
-4. **回传结果**：把**工具定义 + 原始输入 + 模型的 tool call + 你的工具输出**一并再发给模型。  
-5. **完成回复**：模型利用工具返回给出最终答案（或继续发起更多调用）。
+*   Get today's weather for a location
+*   Access account details for a given user ID
+*   Issue refunds for a lost order
 
-> 对 **推理模型**（如 GPT‑5、o4‑mini）：若响应中含有 *reasoning items*，在回传工具结果时也要**原样带回**这些条目。
+Or anything else you'd like the model to be able to know or do as it responds to a prompt.
 
----
+When we make an API request to the model with a prompt, we can include a list of tools the model could consider using. For example, if we wanted the model to be able to answer questions about the current weather somewhere in the world, we might give it access to a `get_weather` tool that takes `location` as an argument.
 
-## 完整示例（Function Tool）
+Tool calls - requests from the model to use tools
 
-以下示例为「星座运势」函数：模型先决定是否调用，再把结果拼进最终回答。
+A **function call** or **tool call** refers to a special kind of response we can get from the model if it examines a prompt, and then determines that in order to follow the instructions in the prompt, it needs to call one of the tools we made available to it.
 
-### Python
+If the model receives a prompt like "what is the weather in Paris?" in an API request, it could respond to that prompt with a tool call for the `get_weather` tool, with `Paris` as the `location` argument.
+
+Tool call outputs - output we generate for the model
+
+A **function call output** or **tool call output** refers to the response a tool generates using the input from a model's tool call. The tool call output can either be structured JSON or plain text, and it should contain a reference to a specific model tool call (referenced by `call_id` in the examples to come).
+
+To complete our weather example:
+
+*   The model has access to a `get_weather` **tool** that takes `location` as an argument.
+*   In response to a prompt like "what's the weather in Paris?" the model returns a **tool call** that contains a `location` argument with a value of `Paris`
+*   Our **tool call output** might be a JSON structure like `{"temperature": "25", "unit": "C"}`, indicating a current temperature of 25 degrees.
+
+We then send all of the tool definition, the original prompt, the model's tool call, and the tool call output back to the model to finally receive a text response like:
+
+```text
+The weather in Paris today is 25C.
+```
+
+Functions versus tools
+
+*   A function is a specific kind of tool, defined by a JSON schema. A function definition allows the model to pass data to your application, where your code can access data or take actions suggested by the model.
+*   In addition to function tools, there are custom tools (described in this guide) that work with free text inputs and outputs.
+*   There are also [built-in tools](/docs/guides/tools) that are part of the OpenAI platform. These tools enable the model to [search the web](/docs/guides/tools-web-search), [execute code](/docs/guides/tools-code-interpreter), access the functionality of an [MCP server](/docs/guides/tools-remote-mcp), and more.
+
+### The tool calling flow
+
+Tool calling is a multi-step conversation between your application and a model via the OpenAI API. The tool calling flow has five high level steps:
+
+1.  Make a request to the model with tools it could call
+2.  Receive a tool call from the model
+3.  Execute code on the application side with input from the tool call
+4.  Make a second request to the model with the tool output
+5.  Receive a final response from the model (or more tool calls)
+
+![Function Calling Diagram Steps](https://cdn.openai.com/API/docs/images/function-calling-diagram-steps.png)
+
+Function tool example
+---------------------
+
+Let's look at an end-to-end tool calling flow for a `get_horoscope` function that gets a daily horoscope for an astrological sign.
+
+Complete tool calling example
 
 ```python
 from openai import OpenAI
@@ -38,7 +77,7 @@ import json
 
 client = OpenAI()
 
-# 1) 定义工具（函数）
+# 1. Define a list of callable tools for the model
 tools = [
     {
         "type": "function",
@@ -53,25 +92,23 @@ tools = [
                 },
             },
             "required": ["sign"],
-            "additionalProperties": False
         },
-        "strict": True,
     },
 ]
 
-# 维护一份对话输入（会逐步追加）
+# Create a running input list we will add to over time
 input_list = [
     {"role": "user", "content": "What is my horoscope? I am an Aquarius."}
 ]
 
-# 2) 向模型发起请求（包含 tools）
+# 2. Prompt the model with tools defined
 response = client.responses.create(
     model="gpt-5",
     tools=tools,
     input=input_list,
 )
 
-# 提取 function_call
+# Save function call outputs for subsequent requests
 function_call = None
 function_call_arguments = None
 input_list += response.output
@@ -84,33 +121,37 @@ for item in response.output:
 def get_horoscope(sign):
     return f"{sign}: Next Tuesday you will befriend a baby otter."
 
-# 3) 执行函数
+# 3. Execute the function logic for get_horoscope
 result = {"horoscope": get_horoscope(function_call_arguments["sign"])}
 
-# 4) 回传工具调用结果
+# 4. Provide function call results to the model
 input_list.append({
     "type": "function_call_output",
     "call_id": function_call.call_id,
     "output": json.dumps(result),
 })
 
-# 5) 让模型生成最终答复（可加入明确指令）
-final = client.responses.create(
+print("Final input:")
+print(input_list)
+
+response = client.responses.create(
     model="gpt-5",
     instructions="Respond only with a horoscope generated by a tool.",
     tools=tools,
     input=input_list,
 )
 
-print(final.output_text)
+# 5. The model should be able to give a response!
+print("Final output:")
+print(response.model_dump_json(indent=2))
+print("\n" + response.output_text)
 ```
 
-### JavaScript / TypeScript
-
-```js
+```javascript
 import OpenAI from "openai";
 const openai = new OpenAI();
 
+// 1. Define a list of callable tools for the model
 const tools = [
   {
     type: "function",
@@ -119,152 +160,216 @@ const tools = [
     parameters: {
       type: "object",
       properties: {
-        sign: { type: "string", description: "e.g. Taurus, Aquarius" },
+        sign: {
+          type: "string",
+          description: "An astrological sign like Taurus or Aquarius",
+        },
       },
       required: ["sign"],
-      additionalProperties: false
     },
-    strict: true,
   },
 ];
 
-let input = [{ role: "user", content: "What is my horoscope? I am an Aquarius." }];
+// Create a running input list we will add to over time
+let input = [
+  { role: "user", content: "What is my horoscope? I am an Aquarius." },
+];
 
-let response = await openai.responses.create({ model: "gpt-5", tools, input });
+// 2. Prompt the model with tools defined
+let response = await openai.responses.create({
+  model: "gpt-5",
+  tools,
+  input,
+});
 
+// Save function call outputs for subsequent requests
 let functionCall = null;
 let functionCallArguments = null;
 input = input.concat(response.output);
 
 response.output.forEach((item) => {
-  if (item.type === "function_call") {
+  if (item.type == "function_call") {
     functionCall = item;
     functionCallArguments = JSON.parse(item.arguments);
   }
 });
 
+// 3. Execute the function logic for get_horoscope
 function getHoroscope(sign) {
-  return `${sign}: Next Tuesday you will befriend a baby otter.`;
+  return sign + " Next Tuesday you will befriend a baby otter.";
 }
 const result = { horoscope: getHoroscope(functionCallArguments.sign) };
 
+// 4. Provide function call results to the model
 input.push({
   type: "function_call_output",
   call_id: functionCall.call_id,
   output: JSON.stringify(result),
 });
+console.log("Final input:");
+console.log(JSON.stringify(input, null, 2));
 
-const final = await openai.responses.create({
+response = await openai.responses.create({
   model: "gpt-5",
   instructions: "Respond only with a horoscope generated by a tool.",
   tools,
   input,
 });
 
-console.log(final.output_text);
+// 5. The model should be able to give a response!
+console.log("Final output:");
+console.log(JSON.stringify(response.output, null, 2));
 ```
 
----
+Note that for reasoning models like GPT-5 or o4-mini, any reasoning items returned in model responses with tool calls must also be passed back with tool call outputs.
 
-## 定义函数（工具）
+Defining functions
+------------------
 
-函数定义写在每次请求的 `tools` 数组中：
+Functions can be set in the `tools` parameter of each API request. A function is defined by its schema, which informs the model what it does and what input arguments it expects. A function definition has the following properties:
 
-- `type`：固定为 `"function"`  
-- `name`：函数名（如 `get_weather`）  
-- `description`：何时/如何使用该函数  
-- `parameters`：**JSON Schema**，描述输入参数  
-- `strict`：启用严格模式以确保参数**完全符合** Schema
+|Field|Description|
+|---|---|
+|type|This should always be function|
+|name|The function's name (e.g. get_weather)|
+|description|Details on when and how to use the function|
+|parameters|JSON schema defining the function's input arguments|
+|strict|Whether to enforce strict mode for the function call|
 
-示例：
+Here is an example function definition for a `get_weather` function
 
 ```json
 {
-  "type": "function",
-  "name": "get_weather",
-  "description": "Retrieves current weather for the given location.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "location": {
-        "type": "string",
-        "description": "City and country e.g. Bogotá, Colombia"
-      },
-      "units": {
-        "type": "string",
-        "enum": ["celsius", "fahrenheit"],
-        "description": "Units the temperature will be returned in."
-      }
+    "type": "function",
+    "name": "get_weather",
+    "description": "Retrieves current weather for the given location.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "location": {
+                "type": "string",
+                "description": "City and country e.g. Bogotá, Colombia"
+            },
+            "units": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"],
+                "description": "Units the temperature will be returned in."
+            }
+        },
+        "required": ["location", "units"],
+        "additionalProperties": false
     },
-    "required": ["location", "units"],
-    "additionalProperties": false
-  },
-  "strict": true
+    "strict": true
 }
 ```
 
-### 最佳实践（精简版）
+Because the `parameters` are defined by a [JSON schema](https://json-schema.org/), you can leverage many of its rich features like property types, enums, descriptions, nested objects, and, recursive objects.
 
-1) **写清楚**函数名、参数、用途与返回语义；在系统提示中说明**何时用/不该用**。  
-2) **工程化**设计：少用暧昧参数、用枚举/结构让非法状态不可表达。  
-3) **能在代码里确定的参数别让模型填**；必要时合并固定串联的两个函数。  
-4) **函数数量越少越准**；一般不超过 ~20 个同屏开放。  
-5) 善用 **Playground** 生成/迭代 Schema；函数很多或难度高可考虑**微调**。
+### Best practices for defining functions
 
-> **Token 成本**：工具定义会注入系统消息参与上下文与计费；尽量控制工具数量与描述长度。
+1.  **Write clear and detailed function names, parameter descriptions, and instructions.**
+    
+    *   **Explicitly describe the purpose of the function and each parameter** (and its format), and what the output represents.
+    *   **Use the system prompt to describe when (and when not) to use each function.** Generally, tell the model _exactly_ what to do.
+    *   **Include examples and edge cases**, especially to rectify any recurring failures. (**Note:** Adding examples may hurt performance for [reasoning models](/docs/guides/reasoning).)
+2.  **Apply software engineering best practices.**
+    
+    *   **Make the functions obvious and intuitive**. ([principle of least surprise](https://en.wikipedia.org/wiki/Principle_of_least_astonishment))
+    *   **Use enums** and object structure to make invalid states unrepresentable. (e.g. `toggle_light(on: bool, off: bool)` allows for invalid calls)
+    *   **Pass the intern test.** Can an intern/human correctly use the function given nothing but what you gave the model? (If not, what questions do they ask you? Add the answers to the prompt.)
+3.  **Offload the burden from the model and use code where possible.**
+    
+    *   **Don't make the model fill arguments you already know.** For example, if you already have an `order_id` based on a previous menu, don't have an `order_id` param – instead, have no params `submit_refund()` and pass the `order_id` with code.
+    *   **Combine functions that are always called in sequence.** For example, if you always call `mark_location()` after `query_location()`, just move the marking logic into the query function call.
+4.  **Keep the number of functions small for higher accuracy.**
+    
+    *   **Evaluate your performance** with different numbers of functions.
+    *   **Aim for fewer than 20 functions** at any one time, though this is just a soft suggestion.
+5.  **Leverage OpenAI resources.**
+    
+    *   **Generate and iterate on function schemas** in the [Playground](/playground).
+    *   **Consider [fine-tuning](https://platform.openai.com/docs/guides/fine-tuning) to increase function calling accuracy** for large numbers of functions or difficult tasks. ([cookbook](https://cookbook.openai.com/examples/fine_tuning_for_function_calling))
 
----
+### Token Usage
 
-## 处理函数调用
+Under the hood, functions are injected into the system message in a syntax the model has been trained on. This means functions count against the model's context limit and are billed as input tokens. If you run into token limits, we suggest limiting the number of functions or the length of the descriptions you provide for function parameters.
 
-模型输出的 `response.output` 中，会包含 0..N 个 `function_call` 项：
+It is also possible to use [fine-tuning](/docs/guides/fine-tuning#fine-tuning-examples) to reduce the number of tokens used if you have many functions defined in your tools specification.
+
+Handling function calls
+-----------------------
+
+When the model calls a function, you must execute it and return the result. Since model responses can include zero, one, or multiple calls, it is best practice to assume there are several.
+
+The response `output` array contains an entry with the `type` having a value of `function_call`. Each entry with a `call_id` (used later to submit the function result), `name`, and JSON-encoded `arguments`.
+
+Sample response with multiple function calls
 
 ```json
 [
-  {
-    "id": "fc_12345xyz",
-    "call_id": "call_12345xyz",
-    "type": "function_call",
-    "name": "get_weather",
-    "arguments": "{\"location\":\"Paris, France\"}"
-  },
-  {
-    "id": "fc_67890abc",
-    "call_id": "call_67890abc",
-    "type": "function_call",
-    "name": "get_weather",
-    "arguments": "{\"location\":\"Bogotá, Colombia\"}"
-  },
-  {
-    "id": "fc_99999def",
-    "call_id": "call_99999def",
-    "type": "function_call",
-    "name": "send_email",
-    "arguments": "{\"to\":\"bob@email.com\",\"body\":\"Hi bob\"}"
-  }
+    {
+        "id": "fc_12345xyz",
+        "call_id": "call_12345xyz",
+        "type": "function_call",
+        "name": "get_weather",
+        "arguments": "{\"location\":\"Paris, France\"}"
+    },
+    {
+        "id": "fc_67890abc",
+        "call_id": "call_67890abc",
+        "type": "function_call",
+        "name": "get_weather",
+        "arguments": "{\"location\":\"Bogotá, Colombia\"}"
+    },
+    {
+        "id": "fc_99999def",
+        "call_id": "call_99999def",
+        "type": "function_call",
+        "name": "send_email",
+        "arguments": "{\"to\":\"bob@email.com\",\"body\":\"Hi bob\"}"
+    }
 ]
 ```
 
-把每个调用都执行并把结果**逐一**追加回输入：
-
-### Python
+Execute function calls and append results
 
 ```python
-import json
-
 for tool_call in response.output:
     if tool_call.type != "function_call":
         continue
+
     name = tool_call.name
     args = json.loads(tool_call.arguments)
 
-    result = call_function(name, args)  # 你实现的路由函数
+    result = call_function(name, args)
     input_messages.append({
         "type": "function_call_output",
         "call_id": tool_call.call_id,
-        "output": str(result)  # 文本或 JSON 字符串
+        "output": str(result)
     })
 ```
+
+```javascript
+for (const toolCall of response.output) {
+    if (toolCall.type !== "function_call") {
+        continue;
+    }
+
+    const name = toolCall.name;
+    const args = JSON.parse(toolCall.arguments);
+
+    const result = callFunction(name, args);
+    input.push({
+        type: "function_call_output",
+        call_id: toolCall.call_id,
+        output: result.toString()
+    });
+}
+```
+
+In the example above, we have a hypothetical `call_function` to route each call. Here’s a possible implementation:
+
+Execute function calls and append results
 
 ```python
 def call_function(name, args):
@@ -272,130 +377,180 @@ def call_function(name, args):
         return get_weather(**args)
     if name == "send_email":
         return send_email(**args)
-    raise ValueError(f"Unknown function: {name}")
 ```
 
-### JavaScript
-
-```js
-for (const toolCall of response.output) {
-  if (toolCall.type !== "function_call") continue;
-
-  const name = toolCall.name;
-  const args = JSON.parse(toolCall.arguments);
-
-  const result = await callFunction(name, args);
-  input.push({
-    type: "function_call_output",
-    call_id: toolCall.call_id,
-    output: result.toString()
-  });
-}
-
+```javascript
 const callFunction = async (name, args) => {
-  if (name === "get_weather") return getWeather(args.latitude, args.longitude);
-  if (name === "send_email") return sendEmail(args.to, args.body);
-  throw new Error(`Unknown function: ${name}`);
+    if (name === "get_weather") {
+        return getWeather(args.latitude, args.longitude);
+    }
+    if (name === "send_email") {
+        return sendEmail(args.to, args.body);
+    }
 };
 ```
 
-最终再次请求模型：
+### Formatting results
 
-```js
-const response2 = await openai.responses.create({
-  model: "gpt-4.1",
-  input,
-  tools,
-});
-// 可能的最终文本：
-// "It's about 15°C in Paris, 18°C in Bogotá, and I've sent that email to Bob."
+A result must be a string, but the format is up to you (JSON, error codes, plain text, etc.). The model will interpret that string as needed.
+
+If your function has no return value (e.g. `send_email`), simply return a string to indicate success or failure. (e.g. `"success"`)
+
+### Incorporating results into response
+
+After appending the results to your `input`, you can send them back to the model to get a final response.
+
+Send results back to model
+
+```python
+response = client.responses.create(
+    model="gpt-4.1",
+    input=input_messages,
+    tools=tools,
+)
 ```
 
----
+```javascript
+const response = await openai.responses.create({
+    model: "gpt-4.1",
+    input,
+    tools,
+});
+```
 
-## 进阶配置
-
-### tool_choice（控制是否/如何调用）
-
-- `"auto"`（默认）：0..N 次调用  
-- `"required"`：至少调用一次  
-- `{"type":"function","name":"get_weather"}`：**强制**调用且仅一次  
-- **允许子集**：用 `"allowed_tools"` 限制能调用的工具集合（配合提示缓存省钱）
+Final response
 
 ```json
-{
-  "tool_choice": {
+"It's about 15°C in Paris, 18°C in Bogotá, and I've sent that email to Bob."
+```
+
+Additional configurations
+-------------------------
+
+### Tool choice
+
+By default the model will determine when and how many tools to use. You can force specific behavior with the `tool_choice` parameter.
+
+1.  **Auto:** (_Default_) Call zero, one, or multiple functions. `tool_choice: "auto"`
+2.  **Required:** Call one or more functions. `tool_choice: "required"`
+3.  **Forced Function:** Call exactly one specific function. `tool_choice: {"type": "function", "name": "get_weather"}`
+4.  **Allowed tools:** Restrict the tool calls the model can make to a subset of the tools available to the model.
+
+**When to use allowed\_tools**
+
+You might want to configure an `allowed_tools` list in case you want to make only a subset of tools available across model requests, but not modify the list of tools you pass in, so you can maximize savings from [prompt caching](/docs/guides/prompt-caching).
+
+```json
+"tool_choice": {
     "type": "allowed_tools",
     "mode": "auto",
     "tools": [
-      { "type": "function", "name": "get_weather" },
-      { "type": "mcp", "server_label": "deepwiki" },
-      { "type": "image_generation" }
+        { "type": "function", "name": "get_weather" },
+        { "type": "mcp", "server_label": "deepwiki" },
+        { "type": "image_generation" }
     ]
   }
 }
 ```
 
-> 也可设置 `"none"` 模拟“无工具”。设置 `parallel_tool_calls: false` 可禁止并行多次调用。
+You can also set `tool_choice` to `"none"` to imitate the behavior of passing no functions.
 
-### 严格模式（`strict: true`）
+### Parallel function calling
 
-- 每个对象参数都要 `additionalProperties: false`。  
-- `properties` 中的字段都必须被列入 `required`。  
-- 伪可选参数可用 union：`["string","null"]`。
+Parallel function calling is not possible when using [built-in tools](/docs/guides/tools).
 
-**开启严格模式：**
+The model may choose to call multiple functions in a single turn. You can prevent this by setting `parallel_tool_calls` to `false`, which ensures exactly zero or one tool is called.
 
-```json
-{
-  "type": "function",
-  "name": "get_weather",
-  "description": "Retrieves current weather for the given location.",
-  "strict": true,
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "location": { "type": "string" },
-      "units": { "type": ["string","null"], "enum": ["celsius","fahrenheit"] }
-    },
-    "required": ["location","units"],
-    "additionalProperties": false
-  }
-}
-```
+**Note:** Currently, if you are using a fine tuned model and the model calls multiple functions in one turn then [strict mode](/docs/guides/function-calling#strict-mode) will be disabled for those calls.
 
-**关闭严格模式：**
+**Note for `gpt-4.1-nano-2025-04-14`:** This snapshot of `gpt-4.1-nano` can sometimes include multiple tools calls for the same tool if parallel tool calls are enabled. It is recommended to disable this feature when using this nano snapshot.
+
+### Strict mode
+
+Setting `strict` to `true` will ensure function calls reliably adhere to the function schema, instead of being best effort. We recommend always enabling strict mode.
+
+Under the hood, strict mode works by leveraging our [structured outputs](/docs/guides/structured-outputs) feature and therefore introduces a couple requirements:
+
+1.  `additionalProperties` must be set to `false` for each object in the `parameters`.
+2.  All fields in `properties` must be marked as `required`.
+
+You can denote optional fields by adding `null` as a `type` option (see example below).
+
+Strict mode enabled
 
 ```json
 {
-  "type": "function",
-  "name": "get_weather",
-  "description": "Retrieves current weather for the given location.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "location": { "type": "string" },
-      "units": {
-        "type": "string", "enum": ["celsius","fahrenheit"]
-      }
-    },
-    "required": ["location"]
-  }
+    "type": "function",
+    "name": "get_weather",
+    "description": "Retrieves current weather for the given location.",
+    "strict": true,
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "location": {
+                "type": "string",
+                "description": "City and country e.g. Bogotá, Colombia"
+            },
+            "units": {
+                "type": ["string", "null"],
+                "enum": ["celsius", "fahrenheit"],
+                "description": "Units the temperature will be returned in."
+            }
+        },
+        "required": ["location", "units"],
+        "additionalProperties": false
+    }
 }
 ```
 
-> 对首个使用某 Schema 的请求会有**额外延迟**（缓存后恢复正常）。
+Strict mode disabled
 
----
+```json
+{
+    "type": "function",
+    "name": "get_weather",
+    "description": "Retrieves current weather for the given location.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "location": {
+                "type": "string",
+                "description": "City and country e.g. Bogotá, Colombia"
+            },
+            "units": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"],
+                "description": "Units the temperature will be returned in."
+            }
+        },
+        "required": ["location"],
+    }
+}
+```
 
-## 流式（Streaming）与事件
+All schemas generated in the [playground](/playground) have strict mode enabled.
 
-开启 `stream: true` 后可**实时看到**模型选择了哪个函数、如何逐步填参。
+While we recommend you enable strict mode, it has a few limitations:
 
-### Python
+1.  Some features of JSON schema are not supported. (See [supported schemas](/docs/guides/structured-outputs?context=with_parse#supported-schemas).)
+
+Specifically for fine tuned models:
+
+1.  Schemas undergo additional processing on the first request (and are then cached). If your schemas vary from request to request, this may result in higher latencies.
+2.  Schemas are cached for performance, and are not eligible for [zero data retention](/docs/models#how-we-use-your-data).
+
+Streaming
+---------
+
+Streaming can be used to surface progress by showing which function is called as the model fills its arguments, and even displaying the arguments in real time.
+
+Streaming function calls is very similar to streaming regular responses: you set `stream` to `true` and get different `event` objects.
+
+Streaming function calls
 
 ```python
 from openai import OpenAI
+
 client = OpenAI()
 
 tools = [{
@@ -405,12 +560,16 @@ tools = [{
     "parameters": {
         "type": "object",
         "properties": {
-            "location": { "type": "string" }
+            "location": {
+                "type": "string",
+                "description": "City and country e.g. Bogotá, Colombia"
+            }
         },
-        "required": ["location"],
+        "required": [
+            "location"
+        ],
         "additionalProperties": False
-    },
-    "strict": True
+    }
 }]
 
 stream = client.responses.create(
@@ -424,183 +583,480 @@ for event in stream:
     print(event)
 ```
 
-### JavaScript
-
-```js
+```javascript
 import { OpenAI } from "openai";
+
 const openai = new OpenAI();
 
 const tools = [{
-  type: "function",
-  name: "get_weather",
-  description: "Get current temperature for provided coordinates in celsius.",
-  parameters: {
-    type: "object",
-    properties: { latitude: { type: "number" }, longitude: { type: "number" } },
-    required: ["latitude","longitude"],
-    additionalProperties: false
-  },
-  strict: true
+    type: "function",
+    name: "get_weather",
+    description: "Get current temperature for provided coordinates in celsius.",
+    parameters: {
+        type: "object",
+        properties: {
+            latitude: { type: "number" },
+            longitude: { type: "number" }
+        },
+        required: ["latitude", "longitude"],
+        additionalProperties: false
+    },
+    strict: true
 }];
 
 const stream = await openai.responses.create({
-  model: "gpt-4.1",
-  input: [{ role: "user", content: "What's the weather like in Paris today?" }],
-  tools,
-  stream: true,
-  store: true,
+    model: "gpt-4.1",
+    input: [{ role: "user", content: "What's the weather like in Paris today?" }],
+    tools,
+    stream: true,
+    store: true,
 });
 
-for await (const event of stream) console.log(event);
+for await (const event of stream) {
+    console.log(event)
+}
 ```
 
-**事件片段**（示意）：
+Output events
 
-```
-{"type":"response.output_item.added","response_id":"resp_...","output_index":0,"item":{"type":"function_call","id":"fc_...","call_id":"call_...","name":"get_weather","arguments":""}}
-{"type":"response.function_call_arguments.delta","response_id":"resp_...","item_id":"fc_...","output_index":0,"delta":"{\"location\":\"Paris, France\"}"}
-{"type":"response.function_call_arguments.done","response_id":"resp_...","item_id":"fc_...","output_index":0,"arguments":"{\"location\":\"Paris, France\"}"}
-{"type":"response.output_item.done","response_id":"resp_...","output_index":0,"item":{...}}
+```json
+{"type":"response.output_item.added","response_id":"resp_1234xyz","output_index":0,"item":{"type":"function_call","id":"fc_1234xyz","call_id":"call_1234xyz","name":"get_weather","arguments":""}}
+{"type":"response.function_call_arguments.delta","response_id":"resp_1234xyz","item_id":"fc_1234xyz","output_index":0,"delta":"{\""}
+{"type":"response.function_call_arguments.delta","response_id":"resp_1234xyz","item_id":"fc_1234xyz","output_index":0,"delta":"location"}
+{"type":"response.function_call_arguments.delta","response_id":"resp_1234xyz","item_id":"fc_1234xyz","output_index":0,"delta":"\":\""}
+{"type":"response.function_call_arguments.delta","response_id":"resp_1234xyz","item_id":"fc_1234xyz","output_index":0,"delta":"Paris"}
+{"type":"response.function_call_arguments.delta","response_id":"resp_1234xyz","item_id":"fc_1234xyz","output_index":0,"delta":","}
+{"type":"response.function_call_arguments.delta","response_id":"resp_1234xyz","item_id":"fc_1234xyz","output_index":0,"delta":" France"}
+{"type":"response.function_call_arguments.delta","response_id":"resp_1234xyz","item_id":"fc_1234xyz","output_index":0,"delta":"\"}"}
+{"type":"response.function_call_arguments.done","response_id":"resp_1234xyz","item_id":"fc_1234xyz","output_index":0,"arguments":"{\"location\":\"Paris, France\"}"}
+{"type":"response.output_item.done","response_id":"resp_1234xyz","output_index":0,"item":{"type":"function_call","id":"fc_1234xyz","call_id":"call_1234xyz","name":"get_weather","arguments":"{\"location\":\"Paris, France\"}"}}
 ```
 
-**聚合增量参数**：
+Instead of aggregating chunks into a single `content` string, however, you're aggregating chunks into an encoded `arguments` JSON object.
+
+When the model calls one or more functions an event of type `response.output_item.added` will be emitted for each function call that contains the following fields:
+
+|Field|Description|
+|---|---|
+|response_id|The id of the response that the function call belongs to|
+|output_index|The index of the output item in the response. This represents the individual function calls in the response.|
+|item|The in-progress function call item that includes a name, arguments and id field|
+
+Afterwards you will receive a series of events of type `response.function_call_arguments.delta` which will contain the `delta` of the `arguments` field. These events contain the following fields:
+
+|Field|Description|
+|---|---|
+|response_id|The id of the response that the function call belongs to|
+|item_id|The id of the function call item that the delta belongs to|
+|output_index|The index of the output item in the response. This represents the individual function calls in the response.|
+|delta|The delta of the arguments field.|
+
+Below is a code snippet demonstrating how to aggregate the `delta`s into a final `tool_call` object.
+
+Accumulating tool\_call deltas
 
 ```python
 final_tool_calls = {}
 
 for event in stream:
-    if event.type == 'response.output_item.added':
-        final_tool_calls[event.output_index] = event.item
-    elif event.type == 'response.function_call_arguments.delta':
+    if event.type === 'response.output_item.added':
+        final_tool_calls[event.output_index] = event.item;
+    elif event.type === 'response.function_call_arguments.delta':
         index = event.output_index
-        if final_tool_calls.get(index):
-            final_tool_calls[index].arguments = (final_tool_calls[index].arguments or "") + event.delta
+
+        if final_tool_calls[index]:
+            final_tool_calls[index].arguments += event.delta
 ```
 
-```js
+```javascript
 const finalToolCalls = {};
 
 for await (const event of stream) {
-  if (event.type === "response.output_item.added") {
-    finalToolCalls[event.output_index] = event.item;
-  } else if (event.type === "response.function_call_arguments.delta") {
-    const index = event.output_index;
-    if (finalToolCalls[index]) {
-      finalToolCalls[index].arguments = (finalToolCalls[index].arguments ?? "") + event.delta;
+    if (event.type === 'response.output_item.added') {
+        finalToolCalls[event.output_index] = event.item;
+    } else if (event.type === 'response.function_call_arguments.delta') {
+        const index = event.output_index;
+
+        if (finalToolCalls[index]) {
+            finalToolCalls[index].arguments += event.delta;
+        }
     }
-  }
 }
 ```
 
----
+Accumulated final\_tool\_calls\[0\]
 
-## 自定义工具（Custom Tools）
+```json
+{
+    "type": "function_call",
+    "id": "fc_1234xyz",
+    "call_id": "call_2345abc",
+    "name": "get_weather",
+    "arguments": "{\"location\":\"Paris, France\"}"
+}
+```
 
-无需 JSON Schema；模型给你的工具**返回一段自由文本**作为输入。适合：避免嵌套 JSON、或用**语法/文法**约束输入。
+When the model has finished calling the functions an event of type `response.function_call_arguments.done` will be emitted. This event contains the entire function call including the following fields:
 
-### 示例
+|Field|Description|
+|---|---|
+|response_id|The id of the response that the function call belongs to|
+|output_index|The index of the output item in the response. This represents the individual function calls in the response.|
+|item|The function call item that includes a name, arguments and id field.|
 
-#### Python
+Custom tools
+------------
+
+Custom tools work in much the same way as JSON schema-driven function tools. But rather than providing the model explicit instructions on what input your tool requires, the model can pass an arbitrary string back to your tool as input. This is useful to avoid unnecessarily wrapping a response in JSON, or to apply a custom grammar to the response (more on this below).
+
+The following code sample shows creating a custom tool that expects to receive a string of text containing Python code as a response.
+
+Custom tool calling example
 
 ```python
 from openai import OpenAI
+
 client = OpenAI()
 
-resp = client.responses.create(
+response = client.responses.create(
     model="gpt-5",
     input="Use the code_exec tool to print hello world to the console.",
     tools=[
-        {"type": "custom", "name": "code_exec", "description": "Executes arbitrary Python code."}
+        {
+            "type": "custom",
+            "name": "code_exec",
+            "description": "Executes arbitrary Python code.",
+        }
     ]
 )
-print(resp.output)
+print(response.output)
 ```
 
-#### JavaScript
-
-```js
+```javascript
 import OpenAI from "openai";
 const client = new OpenAI();
 
-const resp = await client.responses.create({
+const response = await client.responses.create({
   model: "gpt-5",
   input: "Use the code_exec tool to print hello world to the console.",
-  tools: [{ type: "custom", name: "code_exec", description: "Executes arbitrary Python code." }],
+  tools: [
+    {
+      type: "custom",
+      name: "code_exec",
+      description: "Executes arbitrary Python code.",
+    },
+  ],
 });
 
-console.log(resp.output);
+console.log(response.output);
 ```
 
-模型会返回一个 `custom_tool_call`，其 `input` 为**纯文本**，例如 `print("hello world")`。
+Just as before, the `output` array will contain a tool call generated by the model. Except this time, the tool call input is given as plain text.
 
----
+```json
+[
+    {
+        "id": "rs_6890e972fa7c819ca8bc561526b989170694874912ae0ea6",
+        "type": "reasoning",
+        "content": [],
+        "summary": []
+    },
+    {
+        "id": "ctc_6890e975e86c819c9338825b3e1994810694874912ae0ea6",
+        "type": "custom_tool_call",
+        "status": "completed",
+        "call_id": "call_aGiFQkRWSWAIsMQ19fKqxUgb",
+        "input": "print(\"hello world\")",
+        "name": "code_exec"
+    }
+]
+```
 
-## 语法约束（Context‑Free Grammars, CFG）
+Context-free grammars
+---------------------
 
-自定义工具可用 **grammar** 参数对模型给工具的**文本输入**做强约束。支持语法：
+A [context-free grammar](https://en.wikipedia.org/wiki/Context-free_grammar) (CFG) is a set of rules that define how to produce valid text in a given format. For custom tools, you can provide a CFG that will constrain the model's text input for a custom tool.
 
-- **Lark**（简化子集）  
-- **Regex**（Rust regex 语法；不支持 lookaround 与懒惰量词）
+You can provide a custom CFG using the `grammar` parameter when configuring a custom tool. Currently, we support two CFG syntaxes when defining grammars: `lark` and `regex`.
 
-### Lark 例子
+Lark CFG
+--------
+
+Lark context free grammar example
 
 ```python
-grammar = '''
+from openai import OpenAI
+
+client = OpenAI()
+
+grammar = """
 start: expr
-expr: term (SP ADD SP term)* -> add | term
-term: factor (SP MUL SP factor)* -> mul | factor
+expr: term (SP ADD SP term)* -> add
+| term
+term: factor (SP MUL SP factor)* -> mul
+| factor
 factor: INT
 SP: " "
 ADD: "+"
 MUL: "*"
 %import common.INT
-'''
+"""
 
 response = client.responses.create(
     model="gpt-5",
     input="Use the math_exp tool to add four plus four.",
-    tools=[{
-        "type": "custom",
-        "name": "math_exp",
-        "description": "Creates valid mathematical expressions",
-        "format": { "type": "grammar", "syntax": "lark", "definition": grammar }
-    }]
+    tools=[
+        {
+            "type": "custom",
+            "name": "math_exp",
+            "description": "Creates valid mathematical expressions",
+            "format": {
+                "type": "grammar",
+                "syntax": "lark",
+                "definition": grammar,
+            },
+        }
+    ]
 )
+print(response.output)
 ```
 
-> **要点**（实践版）：
-> - 词法器（lexer）**先于**语法器（parser）运行，贪婪匹配且最长优先。  
-> - 需要在自由文本里“挖槽”时，尽量用**一个终结符**覆盖完整模式，而不是用多条规则拼。  
-> - 规则（小写）用来**组合离散的终结符**，而不是“驱动”正则内部。  
-> - 终结符正则要**边界清晰**、量词收敛；尽量避免无界 `.*`。
+```javascript
+import OpenAI from "openai";
+const client = new OpenAI();
 
-### Regex 例子
+const grammar = `
+start: expr
+expr: term (SP ADD SP term)* -> add
+| term
+term: factor (SP MUL SP factor)* -> mul
+| factor
+factor: INT
+SP: " "
+ADD: "+"
+MUL: "*"
+%import common.INT
+`;
+
+const response = await client.responses.create({
+  model: "gpt-5",
+  input: "Use the math_exp tool to add four plus four.",
+  tools: [
+    {
+      type: "custom",
+      name: "math_exp",
+      description: "Creates valid mathematical expressions",
+      format: {
+        type: "grammar",
+        syntax: "lark",
+        definition: grammar,
+      },
+    },
+  ],
+});
+
+console.log(response.output);
+```
+
+The output from the tool should then conform to the Lark CFG that you defined:
+
+```json
+[
+    {
+        "id": "rs_6890ed2b6374819dbbff5353e6664ef103f4db9848be4829",
+        "type": "reasoning",
+        "content": [],
+        "summary": []
+    },
+    {
+        "id": "ctc_6890ed2f32e8819daa62bef772b8c15503f4db9848be4829",
+        "type": "custom_tool_call",
+        "status": "completed",
+        "call_id": "call_pmlLjmvG33KJdyVdC4MVdk5N",
+        "input": "4 + 4",
+        "name": "math_exp"
+    }
+]
+```
+
+Grammars are specified using a variation of [Lark](https://lark-parser.readthedocs.io/en/stable/index.html). Model sampling is constrained using [LLGuidance](https://github.com/guidance-ai/llguidance/blob/main/docs/syntax.md). Some features of Lark are not supported:
+
+*   Lookarounds in lexer regexes
+*   Lazy modifiers (`*?`, `+?`, `??`) in lexer regexes
+*   Priorities of terminals
+*   Templates
+*   Imports (other than built-in `%import` common)
+*   `%declare`s
+
+We recommend using the [Lark IDE](https://www.lark-parser.org/ide/) to experiment with custom grammars.
+
+### Keep grammars simple
+
+Try to make your grammar as simple as possible. The OpenAI API may return an error if the grammar is too complex, so you should ensure that your desired grammar is compatible before using it in the API.
+
+Lark grammars can be tricky to perfect. While simple grammars perform most reliably, complex grammars often require iteration on the grammar definition itself, the prompt, and the tool description to ensure that the model does not go out of distribution.
+
+### Correct versus incorrect patterns
+
+Correct (single, bounded terminal):
+
+```text
+start: SENTENCE
+SENTENCE: /[A-Za-z, ]*(the hero|a dragon|an old man|the princess)[A-Za-z, ]*(fought|saved|found|lost)[A-Za-z, ]*(a treasure|the kingdom|a secret|his way)[A-Za-z, ]*\./
+```
+
+Do NOT do this (splitting across rules/terminals). This attempts to let rules partition free text between terminals. The lexer will greedily match the free-text pieces and you'll lose control:
+
+```text
+start: sentence
+sentence: /[A-Za-z, ]+/ subject /[A-Za-z, ]+/ verb /[A-Za-z, ]+/ object /[A-Za-z, ]+/
+```
+
+Lowercase rules don't influence how terminals are cut from the input—only terminal definitions do. When you need “free text between anchors,” make it one giant regex terminal so the lexer matches it exactly once with the structure you intend.
+
+### Terminals versus rules
+
+Lark uses terminals for lexer tokens (by convention, `UPPERCASE`) and rules for parser productions (by convention, `lowercase`). The most practical way to stay within the supported subset and avoid surprises is to keep your grammar simple and explicit, and to use terminals and rules with a clear separation of concerns.
+
+The regex syntax used by terminals is the [Rust regex crate syntax](https://docs.rs/regex/latest/regex/#syntax), not Python's `re` [module](https://docs.python.org/3/library/re.html).
+
+### Key ideas and best practices
+
+**Lexer runs before the parser**
+
+Terminals are matched by the lexer (greedily / longest match wins) before any CFG rule logic is applied. If you try to "shape" a terminal by splitting it across several rules, the lexer cannot be guided by those rules—only by terminal regexes.
+
+**Prefer one terminal when you're carving text out of freeform spans**
+
+If you need to recognize a pattern embedded in arbitrary text (e.g., natural language with “anything” between anchors), express that as a single terminal. Do not try to interleave free‑text terminals with parser rules; the greedy lexer will not respect your intended boundaries and it is highly likely the model will go out of distribution.
+
+**Use rules to compose discrete tokens**
+
+Rules are ideal when you're combining clearly delimited terminals (numbers, keywords, punctuation) into larger structures. They're not the right tool for constraining "the stuff in between" two terminals.
+
+**Keep terminals simple, bounded, and self-contained**
+
+Favor explicit character classes and bounded quantifiers (`{0,10}`, not unbounded `*` everywhere). If you need "any text up to a period", prefer something like `/[^.\n]{0,10}*\./` rather than `/.+\./` to avoid runaway growth.
+
+**Use rules to combine tokens, not to steer regex internals**
+
+Good rule usage example:
+
+```text
+start: expr
+NUMBER: /[0-9]+/
+PLUS: "+"
+MINUS: "-"
+expr: term (("+"|"-") term)*
+term: NUMBER
+```
+
+**Treat whitespace explicitly**
+
+Don't rely on open-ended `%ignore` directives. Using unbounded ignore directives may cause the grammar to be too complex and/or may cause the model to go out of distribution. Prefer threading explicit terminals wherever whitespace is allowed.
+
+### Troubleshooting
+
+*   If the API rejects the grammar because it is too complex, simplify the rules and terminals and remove unbounded `%ignore`s.
+*   If custom tools are called with unexpected tokens, confirm terminals aren’t overlapping; check greedy lexer.
+*   When the model drifts "out‑of‑distribution" (shows up as the model producing excessively long or repetitive outputs, it is syntactically valid but is semantically wrong):
+    *   Tighten the grammar.
+    *   Iterate on the prompt (add few-shot examples) and tool description (explain the grammar and instruct the model to reason and conform to it).
+    *   Experiment with a higher reasoning effort (e.g, bump from medium to high).
+
+Regex CFG
+---------
+
+Regex context free grammar example
 
 ```python
-grammar = r"^(?P<month>January|February|...|December)\\s+(?P<day>\\d{1,2})(?:st|nd|rd|th)?\\s+(?P<year>\\d{4})\\s+at\\s+(?P<hour>0?[1-9]|1[0-2])(?P<ampm>AM|PM)$"
+from openai import OpenAI
+
+client = OpenAI()
+
+grammar = r"^(?P<month>January|February|March|April|May|June|July|August|September|October|November|December)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?\s+(?P<year>\d{4})\s+at\s+(?P<hour>0?[1-9]|1[0-2])(?P<ampm>AM|PM)$"
 
 response = client.responses.create(
     model="gpt-5",
     input="Use the timestamp tool to save a timestamp for August 7th 2025 at 10AM.",
-    tools=[{
-        "type": "custom",
-        "name": "timestamp",
-        "description": "Saves a timestamp in date + time in 24-hr format.",
-        "format": { "type": "grammar", "syntax": "regex", "definition": grammar }
-    }]
+    tools=[
+        {
+            "type": "custom",
+            "name": "timestamp",
+            "description": "Saves a timestamp in date + time in 24-hr format.",
+            "format": {
+                "type": "grammar",
+                "syntax": "regex",
+                "definition": grammar,
+            },
+        }
+    ]
 )
+print(response.output)
 ```
 
-**限制**（两类语法共同点）：语法越简单越稳；避免巨型/含多层 `%ignore` 的语法；必要时收紧语法并在提示中给**few-shot**。
+```javascript
+import OpenAI from "openai";
+const client = new OpenAI();
 
----
+const grammar = "^(?P<month>January|February|March|April|May|June|July|August|September|October|November|December)\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?\s+(?P<year>\d{4})\s+at\s+(?P<hour>0?[1-9]|1[0-2])(?P<ampm>AM|PM)$";
 
-## 常见陷阱与提示
+const response = await client.responses.create({
+  model: "gpt-5",
+  input: "Use the timestamp tool to save a timestamp for August 7th 2025 at 10AM.",
+  tools: [
+    {
+      type: "custom",
+      name: "timestamp",
+      description: "Saves a timestamp in date + time in 24-hr format.",
+      format: {
+        type: "grammar",
+        syntax: "regex",
+        definition: grammar,
+      },
+    },
+  ],
+});
 
-- **Schema 未缓存首次慢**：相同 Schema 后续命中缓存恢复正常。  
-- **严格模式与并行**：某些快照/细节下并行多调用可能导致严格模式自动降级（参考模型快照说明）。  
-- **拒答与过滤**：如因安全/过滤导致**不完整**或**refusal**，API 响应里会给出原因字段；你的应用需显式处理。
+console.log(response.output);
+```
 
----
+The output from the tool should then conform to the Regex CFG that you defined:
 
-> 以上为经整理的开发要点与片段，便于直接落地集成。保留关键 API 字段、事件类型与代码骨架，去除了站点侧边栏与杂项文案。
+```json
+[
+    {
+        "id": "rs_6894f7a3dd4c81a1823a723a00bfa8710d7962f622d1c260",
+        "type": "reasoning",
+        "content": [],
+        "summary": []
+    },
+    {
+        "id": "ctc_6894f7ad7fb881a1bffa1f377393b1a40d7962f622d1c260",
+        "type": "custom_tool_call",
+        "status": "completed",
+        "call_id": "call_8m4XCnYvEmFlzHgDHbaOCFlK",
+        "input": "August 7th 2025 at 10AM",
+        "name": "timestamp"
+    }
+]
+```
+
+As with the Lark syntax, regexes use the [Rust regex crate syntax](https://docs.rs/regex/latest/regex/#syntax), not Python's `re` [module](https://docs.python.org/3/library/re.html).
+
+Some features of Regex are not supported:
+
+*   Lookarounds
+*   Lazy modifiers (`*?`, `+?`, `??`)
+
+### Key ideas and best practices
+
+**Pattern must be on one line**
+
+If you need to match a newline in the input, use the escaped sequence `\n`. Do not use verbose/extended mode, which allows patterns to span multiple lines.
+
+**Provide the regex as a plain pattern string**
+
+Don't enclose the pattern in `//`.
+
+Was this page useful?

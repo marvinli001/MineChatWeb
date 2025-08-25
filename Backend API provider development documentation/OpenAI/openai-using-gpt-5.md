@@ -1,30 +1,32 @@
-# Using GPT-5 — 开发者精要指南
+Using GPT-5
+===========
 
-> 本文基于你提供的页面内容整理：移除了侧边栏与站点噪音，仅保留与开发相关的要点、示例与最佳实践，统一为 Markdown。
+Learn best practices, features, and migration guidance for GPT-5.
 
----
+GPT-5 is our most intelligent model yet, trained to be especially proficient in:
 
-## 概览
+*   Code generation, bug fixing, and refactoring
+*   Instruction following
+*   Long context and tool calling
 
-**GPT‑5** 是目前最智能的通用模型系列，特别擅长：
+This guide covers key features of the GPT-5 model family and how to get the most out of GPT-5.
 
-- 代码生成 / 修复 / 重构
-- 严格的指令遵循（instruction following）
-- 长上下文与工具调用（function/custom tools/MCP 等）
+### Explore coding examples
 
-本文涵盖：快速开始、模型选择、新增 API 能力（最小推理、输出冗长度、Custom Tools、Allowed Tools、Preambles）、迁移指引（含 Chat Completions → Responses 对照）、提示词实践、常见问题。
+Click through a few demo applications generated entirely with a single GPT-5 prompt, without writing any code by hand.
 
----
+Quickstart
+----------
 
-## 快速开始
+Faster responses
 
-### 更快的响应（低推理 + 低冗长度）
+By default, GPT-5 produces a medium length chain of thought before responding to a prompt. For faster, lower-latency responses, use low reasoning effort and low text verbosity.  
+  
+This behavior will more closely (but not exactly!) match non-reasoning models like [GPT-4.1](/docs/models/gpt-4.1). We expect GPT-5 to produce more intelligent responses than GPT-4.1, but when speed and maximum context length are paramount, you might consider using GPT-4.1 instead.
 
-> 当你更看重时延或成本，而任务不需要强推理时，降低推理开销与文本冗长度。
+Fast, low latency response options
 
-**JavaScript**
-
-```js
+```javascript
 import OpenAI from "openai";
 const openai = new OpenAI();
 
@@ -38,8 +40,6 @@ const result = await openai.responses.create({
 console.log(result.output_text);
 ```
 
-**Python**
-
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -47,14 +47,12 @@ client = OpenAI()
 result = client.responses.create(
     model="gpt-5",
     input="Write a haiku about code.",
-    reasoning={"effort": "low"},
-    text={"verbosity": "low"},
+    reasoning={ "effort": "low" },
+    text={ "verbosity": "low" },
 )
 
 print(result.output_text)
 ```
-
-**curl**
 
 ```bash
 curl https://api.openai.com/v1/responses \
@@ -67,13 +65,15 @@ curl https://api.openai.com/v1/responses \
   }'
 ```
 
-### 编码与复杂任务（高推理）
+Coding and agentic tasks
 
-> 复杂调试、规划、多步骤代理任务等，建议提高推理开销。
+GPT-5 is great at reasoning through complex tasks. **For complex tasks like coding and multi-step planning, use high reasoning effort.**  
+  
+Use these configurations when replacing tasks you might have used o3 to tackle. We expect GPT-5 to produce better results than o3 and o4-mini under most circumstances.
 
-**JavaScript**
+Slower, high reasoning tasks
 
-```js
+```javascript
 import OpenAI from "openai";
 const openai = new OpenAI();
 
@@ -86,8 +86,6 @@ const result = await openai.responses.create({
 console.log(result.output_text);
 ```
 
-**Python**
-
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -95,13 +93,11 @@ client = OpenAI()
 result = client.responses.create(
     model="gpt-5",
     input="Find the null pointer exception: ...your code here...",
-    reasoning={"effort": "high"},
+    reasoning={ "effort": "high" },
 )
 
 print(result.output_text)
 ```
-
-**curl**
 
 ```bash
 curl https://api.openai.com/v1/responses \
@@ -114,242 +110,422 @@ curl https://api.openai.com/v1/responses \
   }'
 ```
 
----
+Meet the models
+---------------
 
-## 模型选择（GPT‑5 系列）
+There are three models in the GPT-5 series. In general, `gpt-5` is best for your most complex tasks that require broad world knowledge. The smaller mini and nano models trade off some general world knowledge for lower cost and lower latency. Small models will tend to perform better for more well defined tasks.
 
-| 变体        | 适用场景 |
-|-------------|----------|
-| **gpt-5**   | 复杂推理、广泛世界知识、代码密集/多步骤代理任务 |
-| **gpt-5-mini** | 成本优化的推理/聊天，平衡速度、成本与能力 |
-| **gpt-5-nano** | 高吞吐、简单指令/分类等确定性任务 |
+To help you pick the model that best fits your use case, consider these tradeoffs:
 
-**系统卡名 ↔ API 别名**
+|Variant|Best for|
+|---|---|
+|gpt-5|Complex reasoning, broad world knowledge, and code-heavy or multi-step agentic tasks|
+|gpt-5-mini|Cost-optimized reasoning and chat; balances speed, cost, and capability|
+|gpt-5-nano|High-throughput tasks, especially simple instruction-following or classification|
 
-| 系统卡名称             | API 名称          |
-|------------------------|-------------------|
-| gpt-5-thinking         | gpt-5             |
-| gpt-5-thinking-mini    | gpt-5-mini        |
-| gpt-5-thinking-nano    | gpt-5-nano        |
-| gpt-5-main             | gpt-5-chat-latest |
-| gpt-5-main-mini        | N/A（API 不提供） |
+### Model name reference
 
----
+The GPT-5 [system card](https://openai.com/index/gpt-5-system-card/) uses different names than the API. Use this table to map between them:
 
-## GPT‑5 新增 / 强化特性
+|System card name|API alias|
+|---|---|
+|gpt-5-thinking|gpt-5|
+|gpt-5-thinking-mini|gpt-5-mini|
+|gpt-5-thinking-nano|gpt-5-nano|
+|gpt-5-main|gpt-5-chat-latest|
+|gpt-5-main-mini|[not available via API]|
 
-### 1) Minimal reasoning effort（**最小推理**）
+### New API features in GPT-5
 
-- 通过 `reasoning.effort: "minimal"` 最小化推理 token 以获得最快 TTFB。
-- 对编码与指令遵循尤为高效；如需更主动/更深入的思考，可在提示词中明确要求“先概述步骤/再作答”。
+Alongside GPT-5, we're introducing a few new parameters and API features designed to give developers more control and flexibility: the ability to control verbosity, a minimal reasoning effort option, custom tools, and an allowed tools list.
 
-**示例：**
+This guide walks through some of the key features of the GPT-5 model family and how to get the most out of these models.
 
-```bash
-curl --request POST https://api.openai.com/v1/responses \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-type: application/json" \
-  -d '{
-    "model": "gpt-5",
-    "input": "How much gold would it take to coat the Statue of Liberty in a 1mm layer?",
-    "reasoning": { "effort": "minimal" }
-  }'
-```
+Minimal reasoning effort
+------------------------
 
-### 2) Verbosity（**输出冗长度**）
+The `reasoning.effort` parameter controls how many reasoning tokens the model generates before producing a response. Earlier reasoning models like o3 supported only `low`, `medium`, and `high`: `low` favored speed and fewer tokens, while `high` favored more thorough reasoning.
 
-- 通过 `text.verbosity: "high" | "medium" | "low"` 控制输出 token 数量范围。
-- 低冗长度适合：简洁答复、直出 SQL/命令等；高冗长度适合：长文档解释、重构说明。
+The new `minimal` setting produces very few reasoning tokens for cases where you need the fastest possible time-to-first-token. We often see better performance when the model can produce a few tokens when needed versus none. The default is `medium`.
 
-**示例（低冗长度）：**
+The `minimal` setting performs especially well in coding and instruction following scenarios, adhering closely to given directions. However, it may require prompting to act more proactively. To improve the model's reasoning quality, even at minimal effort, encourage it to “think” or outline its steps before answering.
+
+Minimal reasoning effort
 
 ```bash
-curl --request POST https://api.openai.com/v1/responses \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-type: application/json" \
-  -d '{
-    "model": "gpt-5",
-    "input": "What is the answer to the ultimate question of life, the universe, and everything?",
-    "text": { "verbosity": "low" }
-  }'
+curl --request POST   --url https://api.openai.com/v1/responses   --header "Authorization: Bearer $OPENAI_API_KEY"   --header 'Content-type: application/json'   --data '{
+	"model": "gpt-5",
+	"input": "How much gold would it take to coat the Statue of Liberty in a 1mm layer?",
+	"reasoning": {
+		"effort": "minimal"
+	}
+}'
 ```
 
-### 3) **Custom Tools（自定义工具）**
+```javascript
+import OpenAI from "openai";
+const openai = new OpenAI();
 
-- 使用 `{"type":"custom", "name": "...", "description": "..."}` 定义工具，模型可以发送**任意纯文本**作为工具输入（而不仅是 JSON）。
-- 可选以**上下文无关文法（CFG）**（Lark / Regex）约束工具输入格式，适用于 SQL/DSL 等强约束场景。
-- 详见 *Function calling* 指南中的 Custom Tools 与 Grammar 配置。
+const response = await openai.responses.create({
+  model: "gpt-5",
+  input: "How much gold would it take to coat the Statue of Liberty in a 1mm layer?",
+  reasoning: {
+    effort: "minimal"
+  }
+});
 
-```json
-{
-  "type": "custom",
-  "name": "code_exec",
-  "description": "Executes arbitrary python code"
-}
+console.log(response);
 ```
 
-### 4) **Allowed Tools（允许工具子集）**
+```python
+from openai import OpenAI
+client = OpenAI()
 
-- 在请求里同时提供全部 `tools`，再用 `tool_choice: { "type":"allowed_tools", "mode":"auto|required", "tools":[...] }` 限制**本次**可用子集。
-- 好处：提高安全性/可预测性，增强 prompt 缓存命中率，避免硬编码调用顺序。
+response = client.responses.create(
+    model="gpt-5",
+    input="How much gold would it take to coat the Statue of Liberty in a 1mm layer?",
+    reasoning={
+        "effort": "minimal"
+    }
+)
 
-```json
-"tool_choice": {
-  "type": "allowed_tools",
-  "mode": "auto",
-  "tools": [
-    { "type": "function", "name": "get_weather" },
-    { "type": "mcp", "server_label": "deepwiki" },
-    { "type": "image_generation" }
-  ]
-}
+print(response)
 ```
 
-### 5) **Preambles（前言说明）**
+### Verbosity
 
-- 在调用工具前，让模型先输出一段**简短、对用户可见**的“调用动机/计划”（介于 CoT 与工具调用之间）。
-- 做法：在 system/developer 提示里加入类似“在调用任何工具前，先简述你为何调用该工具”。
-- 益处：可观察性更强、可调试性更好，在最小推理场景也能提升成功率与用户信任。
+Verbosity determines how many output tokens are generated. Lowering the number of tokens reduces overall latency. While the model's reasoning approach stays mostly the same, the model finds ways to answer more concisely—which can either improve or diminish answer quality, depending on your use case. Here are some scenarios for both ends of the verbosity spectrum:
 
----
+*   **High verbosity:** Use when you need the model to provide thorough explanations of documents or perform extensive code refactoring.
+*   **Low verbosity:** Best for situations where you want concise answers or simple code generation, such as SQL queries.
 
-## 迁移指引
+Models before GPT-5 have used `medium` verbosity by default. With GPT-5, we make this option configurable as one of `high`, `medium`, or `low`.
 
-### 从其它模型迁移到 GPT‑5
+When generating code, `medium` and `high` verbosity levels yield longer, more structured code with inline explanations, while `low` verbosity produces shorter, more concise code with minimal commentary.
 
-- **从 o3**：优先尝试 `gpt-5` + `reasoning: "medium"`；若不达标再升到 `"high"`。
-- **从 gpt‑4.1**：优先尝试 `gpt-5` + `"minimal"` 或 `"low"` 推理；按需微调提示。
-- **从 o4-mini / gpt‑4.1-mini**：用 **gpt‑5‑mini**。
-- **从 gpt‑4.1‑nano**：用 **gpt‑5‑nano**。
-
-> **建议**：结合**提示优化器**迭代提示；Responses API 能在多轮中**传递推理项（CoT）**，常见收益为：更少推理 token、更高缓存命中、更低时延。
-
-### 从 **Chat Completions** 迁移到 **Responses API**
-
-核心差异：Responses 支持在多轮间传递**推理项（CoT）**。以下给出参数映射示例。
-
-**最小推理**
-
-- **Responses API**
+Control verbosity
 
 ```bash
-curl -X POST https://api.openai.com/v1/responses \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-type: application/json" \
-  -d '{
-    "model": "gpt-5",
-    "input": "How much gold would it take to coat the Statue of Liberty in a 1mm layer?",
-    "reasoning": { "effort": "minimal" }
-  }'
-```
-
-- **Chat Completions**
-
-```bash
-curl -X POST https://api.openai.com/v1/chat/completions \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-type: application/json" \
-  -d '{
-    "model": "gpt-5",
-    "messages": [{ "role": "user", "content": "How much gold would it take to coat the Statue of Liberty in a 1mm layer?" }],
-    "reasoning_effort": "minimal"
-  }'
-```
-
-**冗长度**
-
-- **Responses API**
-
-```bash
-curl -X POST https://api.openai.com/v1/responses \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-type: application/json" \
-  -d '{
-    "model": "gpt-5",
-    "input": "What is the answer to the ultimate question of life, the universe, and everything?",
-    "text": { "verbosity": "low" }
-  }'
-```
-
-- **Chat Completions**
-
-```bash
-curl -X POST https://api.openai.com/v1/chat/completions \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-type: application/json" \
-  -d '{
-    "model": "gpt-5",
-    "messages": [{ "role": "user", "content": "What is the answer to the ultimate question of life, the universe, and everything?" }],
+curl --request POST   --url https://api.openai.com/v1/responses   --header "Authorization: Bearer $OPENAI_API_KEY"   --header 'Content-type: application/json'   --data '{
+  "model": "gpt-5",
+  "input": "What is the answer to the ultimate question of life, the universe, and everything?",
+  "text": {
     "verbosity": "low"
-  }'
+  }
+}'
 ```
 
-**Custom Tool 调用**
+```javascript
+import OpenAI from "openai";
+const openai = new OpenAI();
 
-- **Responses API**
+const response = await openai.responses.create({
+  model: "gpt-5",
+  input: "What is the answer to the ultimate question of life, the universe, and everything?",
+  text: {
+    verbosity: "low"
+  }
+});
 
-```bash
-curl -X POST https://api.openai.com/v1/responses \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-type: application/json" \
-  -d '{
-    "model": "gpt-5",
-    "input": "Use the code_exec tool to calculate the area of a circle with radius equal to the number of r letters in blueberry",
-    "tools": [{ "type": "custom", "name": "code_exec", "description": "Executes arbitrary python code" }]
-  }'
+console.log(response);
 ```
 
-- **Chat Completions**
+```python
+from openai import OpenAI
+client = OpenAI()
+
+response = client.responses.create(
+    model="gpt-5",
+    input="What is the answer to the ultimate question of life, the universe, and everything?",
+    text={
+        "verbosity": "low"
+    }
+)
+
+print(response)
+```
+
+You can still steer verbosity through prompting after setting it to `low` in the API. The verbosity parameter defines a general token range at the system prompt level, but the actual output is flexible to both developer and user prompts within that range.
+
+### Custom tools
+
+With GPT-5, we're introducing a new capability called custom tools, which lets models send any raw text as tool call input but still constrain outputs if desired.
+
+[
+
+Function calling guide
+
+Learn about custom tools in the function calling guide.
+
+](/docs/guides/function-calling)
+
+#### Freeform inputs
+
+Define your tool with `type: custom` to enable models to send plaintext inputs directly to your tools, rather than being limited to structured JSON. The model can send any raw text—code, SQL queries, shell commands, configuration files, or long-form prose—directly to your tool.
 
 ```bash
-curl -X POST https://api.openai.com/v1/chat/completions \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-type: application/json" \
-  -d '{
-    "model": "gpt-5",
-    "messages": [
-      { "role": "user", "content": "Use the code_exec tool to calculate the area of a circle with radius equal to the number of r letters in blueberry" }
-    ],
+{
+    "type": "custom",
+    "name": "code_exec",
+    "description": "Executes arbitrary python code",
+}
+```
+
+#### Constraining outputs
+
+GPT-5 supports context-free grammars (CFGs) for custom tools, letting you provide a Lark grammar to constrain outputs to a specific syntax or DSL. Attaching a CFG (e.g., a SQL or DSL grammar) ensures the assistant's text matches your grammar.
+
+This enables precise, constrained tool calls or structured responses and lets you enforce strict syntactic or domain-specific formats directly in GPT-5's function calling, improving control and reliability for complex or constrained domains.
+
+#### Best practices for custom tools
+
+*   **Write concise, explicit tool descriptions**. The model chooses what to send based on your description; state clearly if you want it to always call the tool.
+*   **Validate outputs on the server side**. Freeform strings are powerful but require safeguards against injection or unsafe commands.
+
+### Allowed tools
+
+The `allowed_tools` parameter under `tool_choice` lets you pass N tool definitions but restrict the model to only M (< N) of them. List your full toolkit in `tools`, and then use an `allowed_tools` block to name the subset and specify a mode—either `auto` (the model may pick any of those) or `required` (the model must invoke one).
+
+[
+
+Function calling guide
+
+Learn about the allowed tools option in the function calling guide.
+
+](/docs/guides/function-calling)
+
+By separating all possible tools from the subset that can be used _now_, you gain greater safety, predictability, and improved prompt caching. You also avoid brittle prompt engineering, such as hard-coded call order. GPT-5 dynamically invokes or requires specific functions mid-conversation while reducing the risk of unintended tool usage over long contexts.
+
+||Standard Tools|Allowed Tools|
+|---|---|---|
+|Model's universe|All tools listed under "tools": […]|Only the subset under "tools": […] in tool_choice|
+|Tool invocation|Model may or may not call any tool|Model restricted to (or required to call) chosen tools|
+|Purpose|Declare available capabilities|Constrain which capabilities are actually used|
+
+```bash
+"tool_choice": {
+    "type": "allowed_tools",
+    "mode": "auto",
     "tools": [
-      { "type": "custom", "custom": { "name": "code_exec", "description": "Executes arbitrary python code" } }
+      { "type": "function", "name": "get_weather" },
+      { "type": "mcp", "server_label": "deepwiki" },
+      { "type": "image_generation" }
     ]
-  }'
+  }
+}'
 ```
 
+For a more detailed overview of all of these new features, see the [accompanying cookbook](https://cookbook.openai.com/examples/gpt-5/gpt-5_new_params_and_tools).
+
+### Preambles
+
+Preambles are brief, user-visible explanations that GPT-5 generates before invoking any tool or function, outlining its intent or plan (e.g., “why I'm calling this tool”). They appear after the chain-of-thought and before the actual tool call, providing transparency into the model's reasoning and enhancing debuggability, user confidence, and fine-grained steerability.
+
+By letting GPT-5 “think out loud” before each tool call, preambles boost tool-calling accuracy (and overall task success) without bloating reasoning overhead. To enable preambles, add a system or developer instruction—for example: “Before you call a tool, explain why you are calling it.” GPT-5 prepends a concise rationale to each specified tool call. The model may also output multiple messages between tool calls, which can enhance the interaction experience—particularly for minimal reasoning or latency-sensitive use cases.
+
+For more on using preambles, see the [GPT-5 prompting cookbook](https://cookbook.openai.com/examples/gpt-5/gpt-5_prompting_guide#tool-preambles).
+
+Migration guidance
+------------------
+
+GPT-5 is our best model yet, and it works best with the Responses API, which supports for passing chain of thought (CoT) between turns. Read below to migrate from your current model or API.
+
+### Migrating from other models to GPT-5
+
+We see improved intelligence because the Responses API can pass the previous turn's CoT to the model. This leads to fewer generated reasoning tokens, higher cache hit rates, and less latency. To learn more, see an [in-depth guide](https://cookbook.openai.com/examples/responses_api/reasoning_items) on the benefits of responses.
+
+When migrating to GPT-5 from an older OpenAI model, start by experimenting with reasoning levels and prompting strategies. Based on our testing, we recommend using our [prompt optimizer](http://platform.openai.com/chat/edit?optimize=true)—which automatically updates your prompts for GPT-5 based on our best practices—and following this model-specific guidance:
+
+*   **o3**: `gpt-5` with `medium` or `high` reasoning is a great replacement. Start with `medium` reasoning with prompt tuning, then increasing to `high` if you aren't getting the results you want.
+*   **gpt-4.1**: `gpt-5` with `minimal` or `low` reasoning is a strong alternative. Start with `minimal` and tune your prompts; increase to `low` if you need better performance.
+*   **o4-mini or gpt-4.1-mini**: `gpt-5-mini` with prompt tuning is a great replacement.
+*   **gpt-4.1-nano**: `gpt-5-nano` with prompt tuning is a great replacement.
+
+### Migrating from Chat Completions to Responses API
+
+The biggest difference, and main reason to migrate from Chat Completions to the Responses API for GPT-5, is support for passing chain of thought (CoT) between turns. See a full [comparison of the APIs](/docs/guides/responses-vs-chat-completions).
+
+Passing CoT exists only in the Responses API, and we've seen improved intelligence, fewer generated reasoning tokens, higher cache hit rates, and lower latency as a result of doing so. Most other parameters remain at parity, though the formatting is different. Here's how new parameters are handled differently between Chat Completions and the Responses API:
+
+**Reasoning effort**
+
+Responses API
+
+Generate response with minimal reasoning
+
+```json
+curl --request POST \
+--url https://api.openai.com/v1/responses \
+--header "Authorization: Bearer $OPENAI_API_KEY" \
+--header 'Content-type: application/json' \
+--data '{
+  "model": "gpt-5",
+  "input": "How much gold would it take to coat the Statue of Liberty in a 1mm layer?",
+  "reasoning": {
+    "effort": "minimal"
+  }
+}'
+```
+
+Chat Completions
+
+Generate response with minimal reasoning
+
+```json
+curl --request POST \
+--url https://api.openai.com/v1/chat/completions \
+--header "Authorization: Bearer $OPENAI_API_KEY" \
+--header 'Content-type: application/json' \
+--data '{
+  "model": "gpt-5",
+  "messages": [
+    {
+      "role": "user",
+      "content": "How much gold would it take to coat the Statue of Liberty in a 1mm layer?"
+    }
+  ],
+  "reasoning_effort": "minimal"
+}'
+```
+
+**Verbosity**
+
+Responses API
+
+Control verbosity
+
+```json
+curl --request POST \
+--url https://api.openai.com/v1/responses \
+--header "Authorization: Bearer $OPENAI_API_KEY" \
+--header 'Content-type: application/json' \
+--data '{
+  "model": "gpt-5",
+  "input": "What is the answer to the ultimate question of life, the universe, and everything?",
+  "text": {
+    "verbosity": "low"
+  }
+}'
+```
+
+Chat Completions
+
+Control verbosity
+
+```json
+curl --request POST \
+--url https://api.openai.com/v1/chat/completions \
+--header "Authorization: Bearer $OPENAI_API_KEY" \
+--header 'Content-type: application/json' \
+--data '{
+  "model": "gpt-5",
+  "messages": [
+    { "role": "user", "content": "What is the answer to the ultimate question of life, the universe, and everything?" }
+  ],
+  "verbosity": "low"
+}'
+```
+
+**Custom tools**
+
+Responses API
+
+Custom tool call
+
+```json
+curl --request POST --url https://api.openai.com/v1/responses --header "Authorization: Bearer $OPENAI_API_KEY" --header 'Content-type: application/json' --data '{
+  "model": "gpt-5",
+  "input": "Use the code_exec tool to calculate the area of a circle with radius equal to the number of r letters in blueberry",
+  "tools": [
+    {
+      "type": "custom",
+      "name": "code_exec",
+      "description": "Executes arbitrary python code"
+    }
+  ]
+}'
+```
+
+Chat Completions
+
+Custom tool call
+
+```json
+curl --request POST --url https://api.openai.com/v1/chat/completions --header "Authorization: Bearer $OPENAI_API_KEY" --header 'Content-type: application/json' --data '{
+  "model": "gpt-5",
+  "messages": [
+    { "role": "user", "content": "Use the code_exec tool to calculate the area of a circle with radius equal to the number of r letters in blueberry" }
+  ],
+  "tools": [
+    {
+      "type": "custom",
+      "custom": {
+        "name": "code_exec",
+        "description": "Executes arbitrary python code"
+      }
+    }
+  ]
+}'
+```
+
+Prompting guidance
+------------------
+
+We specifically designed GPT-5 to excel at coding, frontend engineering, and tool-calling for agentic tasks. We also recommend iterating on prompts for GPT-5 using the [prompt optimizer](/chat/edit?optimize=true).
+
+[
+
+GPT-5 prompt optimizer
+
+Craft the perfect prompt for GPT-5 in the dashboard
+
+](/chat/edit?optimize=true)[
+
+GPT-5 prompting guide
+
+Learn full best practices for prompting GPT-5 models
+
+](https://cookbook.openai.com/examples/gpt-5/gpt-5_prompting_guide)[
+
+Frontend prompting for GPT-5
+
+See prompt samples specific to frontend development
+
+](https://cookbook.openai.com/examples/gpt-5/gpt-5_frontend)
+
+### GPT-5 is a reasoning model
+
+Reasoning models like GPT-5 break problems down step by step, producing an internal chain of thought that encodes their reasoning. To maximize performance, pass these reasoning items back to the model: this avoids re-reasoning and keeps interactions closer to the model's training distribution. In multi-turn conversations, passing a `previous_response_id` automatically makes earlier reasoning items available. This is especially important when using tools—for example, when a function call requires an extra round trip. In these cases, either include them with `previous_response_id` or add them directly to `input`.
+
+Learn more about reasoning models and how to get the most out of them in our [reasoning guide](/docs/guides/reasoning).
+
+Further reading
+---------------
+
+[GPT-5 prompting guide](https://cookbook.openai.com/examples/gpt-5/gpt-5_prompting_guide)
+
+[GPT-5 frontend guide](https://cookbook.openai.com/examples/gpt-5/gpt-5_frontend)
+
+[GPT-5 new features guide](https://cookbook.openai.com/examples/gpt-5/gpt-5_new_params_and_tools)
+
+[Cookbook on reasoning models](https://cookbook.openai.com/examples/responses_api/reasoning_items)
+
+[Comparison of Responses API vs. Chat Completions](/docs/guides/migrate-to-responses)
+
+FAQ
 ---
 
-## 提示词与代理实践
+1.  **How are these models integrated into ChatGPT?**
+    
+    In ChatGPT, there are two models: `gpt-5-chat` and `gpt-5-thinking`. They offer reasoning and minimal-reasoning capabilities, with a routing layer that selects the best model based on the user's question. Users can also invoke reasoning directly through the ChatGPT UI.
+    
+2.  **Will these models be supported in Codex?**
+    
+    Yes, `gpt-5` will be available in Codex and Codex CLI.
+    
+3.  **What is the deprecation plan for previous models?**
+    
+    Any model deprecations will be posted on our [deprecations page](/docs/deprecations#page-top). We'll send advanced notice of any model deprecations.
+    
 
-- **GPT‑5 是推理模型**：会逐步分解问题并生成**内部**思维链。为最大化性能，在多轮交互与工具调用中**回传先前的推理项**（通过 `previous_response_id` 或将其加入 `input`）。
-- 使用**提示优化器**在控制台迭代你的提示（适配不同推理级别与冗长度）。
-- 前端工程/多工具编排/函数调用任务：结合 *Function Calling*、*Custom Tools + Grammar* 与 *Allowed Tools* 获得最佳的可靠性与可控性。
-
----
-
-## 进一步阅读
-
-- GPT‑5 提示指南（Prompting guide）  
-- GPT‑5 前端开发提示样例  
-- GPT‑5 新特性指南  
-- 推理模型（Reasoning）Cookbook  
-- Responses API 与 Chat Completions 对比
-
-> 注：以上链接在你提供的原文中出现；若需我将其替换为内部跳转或补齐外链，请告知。
-
----
-
-## 常见问题（FAQ 摘要）
-
-1. **ChatGPT 内如何集成？** 有 gpt‑5‑chat 与 gpt‑5‑thinking 两类，前者偏“最小推理/路由”，后者可直接启用推理能力。
-2. **是否支持 Codex / Codex CLI？** 是，`gpt-5` 将提供支持。
-3. **旧模型的下线计划？** 关注官方 **Deprecations** 页面；下线前会提前通知。
-
----
-
-## 速查清单（TL;DR）
-
-- **快**：`reasoning.effort="minimal|low" + text.verbosity="low"`  
-- **强**：`reasoning.effort="medium|high"`（复杂调试/多步骤代理）  
-- **控**：使用 **Custom Tools + Grammar** 约束输入/输出；用 **Allowed Tools** 白名单当前可用工具  
-- **迁移**：优先使用 **Responses API** 以传递 CoT；配合提示优化器提升稳定性与速度
-
+Was this page useful?

@@ -1,30 +1,24 @@
-<!-- File: openai-developer-quickstart.md -->
-# Developer quickstart
+Developer quickstart
+====================
 
-**Source:** https://platform.openai.com/docs/quickstart
+Take your first steps with the OpenAI API.
 
-OpenAI API 提供统一的接口来调用文本生成、自然语言处理、计算机视觉等模型。下面整理为纯净 Markdown，去除了侧边栏与杂项，仅保留关键开发文档内容与示例代码。
+The OpenAI API provides a simple interface to state-of-the-art AI [models](/docs/models) for text generation, natural language processing, computer vision, and more. This example generates [text output](/docs/guides/text) from a prompt, as you might using [ChatGPT](https://chatgpt.com).
 
----
+Generate text from a model
 
-## Generate text from a model
-
-生成一条简短文本。
-
-### JavaScript
 ```javascript
 import OpenAI from "openai";
 const client = new OpenAI();
 
 const response = await client.responses.create({
-  model: "gpt-5",
-  input: "Write a one-sentence bedtime story about a unicorn."
+    model: "gpt-5",
+    input: "Write a one-sentence bedtime story about a unicorn."
 });
 
 console.log(response.output_text);
 ```
 
-### Python
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -37,70 +31,95 @@ response = client.responses.create(
 print(response.output_text)
 ```
 
-### cURL
 ```bash
-curl "https://api.openai.com/v1/responses"   -H "Content-Type: application/json"   -H "Authorization: Bearer $OPENAI_API_KEY"   -d '{
-    "model": "gpt-5",
-    "input": "Write a one-sentence bedtime story about a unicorn."
-  }'
+curl "https://api.openai.com/v1/responses" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+        "model": "gpt-5",
+        "input": "Write a one-sentence bedtime story about a unicorn."
+    }'
 ```
 
-> 环境准备：安装并配置官方 SDK 以运行上述代码（/docs/libraries）。
-> 入门模板：https://github.com/openai/openai-responses-starter-app
-> 提示工程：/docs/guides/text
+[
 
----
+Configure your development environment
 
-## Analyze images and files
+Install and configure an official OpenAI SDK to run the code above.
 
-支持将图像 URL、文件 URL 或上传的 PDF 文档直接作为输入，用于抽取文本、分类内容或检测视觉要素。
+](/docs/libraries)[
 
-### 1) Image URL — 分析图像内容
+Responses starter app
 
-#### JavaScript
+Start building with the Responses API
+
+](https://github.com/openai/openai-responses-starter-app)[
+
+Text generation and prompting
+
+Learn more about prompting, message roles, and building conversational apps.
+
+](/docs/guides/text)
+
+Analyze images and files
+------------------------
+
+Send image URLs, uploaded files, or PDF documents directly to the model to extract text, classify content, or detect visual elements.
+
+Image URL
+
+Analyze the content of an image
+
 ```javascript
 import OpenAI from "openai";
 const client = new OpenAI();
 
 const response = await client.responses.create({
-  model: "gpt-5",
-  input: [
-    {
-      role: "user",
-      content: [
-        { type: "input_text", text: "What is in this image?" },
+    model: "gpt-5",
+    input: [
         {
-          type: "input_image",
-          image_url: "https://openai-documentation.vercel.app/images/cat_and_otter.png",
+            role: "user",
+            content: [
+                {
+                    type: "input_text",
+                    text: "What is in this image?",
+                },
+                {
+                    type: "input_image",
+                    image_url: "https://openai-documentation.vercel.app/images/cat_and_otter.png",
+                },
+            ],
         },
-      ],
-    },
-  ],
+    ],
 });
 
 console.log(response.output_text);
 ```
 
-#### cURL
 ```bash
-curl "https://api.openai.com/v1/responses"   -H "Content-Type: application/json"   -H "Authorization: Bearer $OPENAI_API_KEY"   -d '{
-    "model": "gpt-5",
-    "input": [
-      {
-        "role": "user",
-        "content": [
-          { "type": "input_text", "text": "What is in this image?" },
-          {
-            "type": "input_image",
-            "image_url": "https://openai-documentation.vercel.app/images/cat_and_otter.png"
-          }
+curl "https://api.openai.com/v1/responses" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+        "model": "gpt-5",
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "What is in this image?"
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": "https://openai-documentation.vercel.app/images/cat_and_otter.png"
+                    }
+                ]
+            }
         ]
-      }
-    ]
-  }'
+    }'
 ```
 
-#### Python
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -127,57 +146,60 @@ response = client.responses.create(
 print(response.output_text)
 ```
 
-### 2) File URL — 使用远程文件作为输入
+File URL
 
-#### cURL
+Use a file URL as input
+
 ```bash
-curl "https://api.openai.com/v1/responses"   -H "Content-Type: application/json"   -H "Authorization: Bearer $OPENAI_API_KEY"   -d '{
-    "model": "gpt-5",
-    "input": [
-      {
-        "role": "user",
-        "content": [
-          { "type": "input_text",
-            "text": "Analyze the letter and provide a summary of the key points."
-          },
-          {
-            "type": "input_file",
-            "file_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf"
-          }
+curl "https://api.openai.com/v1/responses" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+        "model": "gpt-5",
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "Analyze the letter and provide a summary of the key points."
+                    },
+                    {
+                        "type": "input_file",
+                        "file_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf"
+                    }
+                ]
+            }
         ]
-      }
-    ]
-  }'
+    }'
 ```
 
-#### JavaScript
 ```javascript
 import OpenAI from "openai";
 const client = new OpenAI();
 
 const response = await client.responses.create({
-  model: "gpt-5",
-  input: [
-    {
-      role: "user",
-      content: [
+    model: "gpt-5",
+    input: [
         {
-          type: "input_text",
-          text: "Analyze the letter and provide a summary of the key points.",
+            role: "user",
+            content: [
+                {
+                    type: "input_text",
+                    text: "Analyze the letter and provide a summary of the key points.",
+                },
+                {
+                    type: "input_file",
+                    file_url: "https://www.berkshirehathaway.com/letters/2024ltr.pdf",
+                },
+            ],
         },
-        {
-          type: "input_file",
-          file_url: "https://www.berkshirehathaway.com/letters/2024ltr.pdf",
-        },
-      ],
-    },
-  ],
+    ],
 });
 
 console.log(response.output_text);
 ```
 
-#### Python
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -204,56 +226,71 @@ response = client.responses.create(
 print(response.output_text)
 ```
 
-### 3) Upload file — 上传文件并引用
+Upload file
 
-#### cURL
+Upload a file and use it as input
+
 ```bash
-# 先上传文件
-curl https://api.openai.com/v1/files   -H "Authorization: Bearer $OPENAI_API_KEY"   -F purpose="user_data"   -F file="@draconomicon.pdf"
+curl https://api.openai.com/v1/files \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -F purpose="user_data" \
+    -F file="@draconomicon.pdf"
 
-# 在对话中以 file_id 引用
-curl "https://api.openai.com/v1/responses"   -H "Content-Type: application/json"   -H "Authorization: Bearer $OPENAI_API_KEY"   -d '{
-    "model": "gpt-5",
-    "input": [
-      {
-        "role": "user",
-        "content": [
-          { "type": "input_file", "file_id": "file-6F2ksmvXxt4VdoqmHRw6kL" },
-          { "type": "input_text", "text": "What is the first dragon in the book?" }
+curl "https://api.openai.com/v1/responses" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+        "model": "gpt-5",
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_file",
+                        "file_id": "file-6F2ksmvXxt4VdoqmHRw6kL"
+                    },
+                    {
+                        "type": "input_text",
+                        "text": "What is the first dragon in the book?"
+                    }
+                ]
+            }
         ]
-      }
-    ]
-  }'
+    }'
 ```
 
-#### JavaScript
 ```javascript
 import fs from "fs";
 import OpenAI from "openai";
 const client = new OpenAI();
 
 const file = await client.files.create({
-  file: fs.createReadStream("draconomicon.pdf"),
-  purpose: "user_data",
+    file: fs.createReadStream("draconomicon.pdf"),
+    purpose: "user_data",
 });
 
 const response = await client.responses.create({
-  model: "gpt-5",
-  input: [
-    {
-      role: "user",
-      content: [
-        { type: "input_file", file_id: file.id },
-        { type: "input_text", text: "What is the first dragon in the book?" },
-      ],
-    },
-  ],
+    model: "gpt-5",
+    input: [
+        {
+            role: "user",
+            content: [
+                {
+                    type: "input_file",
+                    file_id: file.id,
+                },
+                {
+                    type: "input_text",
+                    text: "What is the first dragon in the book?",
+                },
+            ],
+        },
+    ],
 });
 
 console.log(response.output_text);
 ```
 
-#### Python
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -269,8 +306,14 @@ response = client.responses.create(
         {
             "role": "user",
             "content": [
-                { "type": "input_file", "file_id": file.id },
-                { "type": "input_text", "text": "What is the first dragon in the book?" }
+                {
+                    "type": "input_file",
+                    "file_id": file.id,
+                },
+                {
+                    "type": "input_text",
+                    "text": "What is the first dragon in the book?",
+                },
             ]
         }
     ]
@@ -279,31 +322,44 @@ response = client.responses.create(
 print(response.output_text)
 ```
 
-> 进一步阅读：图像输入（/docs/guides/images），文件与 PDF（/docs/guides/pdf-files）。
+[
 
----
+Image inputs guide
 
-## Extend the model with tools
+Learn to use image inputs to the model and extract meaning from images.
 
-为模型接入外部数据与函数。可用内置工具（Web 搜索、文件检索），也可定义自有函数或远程 MCP 服务器。
+](/docs/guides/images)[
 
-### Web search — 在响应中调用联网搜索
+File inputs guide
 
-#### JavaScript
+Learn to use file inputs to the model and extract meaning from documents.
+
+](/docs/guides/pdf-files)
+
+Extend the model with tools
+---------------------------
+
+Give the model access to external data and functions by attaching [tools](/docs/guides/tools). Use built-in tools like web search or file search, or define your own for calling APIs, running code, or integrating with third-party systems.
+
+Web search
+
+Use web search in a response
+
 ```javascript
 import OpenAI from "openai";
 const client = new OpenAI();
 
 const response = await client.responses.create({
-  model: "gpt-5",
-  tools: [{ type: "web_search_preview" }],
-  input: "What was a positive news story from today?",
+    model: "gpt-5",
+    tools: [
+        { type: "web_search_preview" },
+    ],
+    input: "What was a positive news story from today?",
 });
 
 console.log(response.output_text);
 ```
 
-#### Python
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -317,18 +373,21 @@ response = client.responses.create(
 print(response.output_text)
 ```
 
-#### cURL
 ```bash
-curl "https://api.openai.com/v1/responses"   -H "Content-Type: application/json"   -H "Authorization: Bearer $OPENAI_API_KEY"   -d '{
-    "model": "gpt-5",
-    "tools": [{"type": "web_search_preview"}],
-    "input": "what was a positive news story from today?"
-  }'
+curl "https://api.openai.com/v1/responses" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+        "model": "gpt-5",
+        "tools": [{"type": "web_search_preview"}],
+        "input": "what was a positive news story from today?"
+    }'
 ```
 
-### File search — 在响应中检索你的文件
+File search
 
-#### Python
+Search your files in a response
+
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -344,63 +403,62 @@ response = client.responses.create(
 print(response)
 ```
 
-#### JavaScript
 ```javascript
 import OpenAI from "openai";
 const openai = new OpenAI();
 
 const response = await openai.responses.create({
-  model: "gpt-4.1",
-  input: "What is deep research by OpenAI?",
-  tools: [
-    {
-      type: "file_search",
-      vector_store_ids: ["<vector_store_id>"],
-    },
-  ],
+    model: "gpt-4.1",
+    input: "What is deep research by OpenAI?",
+    tools: [
+        {
+            type: "file_search",
+            vector_store_ids: ["<vector_store_id>"],
+        },
+    ],
 });
 console.log(response);
 ```
 
-### Function calling — 让模型调用你的函数
+Function calling
 
-#### JavaScript
+Call your own function
+
 ```javascript
 import OpenAI from "openai";
 const client = new OpenAI();
 
 const tools = [
-  {
-    type: "function",
-    name: "get_weather",
-    description: "Get current temperature for a given location.",
-    parameters: {
-      type: "object",
-      properties: {
-        location: {
-          type: "string",
-          description: "City and country e.g. Bogotá, Colombia",
+    {
+        type: "function",
+        name: "get_weather",
+        description: "Get current temperature for a given location.",
+        parameters: {
+            type: "object",
+            properties: {
+                location: {
+                    type: "string",
+                    description: "City and country e.g. Bogotá, Colombia",
+                },
+            },
+            required: ["location"],
+            additionalProperties: false,
         },
-      },
-      required: ["location"],
-      additionalProperties: false,
+        strict: true,
     },
-    strict: true,
-  },
 ];
 
 const response = await client.responses.create({
-  model: "gpt-5",
-  input: [
-    { role: "user", content: "What is the weather like in Paris today?" },
-  ],
-  tools,
+    model: "gpt-5",
+    input: [
+        { role: "user", content: "What is the weather like in Paris today?" },
+    ],
+    tools,
 });
 
 console.log(response.output[0].to_json());
 ```
 
-#### Python
 ```python
 from openai import OpenAI
 
@@ -437,9 +495,11 @@ response = client.responses.create(
 print(response.output[0].to_json())
 ```
 
-#### cURL
 ```bash
-curl -X POST https://api.openai.com/v1/responses   -H "Authorization: Bearer $OPENAI_API_KEY"   -H "Content-Type: application/json"   -d '{
+curl -X POST https://api.openai.com/v1/responses \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
     "model": "gpt-5",
     "input": [
       {"role": "user", "content": "What is the weather like in Paris today?"}
@@ -466,12 +526,16 @@ curl -X POST https://api.openai.com/v1/responses   -H "Authorization: Bearer $OP
   }'
 ```
 
-### Remote MCP — 调用远程 MCP 服务器
+Remote MCP
 
-#### cURL
+Call a remote MCP server
+
 ```bash
-curl https://api.openai.com/v1/responses   -H "Content-Type: application/json"   -H "Authorization: Bearer $OPENAI_API_KEY"   -d '{
-    "model": "gpt-5",
+curl https://api.openai.com/v1/responses \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $OPENAI_API_KEY" \
+-d '{
+  "model": "gpt-5",
     "tools": [
       {
         "type": "mcp",
@@ -485,7 +549,6 @@ curl https://api.openai.com/v1/responses   -H "Content-Type: application/json"  
   }'
 ```
 
-#### JavaScript
 ```javascript
 import OpenAI from "openai";
 const client = new OpenAI();
@@ -507,7 +570,6 @@ const resp = await client.responses.create({
 console.log(resp.output_text);
 ```
 
-#### Python
 ```python
 from openai import OpenAI
 
@@ -530,38 +592,47 @@ resp = client.responses.create(
 print(resp.output_text)
 ```
 
-> 更多工具：/docs/guides/tools；函数调用：/docs/guides/function-calling。
+[
 
----
+Use built-in tools
 
-## Stream responses and build realtime apps
+Learn about powerful built-in tools like web search and file search.
 
-使用服务端事件（SSE）边生成边返回；或采用 Realtime API 构建交互式语音/多模态应用。
+](/docs/guides/tools)[
 
-### SSE 流式事件
+Function calling guide
 
-#### JavaScript
+Learn to enable the model to call your own custom code.
+
+](/docs/guides/function-calling)
+
+Stream responses and build realtime apps
+----------------------------------------
+
+Use server‑sent [streaming events](/docs/guides/streaming-responses) to show results as they’re generated, or the [Realtime API](/docs/guides/realtime) for interactive voice and multimodal apps.
+
+Stream server-sent events from the API
+
 ```javascript
 import { OpenAI } from "openai";
 const client = new OpenAI();
 
 const stream = await client.responses.create({
-  model: "gpt-5",
-  input: [
-    {
-      role: "user",
-      content: "Say 'double bubble bath' ten times fast.",
-    },
-  ],
-  stream: true,
+    model: "gpt-5",
+    input: [
+        {
+            role: "user",
+            content: "Say 'double bubble bath' ten times fast.",
+        },
+    ],
+    stream: true,
 });
 
 for await (const event of stream) {
-  console.log(event);
+    console.log(event);
 }
 ```
 
-#### Python
 ```python
 from openai import OpenAI
 client = OpenAI()
@@ -581,42 +652,51 @@ for event in stream:
     print(event)
 ```
 
-> 参考：/docs/guides/streaming-responses（SSE）、/docs/guides/realtime（Realtime API）。
+[
 
----
+Use streaming events
 
-## Build agents
+Use server-sent events to stream model responses to users fast.
 
-用 OpenAI 平台构建可代表用户执行操作的 Agents。使用 Python 或 TypeScript 的 Agents SDK 在后端编排。
+](/docs/guides/streaming-responses)[
 
-### 语言分诊（triage）Agent 示例
+Get started with the Realtime API
 
-#### TypeScript / JavaScript
+Use WebRTC or WebSockets for super fast speech-to-speech AI apps.
+
+](/docs/guides/realtime)
+
+Build agents
+------------
+
+Use the OpenAI platform to build [agents](/docs/guides/agents) capable of taking action—like [controlling computers](/docs/guides/tools-computer-use)—on behalf of your users. Use the Agents SDK for [Python](https://openai.github.io/openai-agents-python) or [TypeScript](https://openai.github.io/openai-agents-js) to create orchestration logic on the backend.
+
+Build a language triage agent
+
 ```javascript
 import { Agent, run } from '@openai/agents';
 
 const spanishAgent = new Agent({
-  name: 'Spanish agent',
-  instructions: 'You only speak Spanish.',
+    name: 'Spanish agent',
+    instructions: 'You only speak Spanish.',
 });
 
 const englishAgent = new Agent({
-  name: 'English agent',
-  instructions: 'You only speak English',
+    name: 'English agent',
+    instructions: 'You only speak English',
 });
 
 const triageAgent = new Agent({
-  name: 'Triage agent',
-  instructions:
-      'Handoff to the appropriate agent based on the language of the request.',
-  handoffs: [spanishAgent, englishAgent],
+    name: 'Triage agent',
+    instructions:
+        'Handoff to the appropriate agent based on the language of the request.',
+    handoffs: [spanishAgent, englishAgent],
 });
 
 const result = await run(triageAgent, 'Hola, ¿cómo estás?');
 console.log(result.finalOutput);
 ```
 
-#### Python
 ```python
 from agents import Agent, Runner
 import asyncio
@@ -637,12 +717,20 @@ triage_agent = Agent(
     handoffs=[spanish_agent, english_agent],
 )
 
-
 async def main():
     result = await Runner.run(triage_agent, input="Hola, ¿cómo estás?")
     print(result.final_output)
 
-
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+[
+
+Build agents that can take action
+
+Learn how to use the OpenAI platform to build powerful, capable AI agents.
+
+](/docs/guides/agents)
+
+Was this page useful?

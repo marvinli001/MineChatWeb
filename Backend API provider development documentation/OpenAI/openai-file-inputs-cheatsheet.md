@@ -1,154 +1,331 @@
-# File inputs (PDF) — Quick Cheat Sheet
+File inputs
+===========
 
-**What it is**
-- Models with vision can read PDFs by ingesting **extracted text + a raster image of each page**. This captures tables/diagrams that aren’t in the text.
+Learn how to use PDF files as inputs to the OpenAI API.
 
----
+OpenAI models with vision capabilities can also accept PDF files as input. Provide PDFs either as Base64-encoded data or as file IDs obtained after uploading files to the `/v1/files` endpoint through the [API](/docs/api-reference/files) or [dashboard](/storage/files/).
 
-## Three ways to attach a PDF
-1) **URL (no upload):**
-```json
-{
-  "model": "gpt-5",
-  "input": [{
-    "role": "user",
-    "content": [
-      {"type": "input_text", "text": "Summarize key points."},
-      {"type": "input_file", "file_url": "https://site.com/file.pdf"}
-    ]
-  }]
-}
-```
+How it works
+------------
 
-2) **File ID (upload first):**
+To help models understand PDF content, we put into the model's context both the extracted text and an image of each page. The model can then use both the text and the images to generate a response. This is useful, for example, if diagrams contain key information that isn't in the text.
+
+File URLs
+---------
+
+You can upload PDF file inputs by linking external URLs.
+
+Link an external URL to a file to use in a response
+
 ```bash
-# Upload
-curl https://api.openai.com/v1/files   -H "Authorization: Bearer $OPENAI_API_KEY"   -F purpose="user_data"   -F file="@report.pdf"
-```
-```json
-{
-  "model": "gpt-5",
-  "input": [{
-    "role": "user",
-    "content": [
-      {"type": "input_file", "file_id": "file_ABC123"},
-      {"type": "input_text", "text": "Extract action items."}
-    ]
-  }]
-}
-```
-
-3) **Base64 (inline):**
-```json
-{
-  "model": "gpt-5",
-  "input": [{
-    "role": "user",
-    "content": [
-      {
-        "type": "input_file",
-        "filename": "report.pdf",
-        "file_data": "data:application/pdf;base64,<BASE64_BYTES>"
-      },
-      {"type": "input_text", "text": "List all tables with titles."}
-    ]
-  }]
-}
+curl "https://api.openai.com/v1/responses" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+        "model": "gpt-5",
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "Analyze the letter and provide a summary of the key points."
+                    },
+                    {
+                        "type": "input_file",
+                        "file_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf"
+                    }
+                ]
+            }
+        ]
+    }'
 ```
 
----
+```javascript
+import OpenAI from "openai";
+const client = new OpenAI();
 
-## Minimal SDK snippets
+const response = await client.responses.create({
+    model: "gpt-5",
+    input: [
+        {
+            role: "user",
+            content: [
+                {
+                    type: "input_text",
+                    text: "Analyze the letter and provide a summary of the key points.",
+                },
+                {
+                    type: "input_file",
+                    file_url: "https://www.berkshirehathaway.com/letters/2024ltr.pdf",
+                },
+            ],
+        },
+    ],
+});
 
-**Python (URL):**
+console.log(response.output_text);
+```
+
 ```python
 from openai import OpenAI
 client = OpenAI()
-resp = client.responses.create(
-  model="gpt-5",
-  input=[{
-    "role": "user",
-    "content": [
-      {"type":"input_text","text":"Summarize the figures."},
-      {"type":"input_file","file_url":"https://site.com/file.pdf"}
+
+response = client.responses.create(
+    model="gpt-5",
+    input=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "input_text",
+                    "text": "Analyze the letter and provide a summary of the key points.",
+                },
+                {
+                    "type": "input_file",
+                    "file_url": "https://www.berkshirehathaway.com/letters/2024ltr.pdf",
+                },
+            ],
+        },
     ]
-  }]
 )
-print(resp.output_text)
+
+print(response.output_text)
 ```
 
-**Node (File ID):**
-```js
+Uploading files
+---------------
+
+In the example below, we first upload a PDF using the [Files API](/docs/api-reference/files), then reference its file ID in an API request to the model.
+
+Upload a file to use in a response
+
+```bash
+curl https://api.openai.com/v1/files \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -F purpose="user_data" \
+    -F file="@draconomicon.pdf"
+
+curl "https://api.openai.com/v1/responses" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+        "model": "gpt-5",
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_file",
+                        "file_id": "file-6F2ksmvXxt4VdoqmHRw6kL"
+                    },
+                    {
+                        "type": "input_text",
+                        "text": "What is the first dragon in the book?"
+                    }
+                ]
+            }
+        ]
+    }'
+```
+
+```javascript
 import fs from "fs";
 import OpenAI from "openai";
 const client = new OpenAI();
 
 const file = await client.files.create({
-  file: fs.createReadStream("report.pdf"),
-  purpose: "user_data",
+    file: fs.createReadStream("draconomicon.pdf"),
+    purpose: "user_data",
 });
 
-const resp = await client.responses.create({
-  model: "gpt-5",
-  input: [{
-    role: "user",
-    content: [
-      { type: "input_file", file_id: file.id },
-      { type: "input_text", text: "Give a concise executive summary." }
-    ]
-  }]
+const response = await client.responses.create({
+    model: "gpt-5",
+    input: [
+        {
+            role: "user",
+            content: [
+                {
+                    type: "input_file",
+                    file_id: file.id,
+                },
+                {
+                    type: "input_text",
+                    text: "What is the first dragon in the book?",
+                },
+            ],
+        },
+    ],
 });
-console.log(resp.output_text);
+
+console.log(response.output_text);
 ```
 
----
+```python
+from openai import OpenAI
+client = OpenAI()
 
-## Limits & requirements
-- **Per-file size:** up to **10 MB**.  
-- **Total request payload across files:** **≤ 32 MB**.  
-- **Models:** use ones that accept **text + images** (e.g., *gpt-4o, gpt-4o-mini, o1*, or newer).
-- **Purpose:** you can upload with any purpose, but **`user_data`** is recommended for files passed as inputs.
+file = client.files.create(
+    file=open("draconomicon.pdf", "rb"),
+    purpose="user_data"
+)
 
----
+response = client.responses.create(
+    model="gpt-5",
+    input=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "input_file",
+                    "file_id": file.id,
+                },
+                {
+                    "type": "input_text",
+                    "text": "What is the first dragon in the book?",
+                },
+            ]
+        }
+    ]
+)
 
-## Cost & performance tips
-- **Every page image + extracted text** is added to context → more tokens. Large PDFs can be expensive.  
-- Prefer **page-limited PDFs** or split large files; attach **only relevant pages**.  
-- Be explicit in the prompt: “Focus on pages 3–6, especially the two tables.”  
-- For repeat Q&A over many docs, consider **File Search / vector stores** instead of attaching entire PDFs per request.  
-- For precise schema output, combine with **Structured Outputs** (JSON Schema / Pydantic / Zod).
+print(response.output_text)
+```
 
----
+Base64-encoded files
+--------------------
 
-## Prompt patterns
-- **Summarization:** “Summarize the letter in 5 bullets. Include 3 risk factors and 3 opportunities.”  
-- **Extraction:** “Return a JSON array of `{page, section, metric, value, unit}` from all tables titled ‘Revenue’ or ‘Sales’.”  
-- **Figure emphasis:** “If a diagram contradicts the text, prefer the **diagram** and say where (page, figure).”  
-- **Localization:** “Translate Section 2 into Spanish; keep original headings.”
+You can also send PDF file inputs as Base64-encoded inputs.
 
----
+Base64 encode a file to use in a response
 
-## Common pitfalls (and fixes)
-- **413 / payload too large:** Split the PDF or reduce pages; avoid attaching multiple big PDFs at once.  
-- **OCR/scan quirks:** The model sees page **images**—ask it to rely on visuals when text extraction is poor.  
-- **Base64 mistakes:** Include the **data URL prefix** (`data:application/pdf;base64,`).  
-- **Sparse instructions:** PDFs are broad—**narrow scope** (pages, sections, targets) to cut cost and improve accuracy.
+```bash
+curl "https://api.openai.com/v1/responses" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+        "model": "gpt-5",
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_file",
+                        "filename": "draconomicon.pdf",
+                        "file_data": "...base64 encoded PDF bytes here..."
+                    },
+                    {
+                        "type": "input_text",
+                        "text": "What is the first dragon in the book?"
+                    }
+                ]
+            }
+        ]
+    }'
+```
 
----
+```javascript
+import fs from "fs";
+import OpenAI from "openai";
+const client = new OpenAI();
 
-## Decision tree
-- **One-off analysis of a small PDF?** Attach PDF directly via URL/File ID.  
-- **Large or repeated queries across many PDFs?** Use **File Search**.  
-- **Need tables/figures copied verbatim?** Ask for **page/figure refs** and **machine-readable** (CSV/JSON).  
-- **Strict structure for UI/backend?** Use **Structured Outputs**.
+const data = fs.readFileSync("draconomicon.pdf");
+const base64String = data.toString("base64");
 
----
+const response = await client.responses.create({
+    model: "gpt-5",
+    input: [
+        {
+            role: "user",
+            content: [
+                {
+                    type: "input_file",
+                    filename: "draconomicon.pdf",
+                    file_data: `data:application/pdf;base64,${base64String}`,
+                },
+                {
+                    type: "input_text",
+                    text: "What is the first dragon in the book?",
+                },
+            ],
+        },
+    ],
+});
 
-## Quick test prompts
-- “Read the attached PDF. Output a CSV with columns `page,title,subtitle,key_numbers`.”  
-- “Extract all deadlines and deliverables with due date (ISO 8601), owner, and page.”  
-- “Summarize only the **‘Management Discussion’** section; max 150 words.”
+console.log(response.output_text);
+```
 
----
+```python
+import base64
+from openai import OpenAI
+client = OpenAI()
 
-*Keep PDFs tight, prompts specific, and outputs structured when possible.*
+with open("draconomicon.pdf", "rb") as f:
+    data = f.read()
+
+base64_string = base64.b64encode(data).decode("utf-8")
+
+response = client.responses.create(
+    model="gpt-5",
+    input=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "input_file",
+                    "filename": "draconomicon.pdf",
+                    "file_data": f"data:application/pdf;base64,{base64_string}",
+                },
+                {
+                    "type": "input_text",
+                    "text": "What is the first dragon in the book?",
+                },
+            ],
+        },
+    ]
+)
+
+print(response.output_text)
+```
+
+Usage considerations
+--------------------
+
+Below are a few considerations to keep in mind while using PDF inputs.
+
+**Token usage**
+
+To help models understand PDF content, we put into the model's context both extracted text and an image of each page—regardless of whether the page includes images. Before deploying your solution at scale, ensure you understand the pricing and token usage implications of using PDFs as input. [More on pricing](/docs/pricing).
+
+**File size limitations**
+
+You can upload multiple files, each less than 10 MB. The total content limit across all files in a single API request is 32 MB.
+
+**Supported models**
+
+Only models that support both text and image inputs, such as gpt-4o, gpt-4o-mini, or o1, can accept PDF files as input. [Check model features here](/docs/models).
+
+**File upload purpose**
+
+You can upload these files to the Files API with any [purpose](/docs/api-reference/files/create#files-create-purpose), but we recommend using the `user_data` purpose for files you plan to use as model inputs.
+
+Next steps
+----------
+
+Now that you known the basics of text inputs and outputs, you might want to check out one of these resources next.
+
+[
+
+Experiment with PDF inputs in the Playground
+
+Use the Playground to develop and iterate on prompts with PDF inputs.
+
+](/chat/edit)[
+
+Full API reference
+
+Check out the API reference for more options.
+
+](/docs/api-reference/responses)
+
+Was this page useful?

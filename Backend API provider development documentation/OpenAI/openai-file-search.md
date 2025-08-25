@@ -1,21 +1,27 @@
+File search
+===========
 
-# File Search（OpenAI 文档要点整理）
+Allow models to search your files for relevant information before generating a response.
 
-> 让模型在生成回答前，先在你上传的**向量库（vector store）**中检索相关文件内容。适合私有知识库、FAQ、技术文档、合规资料等“检索增强生成（RAG）”场景。
+File search is a tool available in the [Responses API](/docs/api-reference/responses). It enables models to retrieve information in a knowledge base of previously uploaded files through semantic and keyword search. By creating vector stores and uploading files to them, you can augment the models' inherent knowledge by giving them access to these knowledge bases or `vector_stores`.
 
----
+To learn more about how vector stores and semantic search work, refer to our [retrieval guide](/docs/guides/retrieval).
 
-## 1) 工作原理简述
-- 你先用 **Files API** 上传文件，再把文件加入 **Vector Store**。
-- 在调用 **Responses API** 时，将 `file_search` 工具和 `vector_store_ids` 一起传给模型。
-- 模型按需调用检索工具：语义+关键词检索 → 读取片段 → 结合上下文生成含**文件引用**的回答。
+This is a hosted tool managed by OpenAI, meaning you don't have to implement code on your end to handle its execution. When the model decides to use it, it will automatically call the tool, retrieve information from your files, and return an output.
 
----
+How to use
+----------
 
-## 2) 快速上手（Python / JS）
+Prior to using file search with the Responses API, you need to have set up a knowledge base in a vector store and uploaded files to it.
 
-### 2.1 上传文件（Files API）
-**Python**
+Create a vector store and upload a file
+
+Follow these steps to create a vector store and upload a file to it. You can use [this example file](https://cdn.openai.com/API/docs/deep_research_blog.pdf) or upload your own.
+
+#### Upload the file to the File API
+
+Upload a file
+
 ```python
 import requests
 from io import BytesIO
@@ -24,93 +30,135 @@ from openai import OpenAI
 client = OpenAI()
 
 def create_file(client, file_path):
-    if file_path.startswith(("http://", "https://")):
-        res = requests.get(file_path)
-        res.raise_for_status()
-        file_content = BytesIO(res.content)
+    if file_path.startswith("http://") or file_path.startswith("https://"):
+        # Download the file content from the URL
+        response = requests.get(file_path)
+        file_content = BytesIO(response.content)
         file_name = file_path.split("/")[-1]
-        result = client.files.create(file=(file_name, file_content), purpose="assistants")
+        file_tuple = (file_name, file_content)
+        result = client.files.create(
+            file=file_tuple,
+            purpose="assistants"
+        )
     else:
-        with open(file_path, "rb") as fh:
-            result = client.files.create(file=fh, purpose="assistants")
+        # Handle local file path
+        with open(file_path, "rb") as file_content:
+            result = client.files.create(
+                file=file_content,
+                purpose="assistants"
+            )
+    print(result.id)
     return result.id
 
+# Replace with your own file path or URL
 file_id = create_file(client, "https://cdn.openai.com/API/docs/deep_research_blog.pdf")
-print(file_id)
 ```
 
-**JavaScript**
 ```javascript
 import fs from "fs";
 import OpenAI from "openai";
 const openai = new OpenAI();
 
 async function createFile(filePath) {
+  let result;
   if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+    // Download the file content from the URL
     const res = await fetch(filePath);
     const buffer = await res.arrayBuffer();
-    const name = filePath.split("/").pop();
-    const file = new File([buffer], name);
-    const r = await openai.files.create({ file, purpose: "assistants" });
-    return r.id;
-  } else {
-    const r = await openai.files.create({
-      file: fs.createReadStream(filePath),
+    const urlParts = filePath.split("/");
+    const fileName = urlParts[urlParts.length - 1];
+    const file = new File([buffer], fileName);
+    result = await openai.files.create({
+      file: file,
       purpose: "assistants",
     });
-    return r.id;
+  } else {
+    // Handle local file path
+    const fileContent = fs.createReadStream(filePath);
+    result = await openai.files.create({
+      file: fileContent,
+      purpose: "assistants",
+    });
   }
+  return result.id;
 }
 
-const fileId = await createFile("https://cdn.openai.com/API/docs/deep_research_blog.pdf");
+// Replace with your own file path or URL
+const fileId = await createFile(
+  "https://cdn.openai.com/API/docs/deep_research_blog.pdf"
+);
+
 console.log(fileId);
 ```
 
-### 2.2 创建向量库（Vector Store）
-**Python**
+#### Create a vector store
+
+Create a vector store
+
 ```python
-vector_store = client.vector_stores.create(name="knowledge_base")
+vector_store = client.vector_stores.create(
+    name="knowledge_base"
+)
 print(vector_store.id)
 ```
 
-**JavaScript**
 ```javascript
-const vectorStore = await openai.vectorStores.create({ name: "knowledge_base" });
+const vectorStore = await openai.vectorStores.create({
+    name: "knowledge_base",
+});
 console.log(vectorStore.id);
 ```
 
-### 2.3 将文件加入向量库
-**Python**
+#### Add the file to the vector store
+
+Add a file to a vector store
+
 ```python
-client.vector_stores.files.create(
+result = client.vector_stores.files.create(
     vector_store_id=vector_store.id,
     file_id=file_id
 )
+print(result)
 ```
 
-**JavaScript**
 ```javascript
-await openai.vectorStores.files.create(vectorStore.id, { file_id: fileId });
+await openai.vectorStores.files.create(
+    vectorStore.id,
+    {
+        file_id: fileId,
+    }
+});
 ```
 
-### 2.4 轮询检查处理状态（直到 `completed`）
-**Python**
+#### Check status
+
+Run this code until the file is ready to be used (i.e., when the status is `completed`).
+
+Check status
+
 ```python
-client.vector_stores.files.list(vector_store_id=vector_store.id)
+result = client.vector_stores.files.list(
+    vector_store_id=vector_store.id
+)
+print(result)
 ```
 
-**JavaScript**
 ```javascript
-await openai.vectorStores.files.list({ vector_store_id: vectorStore.id });
+const result = await openai.vectorStores.files.list({
+    vector_store_id: vectorStore.id,
+});
+console.log(result);
 ```
 
-### 2.5 在 Responses API 中启用 File Search
-**Python**
+Once your knowledge base is set up, you can include the `file_search` tool in the list of tools available to the model, along with the list of vector stores in which to search.
+
+File search tool
+
 ```python
 from openai import OpenAI
 client = OpenAI()
 
-resp = client.responses.create(
+response = client.responses.create(
     model="gpt-4.1",
     input="What is deep research by OpenAI?",
     tools=[{
@@ -118,206 +166,230 @@ resp = client.responses.create(
         "vector_store_ids": ["<vector_store_id>"]
     }]
 )
-print(resp.output_text)
+print(response)
 ```
 
-**JavaScript**
 ```javascript
 import OpenAI from "openai";
 const openai = new OpenAI();
 
-const resp = await openai.responses.create({
-  model: "gpt-4.1",
-  input: "What is deep research by OpenAI?",
-  tools: [{ type: "file_search", vector_store_ids: ["<vector_store_id>"] }],
+const response = await openai.responses.create({
+    model: "gpt-4.1",
+    input: "What is deep research by OpenAI?",
+    tools: [
+        {
+            type: "file_search",
+            vector_store_ids: ["<vector_store_id>"],
+        },
+    ],
 });
-console.log(resp.output_text);
+console.log(response);
 ```
 
----
+When this tool is called by the model, you will receive a response with multiple outputs:
 
-## 3) 响应结构与引用
-- 输出包含：
-  1) `file_search_call` —— 标记了一次检索调用（可选含 queries / results）。  
-  2) `message` —— 模型回答正文；`content[0].annotations` 内会给出 **file_citation**（文件 ID、文件名、在文本中的索引位置）。
-- 你可以显示这些引用，或把它们映射到“查看原文”链接。
+1.  A `file_search_call` output item, which contains the id of the file search call.
+2.  A `message` output item, which contains the response from the model, along with the file citations.
 
-示例（节选，JSON）
+File search response
+
 ```json
 {
   "output": [
-    { "type": "file_search_call", "id": "fs_...", "status": "completed" },
     {
+      "type": "file_search_call",
+      "id": "fs_67c09ccea8c48191ade9367e3ba71515",
+      "status": "completed",
+      "queries": ["What is deep research?"],
+      "search_results": null
+    },
+    {
+      "id": "msg_67c09cd3091c819185af2be5d13d87de",
       "type": "message",
-      "content": [{
-        "type": "output_text",
-        "text": "Deep research is ...",
-        "annotations": [{
-          "type": "file_citation",
-          "file_id": "file_...",
-          "filename": "deep_research_blog.pdf"
-        }]
-      }]
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "Deep research is a sophisticated capability that allows for extensive inquiry and synthesis of information across various domains. It is designed to conduct multi-step research tasks, gather data from multiple online sources, and provide comprehensive reports similar to what a research analyst would produce. This functionality is particularly useful in fields requiring detailed and accurate information...",
+          "annotations": [
+            {
+              "type": "file_citation",
+              "index": 992,
+              "file_id": "file-2dtbBZdjtDKS8eqWxqbgDi",
+              "filename": "deep_research_blog.pdf"
+            },
+            {
+              "type": "file_citation",
+              "index": 992,
+              "file_id": "file-2dtbBZdjtDKS8eqWxqbgDi",
+              "filename": "deep_research_blog.pdf"
+            },
+            {
+              "type": "file_citation",
+              "index": 1176,
+              "file_id": "file-2dtbBZdjtDKS8eqWxqbgDi",
+              "filename": "deep_research_blog.pdf"
+            },
+            {
+              "type": "file_citation",
+              "index": 1176,
+              "file_id": "file-2dtbBZdjtDKS8eqWxqbgDi",
+              "filename": "deep_research_blog.pdf"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
 ```
 
----
+Retrieval customization
+-----------------------
 
-## 4) 检索定制（可选）
+### Limiting the number of results
 
-### 4.1 限制返回条数（降低成本/时延）
-**Python**
+Using the file search tool with the Responses API, you can customize the number of results you want to retrieve from the vector stores. This can help reduce both token usage and latency, but may come at the cost of reduced answer quality.
+
+Limit the number of results
+
 ```python
-client.responses.create(
-  model="gpt-4.1",
-  input="What is deep research by OpenAI?",
-  tools=[{
-    "type": "file_search",
-    "vector_store_ids": ["<vector_store_id>"],
-    "max_num_results": 2
-  }]
-)
-```
-
-**JavaScript**
-```javascript
-await openai.responses.create({
-  model: "gpt-4.1",
-  input: "What is deep research by OpenAI?",
-  tools: [{ type: "file_search", vector_store_ids: ["<vector_store_id>"], max_num_results: 2 }],
-});
-```
-
-### 4.2 在响应中返回检索结果列表（调试/可视化）
-**Python**
-```python
-client.responses.create(
-  model="gpt-4.1",
-  input="What is deep research by OpenAI?",
-  tools=[{ "type": "file_search", "vector_store_ids": ["<vector_store_id>"] }],
-  include=["file_search_call.results"]
-)
-```
-
-**JavaScript**
-```javascript
-await openai.responses.create({
-  model: "gpt-4.1",
-  input: "What is deep research by OpenAI?",
-  tools: [{ type: "file_search", vector_store_ids: ["<vector_store_id>"] }],
-  include: ["file_search_call.results"],
-});
-```
-
-### 4.3 基于文件元数据过滤
-> 先给向量库文件设置 metadata，然后用 `filters` 过滤（详见 Retrieval 指南）。
-**Python**
-```python
-client.responses.create(
-  model="gpt-4.1",
-  input="What is deep research by OpenAI?",
-  tools=[{
-    "type": "file_search",
-    "vector_store_ids": ["<vector_store_id>"],
-    "filters": { "type": "eq", "key": "type", "value": "blog" }
-  }]
-)
-```
-
-**JavaScript**
-```javascript
-await openai.responses.create({
-  model: "gpt-4.1",
-  input: "What is deep research by OpenAI?",
-  tools: [{
-    type: "file_search",
-    vector_store_ids: ["<vector_store_id>"],
-    filters: { type: "eq", key: "type", value: "blog" }
-  }],
-});
-```
-
----
-
-## 5) 支持的文件类型（节选）
-> 文本类需 `utf-8 / utf-16 / ascii` 编码。
-
-| 扩展名 | MIME | 说明 |
-|---|---|---|
-| .txt | text/plain | 纯文本 |
-| .md  | text/markdown | Markdown |
-| .pdf | application/pdf | PDF 文档 |
-| .doc/.docx | application/msword / application/vnd.openxmlformats-officedocument.wordprocessingml.document | Word |
-| .pptx | application/vnd.openxmlformats-officedocument.presentationml.presentation | PowerPoint |
-| .xlsx | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet | Excel（建议转 CSV） |
-| .csv | text/csv / application/csv | 逗号分隔数据 |
-| .json | application/json | JSON |
-| .html | text/html | HTML |
-| .py/.js/.ts/.java/.go/.rb/.php/.c/.cpp/.cs/.sh/.tex | 对应 text/x-* / application/x-sh 等 | 源码/脚本 |
-
-> 需要更全列表时，参考原文档的“Supported files”。
-
----
-
-## 6) 速率与用量（概览）
-- **Responses / Chat / Assistants**：与所用模型的**分层限额**一致。文档给出一组示例：  
-  - Tier 1：100 RPM  
-  - Tier 2-3：500 RPM  
-  - Tier 4-5：1000 RPM  
-- 计费以模型文本 token 为主；检索本身为托管工具，不用你自己实现召回。
-
-> 实际费率/限额以你的组织面板与最新定价为准。
-
----
-
-## 7) 最佳实践 & 常见问题
-
-**提示词与工具声明**
-- 在 `tools` 中仅暴露必要的 `vector_store_ids`（按业务域拆分库，避免噪声。）。
-- 系统提示里说明：遇到与知识库相关的问题**优先使用** file_search。
-
-**文件与分片**
-- 尽量提供**结构化文本**或可解析的 PDF/HTML，保证可提取正文（图片扫描建议 OCR 预处理）。
-- 按主题拆分文档，减少长文件引入的无关片段；用 metadata 标记来源、日期、版本。
-
-**答案可追溯**
-- 展示 `file_citation`，并提供“在原文中查看”跳转。  
-- 对外输出需标注来源，尤其在合规或学术场景。
-
-**质量与成本平衡**
-- 先用默认召回；若回答啰嗦或偏题，尝试：收紧提示词、设置 `max_num_results`、在向量库侧做更细粒度切片。  
-- 如回答缺失信息，可增大知识库覆盖或放宽过滤条件，并考虑**并行检索多个 vector store**。
-
-**调试技巧**
-- 临时开启 `include=["file_search_call.results"]` 观察召回片段。  
-- 逐步对比“开启/关闭过滤”“不同切片策略/向量库”的答案差异。
-
----
-
-## 8) 端到端最简模板（Python）
-```python
-from openai import OpenAI
-client = OpenAI()
-
-# 假设已完成：文件上传 -> 向量库创建 -> 文件入库 -> 状态 completed
-VECTOR_STORE_ID = "<your_vector_store_id>"
-
-resp = client.responses.create(
+response = client.responses.create(
     model="gpt-4.1",
-    input="根据内部FAQ，解释如何申请报销，并给出条目式步骤。",
-    tools=[{ "type": "file_search", "vector_store_ids": [VECTOR_STORE_ID] }]
+    input="What is deep research by OpenAI?",
+    tools=[{
+        "type": "file_search",
+        "vector_store_ids": ["<vector_store_id>"],
+        "max_num_results": 2
+    }]
 )
-
-print(resp.output_text)          # 最终答案
-# resp.output[0] 里可找到 file_search_call（如有）；
-# resp.output 中的 message.content[0].annotations 包含 file_citation 引用。
+print(response)
 ```
 
----
+```javascript
+const response = await openai.responses.create({
+    model: "gpt-4.1",
+    input: "What is deep research by OpenAI?",
+    tools: [{
+        type: "file_search",
+        vector_store_ids: ["<vector_store_id>"],
+        max_num_results: 2,
+    }],
+});
+console.log(response);
+```
 
-### 参考
-- 原文：**File search**（OpenAI 官方文档）
-- 相关：**Retrieval 指南**（元数据与过滤）、**Responses API**（含工具调用输出结构）
+### Include search results in the response
 
+While you can see annotations (references to files) in the output text, the file search call will not return search results by default.
+
+To include search results in the response, you can use the `include` parameter when creating the response.
+
+Include search results
+
+```python
+response = client.responses.create(
+    model="gpt-4.1",
+    input="What is deep research by OpenAI?",
+    tools=[{
+        "type": "file_search",
+        "vector_store_ids": ["<vector_store_id>"]
+    }],
+    include=["file_search_call.results"]
+)
+print(response)
+```
+
+```javascript
+const response = await openai.responses.create({
+    model: "gpt-4.1",
+    input: "What is deep research by OpenAI?",
+    tools: [{
+        type: "file_search",
+        vector_store_ids: ["<vector_store_id>"],
+    }],
+    include: ["file_search_call.results"],
+});
+console.log(response);
+```
+
+### Metadata filtering
+
+You can filter the search results based on the metadata of the files. For more details, refer to our [retrieval guide](/docs/guides/retrieval), which covers:
+
+*   How to [set attributes on vector store files](/docs/guides/retrieval#attributes)
+*   How to [define filters](/docs/guides/retrieval#attribute-filtering)
+
+Metadata filtering
+
+```python
+response = client.responses.create(
+    model="gpt-4.1",
+    input="What is deep research by OpenAI?",
+    tools=[{
+        "type": "file_search",
+        "vector_store_ids": ["<vector_store_id>"],
+        "filters": {
+            "type": "eq",
+            "key": "type",
+            "value": "blog"
+        }
+    }]
+)
+print(response)
+```
+
+```javascript
+const response = await openai.responses.create({
+    model: "gpt-4.1",
+    input: "What is deep research by OpenAI?",
+    tools: [{
+        type: "file_search",
+        vector_store_ids: ["<vector_store_id>"],
+        filters: {
+            type: "eq",
+            key: "type",
+            value: "blog"
+        }
+    }]
+});
+console.log(response);
+```
+
+Supported files
+---------------
+
+_For `text/` MIME types, the encoding must be one of `utf-8`, `utf-16`, or `ascii`._
+
+|File format|MIME type|
+|---|---|
+|.c|text/x-c|
+|.cpp|text/x-c++|
+|.cs|text/x-csharp|
+|.css|text/css|
+|.doc|application/msword|
+|.docx|application/vnd.openxmlformats-officedocument.wordprocessingml.document|
+|.go|text/x-golang|
+|.html|text/html|
+|.java|text/x-java|
+|.js|text/javascript|
+|.json|application/json|
+|.md|text/markdown|
+|.pdf|application/pdf|
+|.php|text/x-php|
+|.pptx|application/vnd.openxmlformats-officedocument.presentationml.presentation|
+|.py|text/x-python|
+|.py|text/x-script.python|
+|.rb|text/x-ruby|
+|.sh|application/x-sh|
+|.tex|text/x-tex|
+|.ts|application/typescript|
+|.txt|text/plain|
+
+Usage notes
+-----------
+
+||
+|ResponsesChat CompletionsAssistants|Tier 1100 RPMTier 2 and 3500 RPMTier 4 and 51000 RPM|PricingZDR and data residency|
+
+Was this page useful?

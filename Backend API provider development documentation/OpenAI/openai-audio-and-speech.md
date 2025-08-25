@@ -1,102 +1,138 @@
-<!-- File: openai-audio-and-speech.md -->
-# Audio and speech
+Audio and speech
+================
 
-**Source:** https://platform.openai.com/docs/guides/audio
+Explore audio and speech features in the OpenAI API.
 
-本页为 *Audio and speech* 的**纯净 Markdown**重排：去侧栏与杂项，仅保留开发相关内容与示例。
+The OpenAI API provides a range of audio capabilities. If you know what you want to build, find your use case below to get started. If you're not sure where to start, read this page as an overview.
 
----
+Build with audio
+----------------
 
-## Overview
+[
 
-OpenAI API 提供一系列音频能力：可将**音频作为输入**、生成**音频作为输出**，或两者兼具。若你已明确需求，可直达相应指南；否则本文作为概览。
+![Build voice agents](https://cdn.openai.com/API/docs/images/voice-agents-rounded.png)
 
-- **Build voice agents**：/docs/guides/voice-agents — 构建交互式语音应用。  
-- **Transcribe audio**：/docs/guides/speech-to-text — 语音转文本（ASR）。  
-- **Speak text**：/docs/guides/text-to-speech — 文本转语音（TTS）。
+Build voice agents
 
----
+Build interactive voice-driven applications.
 
-## A tour of audio use cases
+](/docs/guides/voice-agents)[
 
-- **Voice agents**：理解语音并以自然语言响应。两条路径：  
-  1) **Speech-to-speech 模型 + Realtime API**（更低时延，更自然）；  
-  2) **ASR → LLM → TTS 链式**（易扩展文本代理为语音代理，控制力更强）。若已使用 Agents SDK，可用链式方式为现有代理加语音。
+![Transcribe audio](https://cdn.openai.com/API/docs/images/stt-rounded.png)
 
-- **Streaming audio**：通过 **Realtime API** 实时处理音频输入/输出，适合低延迟应用（含转写）。
+Transcribe audio
 
-- **Text to speech**：使用 **Audio API** 的 `audio/speech` 端点。兼容模型：`gpt-4o-mini-tts`, `tts-1`, `tts-1-hd`。可控制说话方式与音色。
+Convert speech to text instantly and accurately.
 
-- **Speech to text**：使用 **Audio API** 的 `audio/transcriptions`。兼容模型：`gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, `whisper-1`。支持流式持续转写。
+](/docs/guides/speech-to-text)[
 
----
+![Speak text](https://cdn.openai.com/API/docs/images/tts-rounded.png)
 
-## Choosing the right API
+Speak text
 
-多种 API 可用于转写或生成音频：
+Turn text into natural-sounding speech in real time.
 
-| API | 支持模态 | 流式支持 |
+](/docs/guides/text-to-speech)
+
+A tour of audio use cases
+-------------------------
+
+LLMs can process audio by using sound as input, creating sound as output, or both. OpenAI has several API endpoints that help you build audio applications or voice agents.
+
+### Voice agents
+
+Voice agents understand audio to handle tasks and respond back in natural language. There are two main ways to approach voice agents: either with speech-to-speech models and the [Realtime API](/docs/guides/realtime), or by chaining together a speech-to-text model, a text language model to process the request, and a text-to-speech model to respond. Speech-to-speech is lower latency and more natural, but chaining together a voice agent is a reliable way to extend a text-based agent into a voice agent. If you are already using the [Agents SDK](/docs/guides/agents), you can [extend your existing agents with voice capabilities](https://openai.github.io/openai-agents-python/voice/quickstart/) using the chained approach.
+
+### Streaming audio
+
+Process audio in real time to build voice agents and other low-latency applications, including transcription use cases. You can stream audio in and out of a model with the [Realtime API](/docs/guides/realtime). Our advanced speech models provide automatic speech recognition for improved accuracy, low-latency interactions, and multilingual support.
+
+### Text to speech
+
+For turning text into speech, use the [Audio API](/docs/api-reference/audio/) `audio/speech` endpoint. Models compatible with this endpoint are `gpt-4o-mini-tts`, `tts-1`, and `tts-1-hd`. With `gpt-4o-mini-tts`, you can ask the model to speak a certain way or with a certain tone of voice.
+
+### Speech to text
+
+For speech to text, use the [Audio API](/docs/api-reference/audio/) `audio/transcriptions` endpoint. Models compatible with this endpoint are `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`, and `whisper-1`. With streaming, you can continuously pass in audio and get a continuous stream of text back.
+
+Choosing the right API
+----------------------
+
+There are multiple APIs for transcribing or generating audio:
+
+|API|Supported modalities|Streaming support|
 |---|---|---|
-| **Realtime API** | 音频与文本的输入/输出 | 音频**进/出**流式 |
-| **Chat Completions API** | 音频与文本的输入/输出 | 音频**出**流式 |
-| **Transcription API** | 仅音频输入 | 音频**出**流式 |
-| **Speech API** | 文本输入、音频输出 | 音频**出**流式 |
+|Realtime API|Audio and text inputs and outputs|Audio streaming in and out|
+|Chat Completions API|Audio and text inputs and outputs|Audio streaming out|
+|Transcription API|Audio inputs|Audio streaming out|
+|Speech API|Text inputs and audio outputs|Audio streaming out|
 
-**General vs. Specialized**：  
-- **通用**（Realtime / Chat Completions）：可利用最新模型的原生音频理解/生成，并结合函数调用等特性，覆盖面广。  
-- **专用**（Transcription / Translation / Speech）：面向特定模型与用途，聚焦单一任务。
+### General use APIs vs. specialized APIs
 
-**对话式 vs. 可控性**：  
-- 若追求对话自然度，使用 **Realtime** 或 **Chat Completions**（前者更低延迟）。模型直接生成音频，**不可完全预知**具体措辞。  
-- 若追求**可预测与可控**（明确知道要说什么），使用 **ASR → LLM → TTS** 链式，但会引入额外时延。
+The main distinction is general use APIs vs. specialized APIs. With the Realtime and Chat Completions APIs, you can use our latest models' native audio understanding and generation capabilities and combine them with other features like function calling. These APIs can be used for a wide range of use cases, and you can select the model you want to use.
 
-**建议**：  
-- 需要**实时交互/转写** → 选 **Realtime API**。  
-- 不需严格实时，但需要**函数调用**等特性构建语音代理 → 选 **Chat Completions API**。  
-- 单一用途（仅转写、仅翻译、仅合成） → 选 **Transcription/Translation/Speech** API。
+On the other hand, the Transcription, Translation and Speech APIs are specialized to work with specific models and only meant for one purpose.
 
----
+### Talking with a model vs. controlling the script
 
-## Add audio to your existing application
+Another way to select the right API is asking yourself how much control you need. To design conversational interactions, where the model thinks and responds in speech, use the Realtime or Chat Completions API, depending if you need low-latency or not.
 
-诸如 **GPT-4o / GPT-4o mini** 等模型是**原生多模态**：可理解并生成多种模态。若你已有使用 **Chat Completions** 的文本应用，可在 `modalities` 中加入 `audio` 并使用音频模型（如 `gpt-4o-audio-preview`），即可支持**音频输入/输出**。
+You won't know exactly what the model will say ahead of time, as it will generate audio responses directly, but the conversation will feel natural.
 
-> 目前 **Responses API 暂不支持音频**。
+For more control and predictability, you can use the Speech-to-text / LLM / Text-to-speech pattern, so you know exactly what the model will say and can control the response. Please note that with this method, there will be added latency.
 
----
+This is what the Audio APIs are for: pair an LLM with the `audio/transcriptions` and `audio/speech` endpoints to take spoken user input, process and generate a text response, and then convert that to speech that the user can hear.
 
-## Audio output from model
+### Recommendations
 
-创建贴近人声的音频响应。
+*   If you need [real-time interactions](/docs/guides/realtime-conversations) or [transcription](/docs/guides/realtime-transcription), use the Realtime API.
+*   If realtime is not a requirement but you're looking to build a [voice agent](/docs/guides/voice-agents) or an audio-based application that requires features such as [function calling](/docs/guides/function-calling), use the Chat Completions API.
+*   For use cases with one specific purpose, use the Transcription, Translation, or Speech APIs.
 
-### JavaScript
+Add audio to your existing application
+--------------------------------------
+
+Models such as GPT-4o or GPT-4o mini are natively multimodal, meaning they can understand and generate multiple modalities as input and output.
+
+If you already have a text-based LLM application with the [Chat Completions endpoint](/docs/api-reference/chat/), you may want to add audio capabilities. For example, if your chat application supports text input, you can add audio input and output—just include `audio` in the `modalities` array and use an audio model, like `gpt-4o-audio-preview`.
+
+Audio is not yet supported in the [Responses API](/docs/api-reference/chat/completions/responses).
+
+Audio output from model
+
+Create a human-like audio response to a prompt
+
 ```javascript
 import { writeFileSync } from "node:fs";
 import OpenAI from "openai";
 
 const openai = new OpenAI();
 
-// 生成音频响应
+// Generate an audio response to the given prompt
 const response = await openai.chat.completions.create({
   model: "gpt-4o-audio-preview",
   modalities: ["text", "audio"],
   audio: { voice: "alloy", format: "wav" },
-  messages: [{ role: "user", content: "Is a golden retriever a good family dog?" }],
+  messages: [
+    {
+      role: "user",
+      content: "Is a golden retriever a good family dog?"
+    }
+  ],
   store: true,
 });
 
-// 检查返回数据
+// Inspect returned data
 console.log(response.choices[0]);
 
-// 写入文件
+// Write audio data to a file
 writeFileSync(
   "dog.wav",
-  Buffer.from(response.choices[0].message.audio.data, "base64"),
+  Buffer.from(response.choices[0].message.audio.data, 'base64'),
   { encoding: "utf-8" }
 );
 ```
 
-### Python
 ```python
 import base64
 from openai import OpenAI
@@ -107,7 +143,12 @@ completion = client.chat.completions.create(
     model="gpt-4o-audio-preview",
     modalities=["text", "audio"],
     audio={"voice": "alloy", "format": "wav"},
-    messages=[{"role": "user", "content": "Is a golden retriever a good family dog?"}],
+    messages=[
+        {
+            "role": "user",
+            "content": "Is a golden retriever a good family dog?"
+        }
+    ]
 )
 
 print(completion.choices[0])
@@ -117,28 +158,32 @@ with open("dog.wav", "wb") as f:
     f.write(wav_bytes)
 ```
 
-### cURL
 ```bash
-curl "https://api.openai.com/v1/chat/completions"   -H "Content-Type: application/json"   -H "Authorization: Bearer $OPENAI_API_KEY"   -d '{
-    "model": "gpt-4o-audio-preview",
-    "modalities": ["text", "audio"],
-    "audio": { "voice": "alloy", "format": "wav" },
-    "messages": [{ "role": "user", "content": "Is a golden retriever a good family dog?" }]
-  }'
+curl "https://api.openai.com/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+      "model": "gpt-4o-audio-preview",
+      "modalities": ["text", "audio"],
+      "audio": { "voice": "alloy", "format": "wav" },
+      "messages": [
+        {
+          "role": "user",
+          "content": "Is a golden retriever a good family dog?"
+        }
+      ]
+    }'
 ```
 
----
+Audio input to model
 
-## Audio input to model
+Use audio inputs for prompting a model
 
-向模型提供音频作为提示。
-
-### JavaScript
 ```javascript
 import OpenAI from "openai";
 const openai = new OpenAI();
 
-// 获取音频文件并转为 base64
+// Fetch an audio file and convert it to a base64 string
 const url = "https://cdn.openai.com/API/docs/audio/alloy.wav";
 const audioResponse = await fetch(url);
 const buffer = await audioResponse.arrayBuffer();
@@ -153,7 +198,7 @@ const response = await openai.chat.completions.create({
       role: "user",
       content: [
         { type: "text", text: "What is in this recording?" },
-        { type: "input_audio", input_audio: { data: base64str, format: "wav" } }
+        { type: "input_audio", input_audio: { data: base64str, format: "wav" }}
       ]
     }
   ],
@@ -163,7 +208,6 @@ const response = await openai.chat.completions.create({
 console.log(response.choices[0]);
 ```
 
-### Python
 ```python
 import base64
 import requests
@@ -171,11 +215,12 @@ from openai import OpenAI
 
 client = OpenAI()
 
-# 拉取音频并转为 base64
+# Fetch the audio file and convert it to a base64 encoded string
 url = "https://cdn.openai.com/API/docs/audio/alloy.wav"
 response = requests.get(url)
 response.raise_for_status()
-encoded_string = base64.b64encode(response.content).decode("utf-8")
+wav_data = response.content
+encoded_string = base64.b64encode(wav_data).decode('utf-8')
 
 completion = client.chat.completions.create(
     model="gpt-4o-audio-preview",
@@ -185,34 +230,49 @@ completion = client.chat.completions.create(
         {
             "role": "user",
             "content": [
-                { "type": "text", "text": "What is in this recording?" },
-                { "type": "input_audio", "input_audio": { "data": encoded_string, "format": "wav" } }
+                { 
+                    "type": "text",
+                    "text": "What is in this recording?"
+                },
+                {
+                    "type": "input_audio",
+                    "input_audio": {
+                        "data": encoded_string,
+                        "format": "wav"
+                    }
+                }
             ]
-        }
+        },
     ]
 )
 
 print(completion.choices[0].message)
 ```
 
-### cURL
 ```bash
-curl "https://api.openai.com/v1/chat/completions"   -H "Content-Type: application/json"   -H "Authorization: Bearer $OPENAI_API_KEY"   -d '{
-    "model": "gpt-4o-audio-preview",
-    "modalities": ["text", "audio"],
-    "audio": { "voice": "alloy", "format": "wav" },
-    "messages": [
-      {
-        "role": "user",
-        "content": [
-          { "type": "text", "text": "What is in this recording?" },
-          { "type": "input_audio", "input_audio": { "data": "<base64 bytes here>", "format": "wav" } }
-        ]
-      }
-    ]
-  }'
+curl "https://api.openai.com/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $OPENAI_API_KEY" \
+    -d '{
+      "model": "gpt-4o-audio-preview",
+      "modalities": ["text", "audio"],
+      "audio": { "voice": "alloy", "format": "wav" },
+      "messages": [
+        {
+          "role": "user",
+          "content": [
+            { "type": "text", "text": "What is in this recording?" },
+            { 
+              "type": "input_audio", 
+              "input_audio": { 
+                "data": "<base64 bytes here>", 
+                "format": "wav" 
+              }
+            }
+          ]
+        }
+      ]
+    }'
 ```
 
----
-
-*以上为你提供的原始内容整理为 Markdown 的版本，便于直接纳入仓库或知识库。*
+Was this page useful?
