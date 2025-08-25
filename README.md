@@ -1,26 +1,26 @@
 # MineChatWeb
 
-MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合了多个主流大语言模型，为用户提供聊天、语音、图片等多模态体验。项目采用 Python FastAPI 作为后端，Next.js + Tailwind CSS 作为前端。
+MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合了多个主流大语言模型，为用户提供现代化的聊天体验。项目采用 Python FastAPI 作为后端，Next.js + Tailwind CSS 作为前端。
 
 > ⚠️ 项目目前处于早期阶段，接口和 UI 仍在不断迭代中，欢迎反馈问题或贡献代码。
 
 ## 功能亮点
 
 - **多模型支持**：OpenAI、Anthropic、Google Gemini、DeepSeek 等主流提供商
+- **流式对话**：WebSocket 连接与心跳保活，带来顺滑的实时输出
 - **推理展示**：支持 o 系列、GPT-5 等思考模型的推理过程可视化
-- **语音能力**：语音转文字 & 文字转语音
-- **图片能力**：图片生成与识别
-- **云端记忆**：可选 Milvus 向量数据库持久化聊天历史
 - **云端同步**：试验性 Cloudflare D1 同步聊天记录与设置
+- **模型市场**：可视化选择模型，支持在线刷新配置
+- **插件扩展**：预留插件市场入口，便于未来拓展
+- **语音与图片接口（开发中）**：后端提供占位 API，功能持续完善
 - **现代界面**：仿 ChatGPT 的响应式 UI，支持深色模式
 - **本地配置**：所有密钥信息仅存储在浏览器
-- **模型市场**：可视化选择模型，支持在线刷新模型配置
 
 ## 技术栈
 
 | 层 | 技术 |
 | --- | --- |
-| 后端 | FastAPI · SQLAlchemy · Redis · Milvus · WebSocket |
+| 后端 | FastAPI · httpx · WebSocket |
 | 前端 | Next.js 14 · TypeScript · Tailwind CSS · Zustand · React Markdown |
 | 其他 | Docker Compose · Node.js 18+ · Python 3.9+ |
 
@@ -37,16 +37,13 @@ MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合�
 
 ## 模型市场与配置
 
-@@ -86,26 +87,35 @@ npm run dev
-6. **Moonshot（Kimi）**：https://platform.moonshot.cn/
+前端内置模型市场，配置来自 `models-config.json`，也可在线刷新。当前支持的提供商包括：
 
-### Milvus（可选）
-
-可自行部署 Milvus 或使用 Zilliz Cloud：
-
-```bash
-docker-compose up milvus etcd minio   # 本地部署
-```
+1. **OpenAI**：https://platform.openai.com/
+2. **Anthropic**：https://console.anthropic.com/
+3. **Google Gemini**：https://aistudio.google.com/
+4. **DeepSeek**：https://platform.deepseek.com/
+5. **Moonshot（Kimi）**：https://platform.moonshot.cn/
 
 ## API 文档
 
@@ -68,8 +65,7 @@ ALGORITHM=HS256
 
 ## 未来开发计划
 
-- 实现完整且兼容性的云同步（聊天记录、设置偏好、附加对话工具配置等）
+- 实现完整且兼容性的云同步（包括聊天记录、设置偏好、额外对话工具的配置信息，自动检测对比浏览器端消息和云端备份并按聊天 ID 进行整合同步，所有 Key 的备份）
+- 实现上传图片和上传文件后进行 embedding 作为文件附件功能
+- 推进附加工具的具体实现：搜索、图片生成等，未来将拓展更多生产力工具
 - 解决 Thinking 模型无法展示完整思维链的问题，持续优化流式输出
-- 增强 OpenAI O 系列、GPT-5 系列模型的支持与研究
-- 实现上传图片/文件后自动 embedding 作为对话附件
-- 支持更多附加工具：搜索、向量、图片生成等
