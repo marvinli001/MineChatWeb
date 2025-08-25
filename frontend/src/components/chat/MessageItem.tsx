@@ -161,7 +161,11 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
           <div className="flex-1 min-w-0">
             {/* 显示推理链（仅当消息有reasoning字段时） */}
             {message.reasoning && (
-              <ThinkingChain reasoning={message.reasoning} className="mb-4" />
+              <ThinkingChain 
+                reasoning={message.reasoning} 
+                startTime={message.thinking_start_time}
+                className="mb-4" 
+              />
             )}
             
             <div className="prose prose-gray dark:prose-invert max-w-none">

@@ -65,7 +65,7 @@ async def chat_completion(request: ChatRequest):
             api_key=request.api_key,
             stream=request.stream,
             thinking_mode=request.thinking_mode,
-            reasoning_summaries=getattr(request, 'reasoning_summaries', 'auto')
+            reasoning_summaries=request.reasoning_summaries
         )
         
         logger.info(f"[{request_id}] AI服务调用成功，耗时: {time.time() - start_time:.2f}秒")

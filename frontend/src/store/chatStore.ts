@@ -256,7 +256,8 @@ export const useChatStore = create<ChatState>()(
             id: Date.now().toString() + '-assistant',
             role: 'assistant',
             content: '',
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            thinking_start_time: Date.now()  // 记录思考开始时间
           }
 
           // 添加空的助手消息
@@ -534,6 +535,7 @@ export const useChatStore = create<ChatState>()(
             role: 'assistant',
             content: assistantContent,
             created_at: new Date().toISOString(),
+            thinking_start_time: Date.now(),  // 记录思考开始时间
             ...(reasoningContent && { reasoning: reasoningContent })
           }
 

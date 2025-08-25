@@ -12,6 +12,7 @@ class ChatRequest(BaseModel):
     api_key: str
     stream: bool = False
     thinking_mode: bool = False
+    reasoning_summaries: str = "auto"
 
 class Usage(BaseModel):
     prompt_tokens: Optional[int] = 0

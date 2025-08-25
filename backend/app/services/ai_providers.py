@@ -165,9 +165,19 @@ class AIProviderService:
         # 转换 Responses API 格式
         output = responses_result.get("output", [])
         choices = []
+        reasoning_content = ""
         
         for item in output:
-            if item.get("type") == "message" and item.get("role") == "assistant":
+            # 提取推理内容
+            if item.get("type") == "reasoning":
+                summary_items = item.get("summary", [])
+                for summary_item in summary_items:
+                    if summary_item.get("type") == "summary_text":
+                        reasoning_content = summary_item.get("text", "")
+                        break
+            
+            # 提取助手消息内容
+            elif item.get("type") == "message" and item.get("role") == "assistant":
                 content = ""
                 message_content = item.get("content", [])
                 
@@ -177,6 +187,7 @@ class AIProviderService:
                         content = content_item.get("text", "")
                         break
                 
+                # 构造选择对象
                 choice = {
                     "message": {
                         "role": "assistant",
@@ -185,6 +196,11 @@ class AIProviderService:
                     "finish_reason": "stop",
                     "index": 0
                 }
+                
+                # 如果有推理内容，添加到消息中
+                if reasoning_content:
+                    choice["message"]["reasoning"] = reasoning_content
+                
                 choices.append(choice)
                 break  # 只取第一个 assistant 消息
         
@@ -320,7 +336,10 @@ class AIProviderService:
                 completion_params = {
                     "model": model,
                     "input": input_text.strip(),
-                    "reasoning": {"summary": reasoning_summaries}
+                    "reasoning": {
+                        "effort": "medium",
+                        "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
+                    }
                 }
                 
                 # 添加 instructions 如果有 system 消息

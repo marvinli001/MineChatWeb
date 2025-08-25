@@ -5,6 +5,7 @@ export interface ChatMessage {
   reasoning?: string
   timestamp?: string
   created_at?: string
+  thinking_start_time?: number  // 思考开始时间戳
 }
 
 export interface Conversation {
