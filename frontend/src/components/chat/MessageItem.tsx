@@ -201,8 +201,8 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
 
           {/* 消息内容 */}
           <div className="flex-1 min-w-0">
-            {/* 显示推理链（当有reasoning内容或者是正在加载的推理模型时） */}
-            {(message.reasoning || (isReasoningModel && isLoading && isLast)) && (
+            {/* 显示推理链（推理模型的消息都显示思维链） */}
+            {isReasoningModel && message.thinking_start_time && (
               <ThinkingChain 
                 reasoning={message.reasoning || ''} 
                 startTime={message.thinking_start_time}

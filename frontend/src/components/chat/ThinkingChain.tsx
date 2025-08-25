@@ -17,6 +17,7 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
   const [isExpanded, setIsExpanded] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
   const [finalThinkingTime, setFinalThinkingTime] = useState(0)
+  const [currentThinkingTime, setCurrentThinkingTime] = useState(0)
   const { isLoading } = useChatStore()
   const reasoningRef = useRef<string>('')
 
@@ -57,6 +58,26 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
     }
   }, [isComplete])
 
+  // 动态计时器 - 在思考期间实时更新时间
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null
+    
+    if (!isComplete && startTime) {
+      interval = setInterval(() => {
+        const currentTime = (Date.now() - startTime) / 1000
+        setCurrentThinkingTime(currentTime)
+      }, 100) // 每100ms更新一次
+    } else {
+      setCurrentThinkingTime(0)
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval)
+      }
+    }
+  }, [isComplete, startTime])
+
   // 只有在没有reasoning内容且已经完成时才不显示
   // 这允许在流式加载时显示"思考中..."，即使还没有reasoning内容
   if (!reasoning && isComplete) {
@@ -78,9 +99,13 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           <span className={`thinking-text ${(isStreaming && !isComplete) ? 'streaming-text' : ''}`}>
             {isComplete ? '已深度思考' : '思考中...'}
           </span>
-          {isComplete && finalThinkingTime > 0 && (
+          {isComplete && finalThinkingTime > 0 ? (
             <span className="thinking-time">
               (用时 {formatTime(finalThinkingTime)} 秒)
+            </span>
+          ) : !isComplete && currentThinkingTime > 0 && (
+            <span className="thinking-time thinking-time-live">
+              ({formatTime(currentThinkingTime)} 秒)
             </span>
           )}
         </div>
@@ -192,6 +217,20 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
         .thinking-time {
           font-size: 12px;
           color: #6b7280;
+        }
+        
+        .thinking-time-live {
+          color: #3b82f6;
+          animation: pulse 2s ease-in-out infinite alternate;
+        }
+        
+        @keyframes pulse {
+          from {
+            opacity: 0.7;
+          }
+          to {
+            opacity: 1;
+          }
         }
         
         .expand-arrow {
@@ -320,6 +359,10 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           
           .thinking-time {
             color: #9ca3af;
+          }
+          
+          .thinking-time-live {
+            color: #60a5fa;
           }
           
           .expand-arrow {
