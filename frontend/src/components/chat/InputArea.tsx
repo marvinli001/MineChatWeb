@@ -180,22 +180,33 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   const uploadImages = async (files: File[]): Promise<ImageAttachment[]> => {
     const formData = new FormData()
     files.forEach(file => {
-      formData.append('files', file)
+      formData.append('files', file) // 字段名必须是 'files' 与后端一致
     })
 
     try {
       const response = await fetch('/api/v1/image/upload', {
         method: 'POST',
         body: formData,
+        // 不设置 Content-Type，让浏览器自动设置 multipart/form-data
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || '图片上传失败')
+        try {
+          const errorData = await response.json()
+          // 提取结构化错误信息
+          const errorMessage = errorData.detail?.message || errorData.message || errorData.detail || '图片上传失败'
+          throw new Error(errorMessage)
+        } catch (parseError) {
+          // 如果无法解析JSON，使用状态码错误信息
+          throw new Error(`图片上传失败 (${response.status})`)
+        }
       }
 
       const result = await response.json()
-      return result.images.map((img: any) => ({
+      
+      // 根据新的响应格式解析
+      const images = result.data?.images || result.images || []
+      return images.map((img: any) => ({
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
         filename: img.filename,
         mime_type: img.mime_type,
@@ -204,7 +215,12 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
       }))
     } catch (error) {
       console.error('图片上传失败:', error)
-      throw error
+      // 确保抛出的是Error对象，不是其他类型
+      if (error instanceof Error) {
+        throw error
+      } else {
+        throw new Error(String(error) || '图片上传失败')
+      }
     }
   }
 

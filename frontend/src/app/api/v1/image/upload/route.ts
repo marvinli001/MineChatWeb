@@ -7,23 +7,31 @@ export async function POST(request: NextRequest) {
                       process.env.NEXT_PUBLIC_API_BASE_URL ||
                       'http://localhost:8000'
     
+    // 获取原始FormData
+    const formData = await request.formData()
+    
     // Forward the request to the backend
     const response = await fetch(`${backendUrl}/api/v1/image/upload`, {
       method: 'POST',
-      body: request.body,
-      headers: {
-        // Don't include Content-Type - let fetch set it for FormData
-        ...(request.headers.get('authorization') && {
-          'authorization': request.headers.get('authorization')!
-        })
-      },
-      // @ts-ignore
-      duplex: 'half'
+      body: formData, // 直接使用FormData
+      // 不设置Content-Type，让fetch自动处理multipart/form-data
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
-      return Response.json(errorData, { status: response.status })
+      try {
+        const errorData = await response.json()
+        return Response.json(errorData, { status: response.status })
+      } catch {
+        // 如果无法解析JSON错误响应，返回通用错误
+        return Response.json(
+          { 
+            code: response.status,
+            message: `图片上传失败 (${response.status})`,
+            details: { status: response.status }
+          }, 
+          { status: response.status }
+        )
+      }
     }
 
     const data = await response.json()
@@ -32,7 +40,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Image upload proxy error:', error)
     return Response.json(
-      { detail: '图片上传失败' }, 
+      { 
+        code: 500,
+        message: '服务器代理错误',
+        details: { error: error.message }
+      }, 
       { status: 500 }
     )
   }
