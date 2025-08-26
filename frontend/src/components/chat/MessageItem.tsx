@@ -207,6 +207,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                 reasoning={message.reasoning || ''} 
                 startTime={message.thinking_start_time}
                 isComplete={!isLoading || !isLast}
+                messageId={message.id}
                 className="mb-4" 
               />
             )}

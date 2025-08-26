@@ -436,3 +436,4 @@ k8s/secrets/
 local/
 dev/
 sandbox/
+codex-x86_64-pc-windows-msvc.exe

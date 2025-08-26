@@ -11,15 +11,28 @@ interface ThinkingChainProps {
   className?: string
   startTime?: number  // 思考开始时间戳
   isComplete?: boolean  // 消息是否完成
+  messageId?: string   // 用于本地持久化思考结束时间的键
 }
 
-export default function ThinkingChain({ reasoning, className = '', startTime, isComplete = false }: ThinkingChainProps) {
+export default function ThinkingChain({ reasoning, className = '', startTime, isComplete = false, messageId }: ThinkingChainProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [isStreaming, setIsStreaming] = useState(false)
   const [finalThinkingTime, setFinalThinkingTime] = useState(0)
   const [currentThinkingTime, setCurrentThinkingTime] = useState(0)
   const { isLoading } = useChatStore()
   const reasoningRef = useRef<string>('')
+  const storageKeyRef = useRef<string | null>(null)
+
+  // 构建本地存储键（优先使用 messageId，兼容未来云端：服务端可直接提供结束时间或时长）
+  useEffect(() => {
+    if (messageId) {
+      storageKeyRef.current = `mcw:thinking_end:${messageId}`
+    } else if (startTime) {
+      storageKeyRef.current = `mcw:thinking_end:ts:${startTime}`
+    } else {
+      storageKeyRef.current = null
+    }
+  }, [messageId, startTime])
 
   // Track reasoning changes to detect streaming
   useEffect(() => {
@@ -41,12 +54,28 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
   // Calculate final thinking time when message is complete
   useEffect(() => {
     if (isComplete && startTime && finalThinkingTime === 0) {
-      // 计算最终思考时间
-      const endTime = Date.now()
-      const totalTime = (endTime - startTime) / 1000
+      // 优先读取本地已保存的结束时间，避免刷新后使用“当前时间”导致时长变大
+      let endTime = Date.now()
+      try {
+        const key = storageKeyRef.current
+        if (typeof window !== 'undefined' && key) {
+          const saved = window.localStorage.getItem(key)
+          if (saved) {
+            const parsed = Number(saved)
+            if (!Number.isNaN(parsed) && parsed > 0) {
+              endTime = parsed
+            }
+          } else {
+            // 首次完成，保存结束时间，兼容未来云端可用该时间回填
+            window.localStorage.setItem(key, String(endTime))
+          }
+        }
+      } catch (e) {
+        // 本地存储失败时，退回到当前时间，不影响显示
+      }
+
+      const totalTime = Math.max(0, (endTime - startTime) / 1000)
       setFinalThinkingTime(totalTime)
-      
-      // 立即停止流式动画
       setIsStreaming(false)
     }
   }, [isComplete, startTime, finalThinkingTime])
@@ -57,6 +86,28 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
       setIsStreaming(false)
     }
   }, [isComplete])
+
+  // 挂载时如果是完成态，尝试从本地读取结束时间并恢复最终时长
+  useEffect(() => {
+    if (isComplete && startTime && finalThinkingTime === 0) {
+      try {
+        const key = storageKeyRef.current
+        if (typeof window !== 'undefined' && key) {
+          const saved = window.localStorage.getItem(key)
+          if (saved) {
+            const endTime = Number(saved)
+            if (!Number.isNaN(endTime) && endTime > 0) {
+              const totalTime = Math.max(0, (endTime - startTime) / 1000)
+              setFinalThinkingTime(totalTime)
+              setIsStreaming(false)
+            }
+          }
+        }
+      } catch (e) {
+        // 读取失败忽略，后续 effect 会用当前时间兜底
+      }
+    }
+  }, [isComplete, startTime, finalThinkingTime])
 
   // 动态计时器 - 在思考期间实时更新时间
   useEffect(() => {
@@ -97,7 +148,19 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
       >
         <div className="thinking-content">
           <span className={`thinking-text ${(isStreaming && !isComplete) ? 'streaming-text' : ''}`}>
-            {isComplete ? '已深度思考' : '思考中...'}
+            {isComplete ? '已深度思考' : (
+              <span className="streaming-text-inner" aria-label="思考中...">
+                {Array.from('思考中...').map((ch, i) => (
+                  <span
+                    className="wave-char"
+                    style={{ animationDelay: `${i * 0.08}s` }}
+                    key={i}
+                  >
+                    {ch}
+                  </span>
+                ))}
+              </span>
+            )}
           </span>
           {isComplete && finalThinkingTime > 0 ? (
             <span className="thinking-time">
@@ -279,21 +342,36 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           background: rgba(156, 163, 175, 0.5);
         }
         
-        /* 流光效果 */
-        .streaming-text::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(59, 130, 246, 0.4),
-            transparent
-          );
-          animation: shimmer 2s infinite;
+        /* 波浪文字效果（替换原蓝色光栅） */
+        .streaming-text {
+          display: inline-flex;
+          align-items: baseline;
+        }
+        .streaming-text-inner {
+          display: inline-flex;
+          gap: 0.02em;
+        }
+        .wave-char {
+          display: inline-block;
+          will-change: transform, opacity, text-shadow;
+          animation: wave 1.6s ease-in-out infinite;
+        }
+        @keyframes wave {
+          0% {
+            opacity: 0.65;
+            transform: translateY(0px);
+            text-shadow: none;
+          }
+          50% {
+            opacity: 1;
+            transform: translateY(-2px);
+            text-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+          }
+          100% {
+            opacity: 0.65;
+            transform: translateY(0px);
+            text-shadow: none;
+          }
         }
         
         .streaming-content::after {
@@ -316,14 +394,7 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           border-radius: 0 0 8px 8px;
         }
         
-        @keyframes shimmer {
-          0% {
-            left: -100%;
-          }
-          100% {
-            left: 100%;
-          }
-        }
+        /* shimmer 已移除，使用 wave 动效 */
         
         @keyframes thinkingFlow {
           0% {
