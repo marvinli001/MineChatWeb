@@ -1,7 +1,16 @@
+export interface ImageAttachment {
+  id: string
+  filename: string
+  mime_type: string
+  data: string  // base64 data
+  size: number
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
+  images?: ImageAttachment[]
   reasoning?: string
   timestamp?: string
   created_at?: string

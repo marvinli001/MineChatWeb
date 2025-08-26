@@ -26,6 +26,51 @@ class AIProviderService:
         else:
             # Pydantic对象，使用属性访问
             return getattr(msg, attr, "")
+    
+    def _convert_message_to_openai_format(self, msg: Union[Dict[str, Any], Any]) -> Dict[str, Any]:
+        """将消息转换为OpenAI API格式，支持图片附件"""
+        role = self._get_message_attr(msg, "role")
+        content = self._get_message_attr(msg, "content")
+        
+        # 获取图片数据
+        images = None
+        if isinstance(msg, dict):
+            images = msg.get("images")
+        else:
+            images = getattr(msg, "images", None)
+        
+        # 如果没有图片，使用传统格式
+        if not images or len(images) == 0:
+            return {"role": role, "content": content}
+        
+        # 构造支持图片的消息格式
+        content_parts = []
+        
+        # 添加文本内容（如果有）
+        if content and content.strip():
+            content_parts.append({"type": "text", "text": content})
+        
+        # 添加图片内容
+        for image in images:
+            if isinstance(image, dict):
+                image_data = image.get("data")
+                mime_type = image.get("mime_type", "image/jpeg")
+            else:
+                image_data = getattr(image, "data", "")
+                mime_type = getattr(image, "mime_type", "image/jpeg")
+            
+            if image_data:
+                content_parts.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{image_data}"
+                    }
+                })
+        
+        return {
+            "role": role,
+            "content": content_parts
+        }
         
     async def _load_models_config(self) -> Dict[str, Any]:
         """加载模型配置"""
@@ -203,7 +248,6 @@ class AIProviderService:
                     choice["message"]["reasoning"] = reasoning_content
                 
                 choices.append(choice)
-                break  # 只取第一个 assistant 消息
         
         # 构造标准格式响应
         converted_result = {
@@ -236,10 +280,13 @@ class AIProviderService:
             
             logger.info(f"调用OpenAI模型: {model}, 消息数量: {len(messages)}")
             
+            # 转换消息格式以支持图片
+            converted_messages = [self._convert_message_to_openai_format(msg) for msg in messages]
+            
             # 思考模型特殊处理
             if self._is_thinking_model(model):
                 # 对于思考模型，过滤掉system消息并添加reasoning_summaries参数
-                filtered_messages = [msg for msg in messages if self._get_message_attr(msg, "role") != "system"]
+                filtered_messages = [msg for msg in converted_messages if msg.get("role") != "system"]
                 logger.info(f"思考模型 {model} 过滤后消息数量: {len(filtered_messages)}")
                 
                 completion_params = {
@@ -260,7 +307,7 @@ class AIProviderService:
                 # 根据模型类型选择合适的参数
                 completion_params = {
                     "model": model,
-                    "messages": messages,
+                    "messages": converted_messages,
                     "stream": stream
                 }
                 
@@ -318,7 +365,96 @@ class AIProviderService:
             
             # 对于 GPT-5 系列模型，使用 Responses API 支持 thinking mode
             if self._is_gpt5_model(model) and thinking_mode:
-                # 转换消息格式为 Responses API 所需的 input 格式
+                # 检查是否有图片消息
+                has_images = any(
+                    (isinstance(msg, dict) and msg.get("images")) or
+                    (hasattr(msg, "images") and getattr(msg, "images", None))
+                    for msg in messages
+                )
+                
+                if has_images:
+                    # Responses API 支持图片，需要使用新的格式
+                    logger.info(f"检测到图片消息，使用Responses API的多模态输入格式")
+                    
+                    # 转换消息为 Responses API 格式
+                    input_messages = []
+                    instructions_text = ""
+                    
+                    for msg in messages:
+                        role = self._get_message_attr(msg, "role")
+                        content = self._get_message_attr(msg, "content")
+                        
+                        if role == "system":
+                            instructions_text = content
+                        else:
+                            # 获取图片数据
+                            images = None
+                            if isinstance(msg, dict):
+                                images = msg.get("images")
+                            else:
+                                images = getattr(msg, "images", None)
+                            
+                            if images and len(images) > 0:
+                                # 构造包含图片的输入格式
+                                content_parts = []
+                                
+                                # 添加文本内容
+                                if content and content.strip():
+                                    content_parts.append({"type": "input_text", "text": content})
+                                
+                                # 添加图片内容
+                                for image in images:
+                                    if isinstance(image, dict):
+                                        image_data = image.get("data")
+                                        mime_type = image.get("mime_type", "image/jpeg")
+                                    else:
+                                        image_data = getattr(image, "data", "")
+                                        mime_type = getattr(image, "mime_type", "image/jpeg")
+                                    
+                                    if image_data:
+                                        content_parts.append({
+                                            "type": "input_image",
+                                            "image_url": f"data:{mime_type};base64,{image_data}"
+                                        })
+                                
+                                input_messages.append({
+                                    "role": role,
+                                    "content": content_parts
+                                })
+                            else:
+                                # 纯文本消息
+                                input_messages.append({
+                                    "role": role,
+                                    "content": [{"type": "input_text", "text": content}]
+                                })
+                    
+                    # 使用 Responses API 的多模态参数结构
+                    completion_params = {
+                        "model": model,
+                        "input": input_messages,
+                        "reasoning": {
+                            "effort": reasoning,
+                            "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
+                        }
+                    }
+                    
+                    # 添加 instructions 如果有 system 消息
+                    if instructions_text:
+                        completion_params["instructions"] = instructions_text
+                    
+                    # GPT-5 系列模型使用 max_output_tokens
+                    completion_params["max_output_tokens"] = 4000
+                    
+                    response = await asyncio.wait_for(
+                        client.responses.create(**completion_params),
+                        timeout=timeout
+                    )
+                    
+                    result = response.model_dump()
+                    logger.info(f"OpenAI Responses API调用成功（多模态支持）")
+                    return self._convert_responses_to_chat_format(result)
+                
+                # 转换消息格式为 Responses API 所需的 input 格式（纯文本）
                 # Responses API 使用不同的参数结构，不接受 messages 参数
                 input_text = ""
                 instructions_text = ""

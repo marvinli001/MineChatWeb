@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ClipboardIcon, CheckIcon, SpeakerWaveIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import { ChatMessage } from '@/lib/types'
+import { ChatMessage, ImageAttachment } from '@/lib/types'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useChatStore } from '@/store/chatStore'
 import { modelConfigService } from '@/services/modelConfigService'
@@ -134,6 +134,63 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
         // 用户消息 - 右侧对齐，暗灰色气泡，默认markdown渲染
         <div className="flex justify-end">
           <div className="max-w-[70%]">
+            {/* 图片缩略图 - 显示在消息上方 */}
+            {message.images && message.images.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2 justify-end">
+                {message.images.map((image) => (
+                  <div
+                    key={image.id}
+                    className="relative group cursor-pointer"
+                    onClick={() => {
+                      // 创建临时的图片预览窗口
+                      const modal = document.createElement('div')
+                      modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4'
+                      modal.innerHTML = `
+                        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+                        <div class="relative max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-2xl">
+                          <button class="absolute top-4 right-4 p-2 bg-black/20 text-white rounded-full hover:bg-black/40 transition-colors z-10">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                          <img src="data:${image.mime_type};base64,${image.data}" alt="${image.filename}" class="max-w-full max-h-[80vh] object-contain rounded-lg" />
+                          <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                            <div class="text-sm text-gray-600 dark:text-gray-400">
+                              <p class="font-medium truncate">${image.filename}</p>
+                              <p>大小: ${(image.size / 1024).toFixed(1)} KB</p>
+                            </div>
+                          </div>
+                        </div>
+                      `
+                      document.body.appendChild(modal)
+                      
+                      const closeModal = () => {
+                        document.body.removeChild(modal)
+                      }
+                      
+                      modal.addEventListener('click', (e) => {
+                        if (e.target === modal || e.target === modal.firstElementChild) {
+                          closeModal()
+                        }
+                      })
+                      
+                      modal.querySelector('button')?.addEventListener('click', closeModal)
+                    }}
+                  >
+                    <img
+                      src={`data:${image.mime_type};base64,${image.data}`}
+                      alt={image.filename}
+                      className="w-12 h-12 object-cover rounded-lg border-2 border-white shadow-lg group-hover:scale-110 transition-transform duration-200"
+                    />
+                    {/* 文件名提示 */}
+                    <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                      {image.filename}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
             <div className="bg-gray-700 text-white rounded-2xl px-4 py-3">
               <div className="prose prose-sm prose-invert max-w-none text-sm">
                 <ReactMarkdown

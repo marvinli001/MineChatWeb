@@ -76,7 +76,7 @@ async def chat_completion(request: ChatRequest):
             logger.error(f"[{request_id}] AI服务返回空响应")
             raise HTTPException(status_code=500, detail="AI服务返回空响应")
         
-        if not response.get("choices"):
+        if "choices" not in response:
             logger.error(f"[{request_id}] AI服务响应中缺少choices字段: {response}")
             raise HTTPException(status_code=500, detail="AI服务响应格式错误")
         

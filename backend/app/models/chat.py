@@ -1,9 +1,15 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Union
 
+class ImageContent(BaseModel):
+    type: str = "image"
+    data: str  # base64 encoded image data
+    mime_type: str  # image/jpeg, image/png, etc.
+
 class ChatMessage(BaseModel):
     role: str
     content: str
+    images: Optional[List[ImageContent]] = None
 
 class ChatRequest(BaseModel):
     provider: str

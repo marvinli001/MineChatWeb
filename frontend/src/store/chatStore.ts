@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { ChatMessage, Conversation } from '@/lib/types'
+import { ChatMessage, Conversation, ImageAttachment } from '@/lib/types'
 
 interface ChatState {
   conversations: Conversation[]
@@ -21,7 +21,7 @@ interface ChatState {
   // Actions
   createNewConversation: () => void
   setCurrentConversation: (id: string) => void
-  sendMessage: (content: string) => Promise<void>
+  sendMessage: (content: string, images?: ImageAttachment[]) => Promise<void>
   _sendMessageWithStreaming: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => Promise<void>
   _sendMessageNormal: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => Promise<void>
   stopGeneration: () => void
@@ -168,7 +168,7 @@ export const useChatStore = create<ChatState>()(
         set({ conversations: [], currentConversationId: null })
       },
 
-      sendMessage: async (content: string) => {
+      sendMessage: async (content: string, images?: ImageAttachment[]) => {
         // 动态导入 settingsStore 和 modelConfigService 以避免循环依赖
         const { useSettingsStore } = await import('./settingsStore')
         const { modelConfigService } = await import('../services/modelConfigService')
@@ -210,6 +210,7 @@ export const useChatStore = create<ChatState>()(
           id: Date.now().toString(),
           role: 'user',
           content,
+          images,
           created_at: new Date().toISOString()
         }
 
@@ -265,7 +266,12 @@ export const useChatStore = create<ChatState>()(
             .filter(msg => !(msg.role === 'assistant' && msg.content === ''))
             .map(msg => ({
               role: msg.role,
-              content: msg.content
+              content: msg.content,
+              ...(msg.images && msg.images.length > 0 ? { images: msg.images.map(img => ({
+                type: img.mime_type.includes('image') ? 'image' : 'file',
+                data: img.data,
+                mime_type: img.mime_type
+              })) } : {})
             }))
 
           // WebSocket URL configuration
@@ -460,7 +466,12 @@ export const useChatStore = create<ChatState>()(
             .filter(msg => !(msg.role === 'assistant' && msg.content === ''))
             .map(msg => ({
               role: msg.role,
-              content: msg.content
+              content: msg.content,
+              ...(msg.images && msg.images.length > 0 ? { images: msg.images.map(img => ({
+                type: img.mime_type.includes('image') ? 'image' : 'file',
+                data: img.data,
+                mime_type: img.mime_type
+              })) } : {})
             }))
 
           const response = await fetch('/api/v1/chat/completion', {
