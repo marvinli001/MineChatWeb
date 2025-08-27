@@ -192,6 +192,10 @@ def determine_process_mode(filename: str, process_mode: Optional[str] = None) ->
     
     extension = get_file_extension(filename)
     
+    # 只有 PDF 支持直读
+    if extension == 'pdf':
+        return 'direct'
+    
     # 数据类文件 - 需要计算处理
     data_files = {'csv', 'xlsx', 'xls', 'json', 'xml', 'yaml', 'yml'}
     if extension in data_files:
@@ -207,8 +211,17 @@ def determine_process_mode(filename: str, process_mode: Optional[str] = None) ->
     if extension in code_files:
         return 'code_interpreter'
     
-    # 文档类文件 - 默认直读
-    return 'direct'
+    # md 文件优先使用 File Search
+    if extension == 'md':
+        return 'file_search'
+    
+    # 其他文档类文件默认使用 File Search
+    doc_files = {'doc', 'docx', 'ppt', 'pptx', 'txt', 'rtf'}
+    if extension in doc_files:
+        return 'file_search'
+    
+    # 默认使用 File Search
+    return 'file_search'
 
 @router.post("/process")
 async def process_file(
