@@ -6,11 +6,33 @@ export interface ImageAttachment {
   size: number
 }
 
+export type FileProcessMode = 'direct' | 'code_interpreter' | 'file_search'
+
+export type FileUploadStatus = 'pending' | 'uploading' | 'processing' | 'completed' | 'error'
+
+export interface FileAttachment {
+  id: string
+  filename: string
+  type: string  // MIME type
+  size: number
+  processMode: FileProcessMode
+  status: FileUploadStatus
+  progress?: number
+  openai_file_id?: string
+  vector_store_id?: string
+  error?: string
+  processing_result?: {
+    annotations?: any[]
+    generated_files?: any[]
+  }
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
   images?: ImageAttachment[]
+  files?: FileAttachment[]
   reasoning?: string
   timestamp?: string
   created_at?: string

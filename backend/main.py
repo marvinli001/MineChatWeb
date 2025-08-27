@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import time
 import logging
-from app.api.v1 import chat, sync, voice, image
+from app.api.v1 import chat, sync, voice, image, file
 
 # 配置日志
 logging.basicConfig(
@@ -49,6 +49,7 @@ app.include_router(chat.router, prefix="/api/v1/chat", tags=["chat"])
 app.include_router(sync.router, prefix="/api/v1/sync", tags=["sync"])
 app.include_router(voice.router, prefix="/api/v1/voice", tags=["voice"])
 app.include_router(image.router, prefix="/api/v1/image", tags=["image"])
+app.include_router(file.router, prefix="/api/v1/file", tags=["file"])
 
 @app.get("/")
 async def root():

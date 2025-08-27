@@ -28,7 +28,7 @@ class AIProviderService:
             return getattr(msg, attr, "")
     
     def _convert_message_to_openai_format(self, msg: Union[Dict[str, Any], Any]) -> Dict[str, Any]:
-        """将消息转换为OpenAI API格式，支持图片附件"""
+        """将消息转换为OpenAI API格式，支持图片和文件附件"""
         role = self._get_message_attr(msg, "role")
         content = self._get_message_attr(msg, "content")
         
@@ -39,11 +39,21 @@ class AIProviderService:
         else:
             images = getattr(msg, "images", None)
         
-        # 如果没有图片，使用传统格式
-        if not images or len(images) == 0:
+        # 获取文件数据
+        files = None
+        if isinstance(msg, dict):
+            files = msg.get("files")
+        else:
+            files = getattr(msg, "files", None)
+        
+        # 检查是否有多媒体内容
+        has_multimedia = (images and len(images) > 0) or (files and len(files) > 0)
+        
+        # 如果没有多媒体内容，使用传统格式
+        if not has_multimedia:
             return {"role": role, "content": content}
         
-        # 构造支持图片的消息格式
+        # 构造支持多媒体的消息格式
         content_parts = []
         
         # 添加文本内容（如果有）
@@ -51,26 +61,96 @@ class AIProviderService:
             content_parts.append({"type": "text", "text": content})
         
         # 添加图片内容
-        for image in images:
-            if isinstance(image, dict):
-                image_data = image.get("data")
-                mime_type = image.get("mime_type", "image/jpeg")
-            else:
-                image_data = getattr(image, "data", "")
-                mime_type = getattr(image, "mime_type", "image/jpeg")
-            
-            if image_data:
-                content_parts.append({
-                    "type": "image_url",
-                    "image_url": {
-                        "url": f"data:{mime_type};base64,{image_data}"
-                    }
-                })
+        if images:
+            for image in images:
+                if isinstance(image, dict):
+                    image_data = image.get("data")
+                    mime_type = image.get("mime_type", "image/jpeg")
+                else:
+                    image_data = getattr(image, "data", "")
+                    mime_type = getattr(image, "mime_type", "image/jpeg")
+                
+                if image_data:
+                    content_parts.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{mime_type};base64,{image_data}"
+                        }
+                    })
+        
+        # 添加文件内容 (使用input_file格式)
+        if files:
+            for file in files:
+                if isinstance(file, dict):
+                    file_id = file.get("openai_file_id")
+                    filename = file.get("filename")
+                    process_mode = file.get("process_mode", "direct")
+                else:
+                    file_id = getattr(file, "openai_file_id", "")
+                    filename = getattr(file, "filename", "")
+                    process_mode = getattr(file, "process_mode", "direct")
+                
+                if file_id:
+                    # 根据处理模式决定如何处理文件
+                    if process_mode == "direct":
+                        # 直读模式：使用 input_file
+                        content_parts.append({
+                            "type": "input_file",
+                            "file_id": file_id
+                        })
+                    # Code Interpreter 和 File Search 模式的文件会在工具配置中处理
         
         return {
             "role": role,
             "content": content_parts
         }
+    
+    def _prepare_tools_config(self, messages: List[Union[Dict[str, Any], Any]]) -> Dict[str, Any]:
+        """准备工具配置，基于消息中的文件类型"""
+        tools_config = {"tools": []}
+        
+        # 收集所有需要的工具
+        need_code_interpreter = False
+        need_file_search = False
+        vector_stores = set()
+        
+        for msg in messages:
+            # 获取文件数据
+            files = None
+            if isinstance(msg, dict):
+                files = msg.get("files")
+            else:
+                files = getattr(msg, "files", None)
+            
+            if files:
+                for file in files:
+                    if isinstance(file, dict):
+                        process_mode = file.get("process_mode", "direct")
+                        vector_store_id = file.get("vector_store_id")
+                    else:
+                        process_mode = getattr(file, "process_mode", "direct")
+                        vector_store_id = getattr(file, "vector_store_id", None)
+                    
+                    if process_mode == "code_interpreter":
+                        need_code_interpreter = True
+                    elif process_mode == "file_search" and vector_store_id:
+                        need_file_search = True
+                        vector_stores.add(vector_store_id)
+        
+        # 添加需要的工具
+        if need_code_interpreter:
+            tools_config["tools"].append({
+                "type": "code_interpreter",
+                "container": {"type": "auto"}
+            })
+        
+        if need_file_search and vector_stores:
+            tools_config["tools"].append({
+                "type": "file_search",
+                "vector_store_ids": list(vector_stores)
+            })
+        
+        return tools_config
         
     async def _load_models_config(self) -> Dict[str, Any]:
         """加载模型配置"""
@@ -280,8 +360,11 @@ class AIProviderService:
             
             logger.info(f"调用OpenAI模型: {model}, 消息数量: {len(messages)}")
             
-            # 转换消息格式以支持图片
+            # 转换消息格式以支持图片和文件
             converted_messages = [self._convert_message_to_openai_format(msg) for msg in messages]
+            
+            # 准备工具配置
+            tools_config = self._prepare_tools_config(messages)
             
             # 思考模型特殊处理
             if self._is_thinking_model(model):
@@ -293,6 +376,10 @@ class AIProviderService:
                     "model": model,
                     "messages": filtered_messages
                 }
+                
+                # 添加工具配置
+                if tools_config["tools"]:
+                    completion_params.update(tools_config)
                 
                 # 注意：reasoning_summaries 参数在当前 OpenAI API 版本中可能不被支持
                 # 如果需要支持该参数，请检查 OpenAI API 文档和库版本
@@ -310,6 +397,10 @@ class AIProviderService:
                     "messages": converted_messages,
                     "stream": stream
                 }
+                
+                # 添加工具配置
+                if tools_config["tools"]:
+                    completion_params.update(tools_config)
                 
                 # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
                 if not self._is_gpt5_model(model):

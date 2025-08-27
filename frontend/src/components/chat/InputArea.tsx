@@ -8,7 +8,8 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { Button } from '@/components/ui/button'
 import ModelSelector from '@/components/ui/ModelSelector'
 import ThinkingBudgetButton from '@/components/ui/ThinkingBudgetButton'
-import { ThinkingBudget, ImageAttachment } from '@/lib/types'
+import { ThinkingBudget, ImageAttachment, FileAttachment, FileProcessMode } from '@/lib/types'
+import { createFileAttachment, validateFile, getFileIcon, formatFileSize, getProcessModeDescription } from '@/lib/fileUtils'
 import toast from 'react-hot-toast'
 
 interface InputAreaProps {
@@ -23,12 +24,7 @@ interface Tool {
   description: string
 }
 
-interface AttachedFile {
-  id: string
-  name: string
-  type: string
-  size: number
-}
+// AttachedFile interface removed, using FileAttachment from types instead
 
 interface ImagePreviewModalProps {
   image: ImageAttachment
@@ -92,7 +88,7 @@ function ImagePreviewModal({ image, onClose }: ImagePreviewModalProps) {
 export default function InputArea({ isWelcomeMode = false, onModelMarketClick }: InputAreaProps) {
   const [input, setInput] = useState('')
   const [selectedTools, setSelectedTools] = useState<Tool[]>([])
-  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
+  const [attachedFiles, setAttachedFiles] = useState<FileAttachment[]>([])
   const [attachedImages, setAttachedImages] = useState<ImageAttachment[]>([])
   const [showTools, setShowTools] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
@@ -100,6 +96,7 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   const [audioChunks, setAudioChunks] = useState<Blob[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [previewImage, setPreviewImage] = useState<ImageAttachment | null>(null)
+  const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set())
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
@@ -170,6 +167,11 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
 
   const removeFile = (fileId: string) => {
     setAttachedFiles(attachedFiles.filter(f => f.id !== fileId))
+    setProcessingFiles(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(fileId)
+      return newSet
+    })
   }
 
   const removeImage = (imageId: string) => {
@@ -224,59 +226,183 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     }
   }
 
-  // 处理图片文件
-  const handleImageFiles = async (files: File[]) => {
+  // 处理文件上传（包括图片和其他文件）
+  const handleFiles = async (files: File[]) => {
     const imageFiles = files.filter(file => file.type.startsWith('image/'))
     const nonImageFiles = files.filter(file => !file.type.startsWith('image/'))
     
-    // 验证图片格式
-    const supportedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
-    const validImageFiles = imageFiles.filter(file => supportedFormats.includes(file.type))
-    const invalidFiles = imageFiles.filter(file => !supportedFormats.includes(file.type))
-    
-    // 验证文件大小
-    const MAX_SIZE = 15 * 1024 * 1024 // 15MB
-    const oversizedFiles = validImageFiles.filter(file => file.size > MAX_SIZE)
-    const validSizeFiles = validImageFiles.filter(file => file.size <= MAX_SIZE)
-    
-    // 显示错误提示
-    if (invalidFiles.length > 0) {
-      toast.error(`不支持的图片格式: ${invalidFiles.map(f => f.name).join(', ')}。支持的格式: JPG, PNG, WebP, GIF`)
-    }
-    
-    if (oversizedFiles.length > 0) {
-      toast.error(`文件过大: ${oversizedFiles.map(f => f.name).join(', ')}。最大支持15MB`)
-    }
-    
-    // 处理非图片文件
-    nonImageFiles.forEach(file => {
-      const newFile: AttachedFile = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        name: file.name,
-        type: file.type,
-        size: file.size
+    // 处理图片文件
+    if (imageFiles.length > 0) {
+      // 验证图片格式
+      const supportedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+      const validImageFiles = imageFiles.filter(file => supportedFormats.includes(file.type))
+      const invalidImageFiles = imageFiles.filter(file => !supportedFormats.includes(file.type))
+      
+      // 验证图片大小
+      const MAX_IMAGE_SIZE = 15 * 1024 * 1024 // 15MB
+      const oversizedImageFiles = validImageFiles.filter(file => file.size > MAX_IMAGE_SIZE)
+      const validSizeImageFiles = validImageFiles.filter(file => file.size <= MAX_IMAGE_SIZE)
+      
+      // 显示图片错误提示
+      if (invalidImageFiles.length > 0) {
+        toast.error(`不支持的图片格式: ${invalidImageFiles.map(f => f.name).join(', ')}。支持的格式: JPG, PNG, WebP, GIF`)
       }
-      setAttachedFiles(prev => [...prev, newFile])
-    })
-    
-    // 上传有效的图片文件
-    if (validSizeFiles.length > 0) {
-      try {
-        toast.loading('正在上传图片...', { id: 'upload-images' })
-        const uploadedImages = await uploadImages(validSizeFiles)
-        setAttachedImages(prev => [...prev, ...uploadedImages])
-        toast.success(`成功上传 ${uploadedImages.length} 张图片`, { id: 'upload-images' })
-      } catch (error: any) {
-        toast.error(error.message || '图片上传失败', { id: 'upload-images' })
+      
+      if (oversizedImageFiles.length > 0) {
+        toast.error(`图片过大: ${oversizedImageFiles.map(f => f.name).join(', ')}。最大支持15MB`)
+      }
+      
+      // 上传有效的图片文件
+      if (validSizeImageFiles.length > 0) {
+        try {
+          toast.loading('正在上传图片...', { id: 'upload-images' })
+          const uploadedImages = await uploadImages(validSizeImageFiles)
+          setAttachedImages(prev => [...prev, ...uploadedImages])
+          toast.success(`成功上传 ${uploadedImages.length} 张图片`, { id: 'upload-images' })
+        } catch (error: any) {
+          toast.error(error.message || '图片上传失败', { id: 'upload-images' })
+        }
       }
     }
+    
+    // 处理其他文件
+    if (nonImageFiles.length > 0) {
+      // 验证每个文件
+      const validFiles: File[] = []
+      const invalidFiles: { file: File; error: string }[] = []
+      
+      nonImageFiles.forEach(file => {
+        const validation = validateFile(file)
+        if (validation.valid) {
+          validFiles.push(file)
+        } else {
+          invalidFiles.push({ file, error: validation.error || '未知错误' })
+        }
+      })
+      
+      // 显示文件验证错误
+      invalidFiles.forEach(({ file, error }) => {
+        toast.error(`${file.name}: ${error}`)
+      })
+      
+      // 处理有效文件
+      if (validFiles.length > 0) {
+        // 立即添加文件到界面（占位状态）
+        const newFileAttachments = validFiles.map(file => createFileAttachment(file))
+        setAttachedFiles(prev => [...prev, ...newFileAttachments])
+        
+        // 开始处理每个文件
+        newFileAttachments.forEach(async (attachment) => {
+          await processFile(attachment, validFiles.find(f => f.name === attachment.filename)!)
+        })
+      }
+    }
+  }
+  
+  // 处理单个文件
+  const processFile = async (attachment: FileAttachment, file: File) => {
+    try {
+      // 设置为处理中状态
+      setAttachedFiles(prev => prev.map(f => 
+        f.id === attachment.id 
+          ? { ...f, status: 'uploading', progress: 0 }
+          : f
+      ))
+      setProcessingFiles(prev => new Set(prev).add(attachment.id))
+      
+      // 获取API密钥
+      const { useSettingsStore } = await import('@/store/settingsStore')
+      const settings = useSettingsStore.getState().settings
+      const apiKey = settings.apiKeys?.[settings.chatProvider]
+      
+      if (!apiKey) {
+        throw new Error(`请先配置 ${settings.chatProvider} 的 API 密钥`)
+      }
+      
+      // 创建FormData
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('process_mode', attachment.processMode)
+      formData.append('api_key', apiKey)
+      
+      // 模拟进度更新
+      const progressInterval = setInterval(() => {
+        setAttachedFiles(prev => prev.map(f => 
+          f.id === attachment.id 
+            ? { ...f, progress: Math.min((f.progress || 0) + 10, 90) }
+            : f
+        ))
+      }, 200)
+      
+      // 发送到后端处理
+      const response = await fetch('/api/v1/file/process', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      clearInterval(progressInterval)
+      
+      if (!response.ok) {
+        throw new Error('文件处理失败')
+      }
+      
+      const result = await response.json()
+      
+      // 更新文件状态为完成
+      setAttachedFiles(prev => prev.map(f => 
+        f.id === attachment.id 
+          ? { 
+              ...f, 
+              status: 'completed', 
+              progress: 100,
+              openai_file_id: result.data.openai_file_id,
+              vector_store_id: result.data.vector_store_id,
+              processing_result: result.data.processing_result
+            }
+          : f
+      ))
+      
+      toast.success(`文件 ${attachment.filename} 处理完成`)
+      
+    } catch (error: any) {
+      console.error('文件处理失败:', error)
+      
+      // 更新文件状态为错误
+      setAttachedFiles(prev => prev.map(f => 
+        f.id === attachment.id 
+          ? { 
+              ...f, 
+              status: 'error', 
+              progress: 0,
+              error: error.message || '文件处理失败'
+            }
+          : f
+      ))
+      
+      toast.error(`文件 ${attachment.filename} 处理失败: ${error.message}`)
+    } finally {
+      setProcessingFiles(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(attachment.id)
+        return newSet
+      })
+    }
+  }
+  
+  // 切换文件处理模式
+  const changeFileProcessMode = (fileId: string, newMode: FileProcessMode) => {
+    setAttachedFiles(prev => prev.map(f => 
+      f.id === fileId 
+        ? { ...f, processMode: newMode, status: 'pending' }
+        : f
+    ))
   }
 
   // 文件上传处理
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
     if (files) {
-      await handleImageFiles(Array.from(files))
+      await handleFiles(Array.from(files))
     }
     // 清空input以允许重复选择同一文件
     if (fileInputRef.current) {
@@ -330,7 +456,7 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
 
     const files = Array.from(e.dataTransfer.files)
     if (files.length > 0) {
-      await handleImageFiles(files)
+      await handleFiles(files)
     }
   }
 
@@ -382,10 +508,21 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
-  if ((!input.trim() && attachedImages.length === 0) || isLoading) return
+  if ((!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0) || isLoading) return
 
   const messageContent = input.trim()
-  const messagImages = [...attachedImages]
+  const messageImages = [...attachedImages]
+  const messageFiles = [...attachedFiles]
+  
+  // 检查是否有文件正在处理中
+  const hasProcessingFiles = messageFiles.some(file => 
+    file.status === 'uploading' || file.status === 'processing'
+  )
+  
+  if (hasProcessingFiles) {
+    toast.error('请等待文件处理完成后再发送')
+    return
+  }
   
   // 先清空输入，避免重复提交
   setInput('')
@@ -396,7 +533,11 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   try {
     // sendMessage 内部已经处理创建新对话的逻辑，不需要手动调用 createNewConversation
-    await sendMessage(messageContent, messagImages.length > 0 ? messagImages : undefined)
+    await sendMessage(
+      messageContent, 
+      messageImages.length > 0 ? messageImages : undefined,
+      messageFiles.length > 0 ? messageFiles : undefined
+    )
   } catch (error: any) {
     console.error('发送消息失败:', error)
     toast.error(error.message || '发送消息失败')
@@ -627,23 +768,82 @@ const handleSubmit = async (e: React.FormEvent) => {
                   ))}
                   
                   {/* 显示附加的文件 */}
-                  {attachedFiles.map((file, index) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm border animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all"
-                      style={{ animationDelay: `${(attachedImages.length + index) * 50}ms` }}
-                    >
-                      <PaperClipIcon className="w-4 h-4" />
-                      <span className="truncate max-w-32">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(file.id)}
-                        className="hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full p-0.5 transition-all duration-200 hover:scale-110 hover:rotate-90"
+                  {attachedFiles.map((file, index) => {
+                    const isProcessing = file.status === 'uploading' || file.status === 'processing'
+                    const hasError = file.status === 'error'
+                    const isCompleted = file.status === 'completed'
+                    
+                    return (
+                      <div
+                        key={file.id}
+                        className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all overflow-hidden ${
+                          hasError 
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
+                            : isCompleted
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                        }`}
+                        style={{ animationDelay: `${(attachedImages.length + index) * 50}ms` }}
+                        title={hasError ? file.error : getProcessModeDescription(file.processMode)}
                       >
-                        <XMarkIcon className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
+                        {/* 加载进度条背景 */}
+                        {isProcessing && (
+                          <div 
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"
+                            style={{
+                              background: `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) ${file.progress || 0}%, transparent 100%)`
+                            }}
+                          />
+                        )}
+                        
+                        {/* 圆润的进度条 */}
+                        {isProcessing && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-current rounded-full transition-all duration-300 ease-out"
+                              style={{ width: `${file.progress || 0}%` }}
+                            />
+                          </div>
+                        )}
+                        
+                        <span className="text-lg">{getFileIcon(file.filename)}</span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="truncate max-w-32 font-medium">{file.filename}</span>
+                          <span className="text-xs opacity-70">
+                            {hasError ? '处理失败' : 
+                             isProcessing ? `${file.processMode === 'file_search' ? '上传到向量库' : '处理中'}...` :
+                             isCompleted ? '已完成' :
+                             formatFileSize(file.size)}
+                          </span>
+                        </div>
+                        
+                        {/* 状态指示器 */}
+                        {isProcessing && (
+                          <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent" />
+                        )}
+                        {isCompleted && (
+                          <CheckIcon className="w-3 h-3" />
+                        )}
+                        {hasError && (
+                          <XMarkIcon className="w-3 h-3" />
+                        )}
+                        
+                        <button
+                          type="button"
+                          onClick={() => removeFile(file.id)}
+                          className={`rounded-full p-0.5 transition-all duration-200 hover:scale-110 ${
+                            hasError 
+                              ? 'hover:bg-red-200 dark:hover:bg-red-800' 
+                              : isCompleted
+                              ? 'hover:bg-green-200 dark:hover:bg-green-800'
+                              : 'hover:bg-blue-200 dark:hover:bg-blue-800'
+                          }`}
+                        >
+                          <XMarkIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )
+                  })}
                   
                   {/* 显示附加的工具 */}
                   {selectedTools.map((tool, index) => (
@@ -700,9 +900,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <Button
                     type="submit"
                     size="sm"
-                    disabled={!input.trim()}
+                    disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
                     className={`px-4 py-3 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
-                      input.trim() 
+                      (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
                         ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg' 
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
                     }`}
@@ -925,23 +1125,82 @@ const handleSubmit = async (e: React.FormEvent) => {
                   ))}
                   
                   {/* 显示附加的文件 */}
-                  {attachedFiles.map((file, index) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm border animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all"
-                      style={{ animationDelay: `${(attachedImages.length + index) * 50}ms` }}
-                    >
-                      <PaperClipIcon className="w-4 h-4" />
-                      <span className="truncate max-w-32">{file.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeFile(file.id)}
-                        className="hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full p-0.5 transition-all duration-200 hover:scale-110 hover:rotate-90"
+                  {attachedFiles.map((file, index) => {
+                    const isProcessing = file.status === 'uploading' || file.status === 'processing'
+                    const hasError = file.status === 'error'
+                    const isCompleted = file.status === 'completed'
+                    
+                    return (
+                      <div
+                        key={file.id}
+                        className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all overflow-hidden ${
+                          hasError 
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
+                            : isCompleted
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                        }`}
+                        style={{ animationDelay: `${(attachedImages.length + index) * 50}ms` }}
+                        title={hasError ? file.error : getProcessModeDescription(file.processMode)}
                       >
-                        <XMarkIcon className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
+                        {/* 加载进度条背景 */}
+                        {isProcessing && (
+                          <div 
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"
+                            style={{
+                              background: `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) ${file.progress || 0}%, transparent 100%)`
+                            }}
+                          />
+                        )}
+                        
+                        {/* 圆润的进度条 */}
+                        {isProcessing && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-current rounded-full transition-all duration-300 ease-out"
+                              style={{ width: `${file.progress || 0}%` }}
+                            />
+                          </div>
+                        )}
+                        
+                        <span className="text-lg">{getFileIcon(file.filename)}</span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="truncate max-w-32 font-medium">{file.filename}</span>
+                          <span className="text-xs opacity-70">
+                            {hasError ? '处理失败' : 
+                             isProcessing ? `${file.processMode === 'file_search' ? '上传到向量库' : '处理中'}...` :
+                             isCompleted ? '已完成' :
+                             formatFileSize(file.size)}
+                          </span>
+                        </div>
+                        
+                        {/* 状态指示器 */}
+                        {isProcessing && (
+                          <div className="animate-spin rounded-full h-3 w-3 border border-current border-t-transparent" />
+                        )}
+                        {isCompleted && (
+                          <CheckIcon className="w-3 h-3" />
+                        )}
+                        {hasError && (
+                          <XMarkIcon className="w-3 h-3" />
+                        )}
+                        
+                        <button
+                          type="button"
+                          onClick={() => removeFile(file.id)}
+                          className={`rounded-full p-0.5 transition-all duration-200 hover:scale-110 ${
+                            hasError 
+                              ? 'hover:bg-red-200 dark:hover:bg-red-800' 
+                              : isCompleted
+                              ? 'hover:bg-green-200 dark:hover:bg-green-800'
+                              : 'hover:bg-blue-200 dark:hover:bg-blue-800'
+                          }`}
+                        >
+                          <XMarkIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )
+                  })}
                   
                   {/* 显示附加的工具 */}
                   {selectedTools.map((tool, index) => (
@@ -998,9 +1257,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <Button
                     type="submit"
                     size="sm"
-                    disabled={!input.trim()}
+                    disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
                     className={`px-4 py-3 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
-                      input.trim() 
+                      (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
                         ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg' 
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
                     }`}

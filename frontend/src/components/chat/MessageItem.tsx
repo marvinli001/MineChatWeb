@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ClipboardIcon, CheckIcon, SpeakerWaveIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import { ChatMessage, ImageAttachment } from '@/lib/types'
+import { ChatMessage, ImageAttachment, FileAttachment } from '@/lib/types'
+import { getFileIcon, formatFileSize, downloadFile } from '@/lib/fileUtils'
 import { useSettingsStore } from '@/store/settingsStore'
 import { useChatStore } from '@/store/chatStore'
 import { modelConfigService } from '@/services/modelConfigService'
@@ -191,6 +192,35 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
               </div>
             )}
             
+            {/* 文件附件 - 显示在消息上方 */}
+            {message.files && message.files.length > 0 && (
+              <div className="mb-2 flex flex-wrap gap-2 justify-end">
+                {message.files.map((file) => (
+                  <div
+                    key={file.id}
+                    className="relative group max-w-xs"
+                    title={`${file.filename} - ${formatFileSize(file.size)}`}
+                  >
+                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg border">
+                      <span className="text-lg">{getFileIcon(file.filename)}</span>
+                      <div className="flex flex-col min-w-0 flex-1">
+                        <span className="truncate text-sm font-medium">{file.filename}</span>
+                        <div className="flex items-center gap-2 text-xs opacity-70">
+                          <span>{formatFileSize(file.size)}</span>
+                          {file.status === 'completed' && (
+                            <span className="text-green-400">✓ 已处理</span>
+                          )}
+                          {file.status === 'error' && (
+                            <span className="text-red-400">✗ 处理失败</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
             <div className="bg-gray-700 text-white rounded-2xl px-4 py-3">
               <div className="prose prose-sm prose-invert max-w-none text-sm">
                 <ReactMarkdown
@@ -274,6 +304,58 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
               text={message.content}
               isComplete={!isLoading || !isLast}
             />
+            
+            {/* 显示生成的文件（从Code Interpreter）*/}
+            {message.files && message.files.some(f => f.processing_result?.generated_files?.length > 0) && (
+              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                  📎 生成的文件
+                </h4>
+                <div className="space-y-2">
+                  {message.files
+                    .filter(f => f.processing_result?.generated_files?.length > 0)
+                    .map(file => file.processing_result!.generated_files!.map((genFile: any, index: number) => (
+                      <div 
+                        key={`${file.id}-${index}`}
+                        className="flex items-center justify-between p-2 bg-white dark:bg-gray-700 rounded border"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{getFileIcon(genFile.filename || 'file')}</span>
+                          <div>
+                            <div className="text-sm font-medium">{genFile.filename || '未命名文件'}</div>
+                            {genFile.size && (
+                              <div className="text-xs text-gray-500">
+                                {formatFileSize(genFile.size)}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              if (genFile.file_id || genFile.container_file_id) {
+                                await downloadFile(
+                                  genFile.file_id || genFile.container_file_id,
+                                  genFile.filename || 'download',
+                                  genFile.container_id
+                                )
+                                toast.success('文件下载成功')
+                              } else {
+                                toast.error('缺少文件ID，无法下载')
+                              }
+                            } catch (error: any) {
+                              toast.error('下载文件失败: ' + error.message)
+                            }
+                          }}
+                          className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                        >
+                          下载
+                        </button>
+                      </div>
+                    )))}
+                </div>
+              </div>
+            )}
             
             {/* 处理旧的thinking标签格式兼容性 */}
             {hasThinking && contentParts.map((part, index) => {

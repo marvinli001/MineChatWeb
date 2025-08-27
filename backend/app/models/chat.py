@@ -6,10 +6,20 @@ class ImageContent(BaseModel):
     data: str  # base64 encoded image data
     mime_type: str  # image/jpeg, image/png, etc.
 
+class FileContent(BaseModel):
+    filename: str
+    type: str  # MIME type
+    size: int
+    process_mode: str  # direct, code_interpreter, file_search
+    openai_file_id: Optional[str] = None
+    vector_store_id: Optional[str] = None
+    status: str = "completed"
+
 class ChatMessage(BaseModel):
     role: str
     content: str
     images: Optional[List[ImageContent]] = None
+    files: Optional[List[FileContent]] = None
 
 class ChatRequest(BaseModel):
     provider: str

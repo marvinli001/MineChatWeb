@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { ChatMessage, Conversation, ImageAttachment } from '@/lib/types'
+import { ChatMessage, Conversation, ImageAttachment, FileAttachment } from '@/lib/types'
 
 interface ChatState {
   conversations: Conversation[]
@@ -21,7 +21,7 @@ interface ChatState {
   // Actions
   createNewConversation: () => void
   setCurrentConversation: (id: string) => void
-  sendMessage: (content: string, images?: ImageAttachment[]) => Promise<void>
+  sendMessage: (content: string, images?: ImageAttachment[], files?: FileAttachment[]) => Promise<void>
   _sendMessageWithStreaming: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => Promise<void>
   _sendMessageNormal: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => Promise<void>
   stopGeneration: () => void
@@ -168,7 +168,7 @@ export const useChatStore = create<ChatState>()(
         set({ conversations: [], currentConversationId: null })
       },
 
-      sendMessage: async (content: string, images?: ImageAttachment[]) => {
+      sendMessage: async (content: string, images?: ImageAttachment[], files?: FileAttachment[]) => {
         // 动态导入 settingsStore 和 modelConfigService 以避免循环依赖
         const { useSettingsStore } = await import('./settingsStore')
         const { modelConfigService } = await import('../services/modelConfigService')
@@ -211,6 +211,7 @@ export const useChatStore = create<ChatState>()(
           role: 'user',
           content,
           images,
+          files,
           created_at: new Date().toISOString()
         }
 
@@ -271,6 +272,15 @@ export const useChatStore = create<ChatState>()(
                 type: img.mime_type.includes('image') ? 'image' : 'file',
                 data: img.data,
                 mime_type: img.mime_type
+              })) } : {}),
+              ...(msg.files && msg.files.length > 0 ? { files: msg.files.map(file => ({
+                filename: file.filename,
+                type: file.type,
+                size: file.size,
+                process_mode: file.processMode,
+                openai_file_id: file.openai_file_id,
+                vector_store_id: file.vector_store_id,
+                status: file.status
               })) } : {})
             }))
 
@@ -471,6 +481,15 @@ export const useChatStore = create<ChatState>()(
                 type: img.mime_type.includes('image') ? 'image' : 'file',
                 data: img.data,
                 mime_type: img.mime_type
+              })) } : {}),
+              ...(msg.files && msg.files.length > 0 ? { files: msg.files.map(file => ({
+                filename: file.filename,
+                type: file.type,
+                size: file.size,
+                process_mode: file.processMode,
+                openai_file_id: file.openai_file_id,
+                vector_store_id: file.vector_store_id,
+                status: file.status
               })) } : {})
             }))
 
