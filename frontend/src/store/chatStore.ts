@@ -568,6 +568,9 @@ export const useChatStore = create<ChatState>()(
 
           // Extract reasoning data if available
           const reasoningContent = data.choices[0]?.message?.reasoning
+          
+          // 提取图片生成结果
+          const imageGenerations = data.choices[0]?.message?.image_generations || []
 
           // 提取引用和来源信息
           const { extractCitations, extractSearchSources } = await import('../lib/webSearchUtils')
@@ -587,7 +590,8 @@ export const useChatStore = create<ChatState>()(
                             content: assistantContent,
                             ...(reasoningContent && { reasoning: reasoningContent }),
                             ...(citations.length > 0 && { citations }),
-                            ...(sources.length > 0 && { sources })
+                            ...(sources.length > 0 && { sources }),
+                            ...(imageGenerations.length > 0 && { image_generations: imageGenerations })
                           }
                         : msg
                     ),

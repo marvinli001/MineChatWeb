@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { PaperAirplaneIcon, MicrophoneIcon, PhotoIcon, StopIcon, PlusIcon, WrenchScrewdriverIcon, XMarkIcon, CheckIcon, PaperClipIcon, EyeIcon } from '@heroicons/react/24/outline'
+import { PaperAirplaneIcon, MicrophoneIcon, PhotoIcon, StopIcon, PlusIcon, WrenchScrewdriverIcon, XMarkIcon, CheckIcon, PaperClipIcon, EyeIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { MagnifyingGlassIcon, CubeIcon, FolderIcon } from '@heroicons/react/24/outline'
 import { useChatStore, useCurrentConversation } from '@/store/chatStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Button } from '@/components/ui/button'
 import ModelSelector from '@/components/ui/ModelSelector'
 import ThinkingBudgetButton from '@/components/ui/ThinkingBudgetButton'
-import { ThinkingBudget, ImageAttachment, FileAttachment, FileProcessMode } from '@/lib/types'
+import { ThinkingBudget, ImageAttachment, FileAttachment, FileProcessMode, ImageGenerationOptions } from '@/lib/types'
 import { createFileAttachment, validateFile, getFileIcon, formatFileSize, getProcessModeDescription } from '@/lib/fileUtils'
 import { supportsNativeWebSearch } from '@/lib/webSearchUtils'
 import toast from 'react-hot-toast'
@@ -40,10 +40,10 @@ const availableTools: Tool[] = [
     description: '网络搜索功能'
   },
   {
-    id: 'vector',
-    name: '向量',
-    icon: CubeIcon,
-    description: '向量数据库查询'
+    id: 'image_generation',
+    name: '生成图片',
+    icon: SparklesIcon,
+    description: '使用AI生成图片'
   }
 ]
 
@@ -68,6 +68,7 @@ function ImagePreviewModal({ image, onClose }: ImagePreviewModalProps) {
         </button>
         
         {/* 图片 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`data:${image.mime_type};base64,${image.data}`}
           alt={image.filename}
@@ -98,6 +99,14 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   const [isDragging, setIsDragging] = useState(false)
   const [previewImage, setPreviewImage] = useState<ImageAttachment | null>(null)
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set())
+  const [imageGenOptions, setImageGenOptions] = useState<ImageGenerationOptions>({
+    size: 'auto',
+    quality: 'auto', 
+    format: 'png',
+    compression: 80,
+    background: 'auto'
+  })
+  const [showImageGenOptions, setShowImageGenOptions] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
@@ -128,6 +137,12 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     
     return false
   }
+
+  // 检查是否选择了图片生成工具
+  const hasImageGenTool = selectedTools.some(tool => tool.id === 'image_generation')
+
+  // 检查是否为推理模型（用于决定在哪里显示图像生成选项）
+  const isReasoningModel = showThinkingToggle()
 
   // 自动调整文本框高度，限制最大高度（统一两种模式）
   useEffect(() => {
@@ -514,7 +529,28 @@ const handleSubmit = async (e: React.FormEvent) => {
   const messageContent = input.trim()
   const messageImages = [...attachedImages]
   const messageFiles = [...attachedFiles]
-  const messageTools = [...selectedTools]  // 获取选择的工具
+  
+  // 处理工具配置，为图片生成工具添加自定义选项和input_image
+  const messageTools = selectedTools.map(tool => {
+    if (tool.id === 'image_generation') {
+      const imageGenTool: any = {
+        ...tool,
+        type: 'image_generation',
+        ...imageGenOptions,  // 添加图片生成选项
+        moderation: 'low'    // 默认审核级别
+      }
+      
+      // 如果有上传的图片，将其作为input_image传递（使用第一张图片）
+      if (messageImages.length > 0) {
+        // 使用data URL格式传递图片
+        const firstImage = messageImages[0]
+        imageGenTool.input_image = `data:${firstImage.mime_type};base64,${firstImage.data}`
+      }
+      
+      return imageGenTool
+    }
+    return tool
+  })
   
   // 检查是否有文件正在处理中
   const hasProcessingFiles = messageFiles.some(file => 
@@ -582,6 +618,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                     支持 JPG, PNG, WebP, GIF 格式
                   </p>
                 </div>
+                
+                {/* 使用说明 */}
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    💡 提示：使用在线图片生成功能需要 gpt-image-1 模型支持。上传图片可用作输入进行图像编辑。
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -612,10 +655,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <button
                     type="button"
                     onClick={() => setShowTools(!showTools)}
-                    className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
+                    className={`p-2 rounded-full transition-colors duration-200 ${
                       showTools
                         ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
                     title="添加内容和工具"
                   >
@@ -629,10 +672,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                         className="fixed inset-0 z-10 animate-in fade-in-0 duration-200" 
                         onClick={() => setShowTools(false)}
                       />
-                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200">
                         <div className="p-3">
                           {/* 添加照片和文件部分 */}
-                          <div className="mb-3 animate-in fade-in-0 slide-in-from-left-1 duration-300 delay-75">
+                          <div className="mb-3 animate-in fade-in-0 duration-300 delay-75">
                             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-2">
                               添加照片和文件
                             </div>
@@ -640,7 +683,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             <button
                               type="button"
                               onClick={triggerImageUpload}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1"
+                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                               <PhotoIcon className="w-5 h-5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -654,7 +697,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             <button
                               type="button"
                               onClick={triggerFileUpload}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1"
+                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                               <PaperClipIcon className="w-5 h-5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -668,7 +711,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             <button
                               type="button"
                               onClick={connectGoogleDrive}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1"
+                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                               <FolderIcon className="w-5 h-5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -682,7 +725,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             <button
                               type="button"
                               onClick={connectOneDrive}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1"
+                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                               <FolderIcon className="w-5 h-5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -698,7 +741,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                           <div className="border-t border-gray-200 dark:border-gray-600 my-3"></div>
 
                           {/* 工具部分 */}
-                          <div className="animate-in fade-in-0 slide-in-from-left-1 duration-300 delay-150">
+                          <div className="animate-in fade-in-0 duration-300 delay-150">
                             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-2">
                               工具
                             </div>
@@ -712,7 +755,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                                   className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 ${
                                     isSelected 
                                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 scale-[1.02]' 
-                                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1'
+                                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                                   }`}
                                 >
                                   <tool.icon className="w-5 h-5 flex-shrink-0" />
@@ -742,16 +785,34 @@ const handleSubmit = async (e: React.FormEvent) => {
                     onChange={(budget) => updateSettings({ reasoning: budget })}
                   />
                 )}
+                
+                {/* 图片生成选项按钮 - 在推理模型时显示在这里 */}
+                {hasImageGenTool && isReasoningModel && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowImageGenOptions(!showImageGenOptions)}
+                      className={`p-2 rounded-full transition-colors duration-200 ${
+                        showImageGenOptions
+                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
+                          : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                      }`}
+                      title="自定义图像输出"
+                    >
+                      <WrenchScrewdriverIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* 中间：工具 Chips - flex换行处理溢出 */}
               {hasAttachments && (
-                <div className="flex flex-wrap gap-2 flex-1 min-w-0 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                <div className="flex flex-wrap gap-2 flex-1 min-w-0 animate-in fade-in-0 duration-300">
                   {/* 显示附加的图片 */}
                   {attachedImages.map((image, index) => (
                     <div
                       key={image.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-sm border border-green-200 dark:border-green-800 animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all cursor-pointer"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-sm border border-green-200 dark:border-green-800 animate-in fade-in-0 duration-200 cursor-pointer"
                       style={{ animationDelay: `${index * 50}ms` }}
                       onClick={() => setPreviewImage(image)}
                     >
@@ -763,7 +824,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                           e.stopPropagation()
                           removeImage(image.id)
                         }}
-                        className="hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5 transition-all duration-200 hover:scale-110 hover:rotate-90"
+                        className="hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5 transition-colors duration-200"
                       >
                         <XMarkIcon className="w-3 h-3" />
                       </button>
@@ -779,7 +840,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     return (
                       <div
                         key={file.id}
-                        className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all overflow-hidden ${
+                        className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border animate-in fade-in-0 duration-200 overflow-hidden ${
                           hasError 
                             ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
                             : isCompleted
@@ -834,7 +895,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                         <button
                           type="button"
                           onClick={() => removeFile(file.id)}
-                          className={`rounded-full p-0.5 transition-all duration-200 hover:scale-110 ${
+                          className={`rounded-full p-0.5 transition-colors duration-200 ${
                             hasError 
                               ? 'hover:bg-red-200 dark:hover:bg-red-800' 
                               : isCompleted
@@ -852,7 +913,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   {selectedTools.map((tool, index) => (
                     <div
                       key={tool.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 rounded-full text-sm border border-blue-200 dark:border-blue-800 animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 rounded-full text-sm border border-blue-200 dark:border-blue-800 animate-in fade-in-0 duration-200"
                       style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + index) * 50}ms` }}
                     >
                       <tool.icon className="w-4 h-4" />
@@ -860,7 +921,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => removeTool(tool.id)}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-all duration-200 hover:scale-110 hover:rotate-90"
+                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors duration-200"
                       >
                         <XMarkIcon className="w-3 h-3" />
                       </button>
@@ -875,7 +936,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
-                  className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
+                  className={`p-2 rounded-full transition-colors duration-200 ${
                     isRecording 
                       ? 'bg-red-500 text-white animate-pulse hover:bg-red-600' 
                       : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -883,9 +944,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   title={isRecording ? '停止录音' : '开始录音'}
                 >
                   {isRecording ? (
-                    <StopIcon className="w-4 h-4 transition-transform duration-200" />
+                    <StopIcon className="w-4 h-4" />
                   ) : (
-                    <MicrophoneIcon className="w-4 h-4 transition-transform duration-200 hover:scale-110" />
+                    <MicrophoneIcon className="w-4 h-4" />
                   )}
                 </button>
 
@@ -904,19 +965,119 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="submit"
                     size="sm"
                     disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
-                    className={`px-4 py-3 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
+                    className={`px-4 py-3 rounded-full transition-colors duration-200 ${
                       (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
                         ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg' 
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
                     }`}
                   >
-                    <PaperAirplaneIcon className="w-4 h-4 transition-transform duration-200 hover:translate-x-0.5" />
+                    <PaperAirplaneIcon className="w-4 h-4" />
                   </Button>
                 )}
               </div>
             </div>
           </div>
 
+          {/* 图片生成选项下拉框 */}
+          {showImageGenOptions && hasImageGenTool && (
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-40 animate-in fade-in-0 duration-200">
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">自定义图像输出</h3>
+                
+                {/* 输入图片提示 */}
+                {attachedImages.length > 0 && (
+                  <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                      🖼️ 已上传 {attachedImages.length} 张图片，将作为输入图像用于图像编辑。
+                    </p>
+                  </div>
+                )}
+                
+                {/* 尺寸选择 */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">尺寸</label>
+                  <select 
+                    value={imageGenOptions.size} 
+                    onChange={(e) => setImageGenOptions({...imageGenOptions, size: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="1024x1024">1024x1024 (正方形)</option>
+                    <option value="1024x1536">1024x1536 (竖向)</option>
+                    <option value="1536x1024">1536x1024 (横向)</option>
+                  </select>
+                </div>
+                
+                {/* 质量选择 */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">质量</label>
+                  <select 
+                    value={imageGenOptions.quality} 
+                    onChange={(e) => setImageGenOptions({...imageGenOptions, quality: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                
+                {/* 格式选择 */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">格式</label>
+                  <select 
+                    value={imageGenOptions.format} 
+                    onChange={(e) => setImageGenOptions({...imageGenOptions, format: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="png">PNG</option>
+                    <option value="jpeg">JPEG</option>
+                    <option value="webp">WebP</option>
+                  </select>
+                </div>
+                
+                {/* 压缩级别 - 仅JPEG和WebP */}
+                {(imageGenOptions.format === 'jpeg' || imageGenOptions.format === 'webp') && (
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      压缩: {imageGenOptions.compression}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={imageGenOptions.compression}
+                      onChange={(e) => setImageGenOptions({...imageGenOptions, compression: parseInt(e.target.value)})}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                    />
+                  </div>
+                )}
+                
+                {/* 背景选择 */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">背景</label>
+                  <select 
+                    value={imageGenOptions.background} 
+                    onChange={(e) => setImageGenOptions({...imageGenOptions, background: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="transparent">透明</option>
+                    <option value="opaque">不透明</option>
+                  </select>
+                </div>
+                
+                {/* 使用说明 */}
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    💡 提示：使用在线图片生成功能需要 gpt-image-1 模型支持。上传图片可用作输入进行图像编辑。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* 隐藏的文件输入 */}
           <input
             ref={fileInputRef}
@@ -969,10 +1130,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <button
                     type="button"
                     onClick={() => setShowTools(!showTools)}
-                    className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
+                    className={`p-2 rounded-full transition-colors duration-200 ${
                       showTools
                         ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
                     title="添加内容和工具"
                   >
@@ -986,10 +1147,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                         className="fixed inset-0 z-10 animate-in fade-in-0 duration-200" 
                         onClick={() => setShowTools(false)}
                       />
-                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200">
                         <div className="p-3">
                           {/* 添加照片和文件部分 */}
-                          <div className="mb-3 animate-in fade-in-0 slide-in-from-left-1 duration-300 delay-75">
+                          <div className="mb-3 animate-in fade-in-0 duration-300 delay-75">
                             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-2">
                               添加照片和文件
                             </div>
@@ -997,7 +1158,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             <button
                               type="button"
                               onClick={triggerImageUpload}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1"
+                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                               <PhotoIcon className="w-5 h-5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -1011,7 +1172,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             <button
                               type="button"
                               onClick={triggerFileUpload}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1"
+                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                               <PaperClipIcon className="w-5 h-5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -1025,7 +1186,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             <button
                               type="button"
                               onClick={connectGoogleDrive}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1"
+                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                               <FolderIcon className="w-5 h-5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -1039,7 +1200,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             <button
                               type="button"
                               onClick={connectOneDrive}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1"
+                              className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                             >
                               <FolderIcon className="w-5 h-5 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
@@ -1055,7 +1216,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                           <div className="border-t border-gray-200 dark:border-gray-600 my-3"></div>
 
                           {/* 工具部分 */}
-                          <div className="animate-in fade-in-0 slide-in-from-left-1 duration-300 delay-150">
+                          <div className="animate-in fade-in-0 duration-300 delay-150">
                             <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-2">
                               工具
                             </div>
@@ -1069,7 +1230,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                                   className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 ${
                                     isSelected 
                                       ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 scale-[1.02]' 
-                                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1'
+                                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                                   }`}
                                 >
                                   <tool.icon className="w-5 h-5 flex-shrink-0" />
@@ -1099,16 +1260,34 @@ const handleSubmit = async (e: React.FormEvent) => {
                     onChange={(budget) => updateSettings({ reasoning: budget })}
                   />
                 )}
+                
+                {/* 图片生成选项按钮 - 在推理模型时显示在这里 */}
+                {hasImageGenTool && isReasoningModel && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowImageGenOptions(!showImageGenOptions)}
+                      className={`p-2 rounded-full transition-colors duration-200 ${
+                        showImageGenOptions
+                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
+                          : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                      }`}
+                      title="自定义图像输出"
+                    >
+                      <WrenchScrewdriverIcon className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* 中间：工具 Chips - flex换行处理溢出 */}
               {hasAttachments && (
-                <div className="flex flex-wrap gap-2 flex-1 min-w-0 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                <div className="flex flex-wrap gap-2 flex-1 min-w-0 animate-in fade-in-0 duration-300">
                   {/* 显示附加的图片 */}
                   {attachedImages.map((image, index) => (
                     <div
                       key={image.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-sm border border-green-200 dark:border-green-800 animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all cursor-pointer"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-sm border border-green-200 dark:border-green-800 animate-in fade-in-0 duration-200 cursor-pointer"
                       style={{ animationDelay: `${index * 50}ms` }}
                       onClick={() => setPreviewImage(image)}
                     >
@@ -1120,7 +1299,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                           e.stopPropagation()
                           removeImage(image.id)
                         }}
-                        className="hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5 transition-all duration-200 hover:scale-110 hover:rotate-90"
+                        className="hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5 transition-colors duration-200"
                       >
                         <XMarkIcon className="w-3 h-3" />
                       </button>
@@ -1136,7 +1315,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     return (
                       <div
                         key={file.id}
-                        className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all overflow-hidden ${
+                        className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border animate-in fade-in-0 duration-200 overflow-hidden ${
                           hasError 
                             ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
                             : isCompleted
@@ -1191,7 +1370,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                         <button
                           type="button"
                           onClick={() => removeFile(file.id)}
-                          className={`rounded-full p-0.5 transition-all duration-200 hover:scale-110 ${
+                          className={`rounded-full p-0.5 transition-colors duration-200 ${
                             hasError 
                               ? 'hover:bg-red-200 dark:hover:bg-red-800' 
                               : isCompleted
@@ -1209,7 +1388,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   {selectedTools.map((tool, index) => (
                     <div
                       key={tool.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 rounded-full text-sm border border-blue-200 dark:border-blue-800 animate-in fade-in-0 slide-in-from-left-2 duration-200 hover:scale-105 transition-all"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 rounded-full text-sm border border-blue-200 dark:border-blue-800 animate-in fade-in-0 duration-200"
                       style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + index) * 50}ms` }}
                     >
                       <tool.icon className="w-4 h-4" />
@@ -1217,7 +1396,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => removeTool(tool.id)}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-all duration-200 hover:scale-110 hover:rotate-90"
+                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors duration-200"
                       >
                         <XMarkIcon className="w-3 h-3" />
                       </button>
@@ -1232,7 +1411,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
-                  className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
+                  className={`p-2 rounded-full transition-colors duration-200 ${
                     isRecording 
                       ? 'bg-red-500 text-white animate-pulse hover:bg-red-600' 
                       : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
@@ -1240,9 +1419,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   title={isRecording ? '停止录音' : '开始录音'}
                 >
                   {isRecording ? (
-                    <StopIcon className="w-4 h-4 transition-transform duration-200" />
+                    <StopIcon className="w-4 h-4" />
                   ) : (
-                    <MicrophoneIcon className="w-4 h-4 transition-transform duration-200 hover:scale-110" />
+                    <MicrophoneIcon className="w-4 h-4" />
                   )}
                 </button>
 
@@ -1261,19 +1440,119 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="submit"
                     size="sm"
                     disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
-                    className={`px-4 py-3 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
+                    className={`px-4 py-3 rounded-full transition-colors duration-200 ${
                       (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
                         ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg' 
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
                     }`}
                   >
-                    <PaperAirplaneIcon className="w-4 h-4 transition-transform duration-200 hover:translate-x-0.5" />
+                    <PaperAirplaneIcon className="w-4 h-4" />
                   </Button>
                 )}
               </div>
             </div>
           </div>
 
+          {/* 图片生成选项下拉框 */}
+          {showImageGenOptions && hasImageGenTool && (
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-40 animate-in fade-in-0 duration-200">
+              <div className="p-4">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">自定义图像输出</h3>
+                
+                {/* 输入图片提示 */}
+                {attachedImages.length > 0 && (
+                  <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                      🖼️ 已上传 {attachedImages.length} 张图片，将作为输入图像用于图像编辑。
+                    </p>
+                  </div>
+                )}
+                
+                {/* 尺寸选择 */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">尺寸</label>
+                  <select 
+                    value={imageGenOptions.size} 
+                    onChange={(e) => setImageGenOptions({...imageGenOptions, size: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="1024x1024">1024x1024 (正方形)</option>
+                    <option value="1024x1536">1024x1536 (竖向)</option>
+                    <option value="1536x1024">1536x1024 (横向)</option>
+                  </select>
+                </div>
+                
+                {/* 质量选择 */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">质量</label>
+                  <select 
+                    value={imageGenOptions.quality} 
+                    onChange={(e) => setImageGenOptions({...imageGenOptions, quality: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                
+                {/* 格式选择 */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">格式</label>
+                  <select 
+                    value={imageGenOptions.format} 
+                    onChange={(e) => setImageGenOptions({...imageGenOptions, format: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="png">PNG</option>
+                    <option value="jpeg">JPEG</option>
+                    <option value="webp">WebP</option>
+                  </select>
+                </div>
+                
+                {/* 压缩级别 - 仅JPEG和WebP */}
+                {(imageGenOptions.format === 'jpeg' || imageGenOptions.format === 'webp') && (
+                  <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      压缩: {imageGenOptions.compression}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={imageGenOptions.compression}
+                      onChange={(e) => setImageGenOptions({...imageGenOptions, compression: parseInt(e.target.value)})}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                    />
+                  </div>
+                )}
+                
+                {/* 背景选择 */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">背景</label>
+                  <select 
+                    value={imageGenOptions.background} 
+                    onChange={(e) => setImageGenOptions({...imageGenOptions, background: e.target.value})}
+                    className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="auto">Auto</option>
+                    <option value="transparent">透明</option>
+                    <option value="opaque">不透明</option>
+                  </select>
+                </div>
+                
+                {/* 使用说明 */}
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    💡 提示：使用在线图片生成功能需要 gpt-image-1 模型支持。上传图片可用作输入进行图像编辑。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* 隐藏的文件输入 */}
           <input
             ref={fileInputRef}

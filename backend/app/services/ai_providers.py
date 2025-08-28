@@ -152,15 +152,77 @@ class AIProviderService:
                 "vector_store_ids": list(vector_stores)
             })
         
-        # 添加前端传来的工具配置（包括 Web Search）
+        # 添加前端传来的工具配置（包括 Web Search 和 Image Generation）
         if tools:
             for tool_config in tools:
                 if tool_config.get("type") in ["web_search", "web_search_preview"]:
                     # 构建 web search 工具配置
                     web_search_tool = self.web_search_service.build_web_search_tool_config(tool_config)
                     tools_config["tools"].append(web_search_tool)
+                elif tool_config.get("type") == "image_generation":
+                    # 构建 image generation 工具配置
+                    image_gen_tool = self._build_image_generation_tool_config(tool_config)
+                    tools_config["tools"].append(image_gen_tool)
         
         return tools_config
+    
+    def _build_image_generation_tool_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
+        """构建图片生成工具配置"""
+        config = {
+            "type": "image_generation"
+        }
+        
+        # 添加可选的图片生成参数
+        if "size" in tool_config:
+            config["size"] = tool_config["size"]
+        
+        if "quality" in tool_config:
+            config["quality"] = tool_config["quality"]
+        
+        if "format" in tool_config:
+            config["format"] = tool_config["format"]
+        
+        if "compression" in tool_config:
+            config["compression"] = tool_config["compression"]
+        
+        if "background" in tool_config:
+            config["background"] = tool_config["background"]
+        
+        if "input_fidelity" in tool_config:
+            config["input_fidelity"] = tool_config["input_fidelity"]
+        
+        if "input_image" in tool_config:
+            config["input_image"] = tool_config["input_image"]
+        
+        if "input_image_mask" in tool_config:
+            config["input_image_mask"] = tool_config["input_image_mask"]
+        
+        if "partial_images" in tool_config:
+            config["partial_images"] = tool_config["partial_images"]
+        
+        # 默认设置审核级别为low（如用户要求）
+        config["moderation"] = tool_config.get("moderation", "low")
+        
+        return config
+    
+    def _find_previous_image_generation(self, messages: List[Union[Dict[str, Any], Any]]) -> str:
+        """查找之前的图片生成结果的ID，用于多轮图像生成"""
+        # 从最近的消息开始向后查找
+        for msg in reversed(messages):
+            role = self._get_message_attr(msg, "role")
+            if role == "assistant":
+                # 检查是否有图片生成结果
+                image_generations = None
+                if isinstance(msg, dict):
+                    image_generations = msg.get("image_generations")
+                else:
+                    image_generations = getattr(msg, "image_generations", None)
+                
+                if image_generations and len(image_generations) > 0:
+                    # 返回最近的图片生成ID
+                    return image_generations[-1].get("id", "")
+        
+        return ""
     
     async def _handle_web_search_fallback(
         self, 
@@ -331,6 +393,7 @@ class AIProviderService:
         output = responses_result.get("output", [])
         choices = []
         reasoning_content = ""
+        image_generations = []
         
         for item in output:
             # 提取推理内容
@@ -340,6 +403,17 @@ class AIProviderService:
                     if summary_item.get("type") == "summary_text":
                         reasoning_content = summary_item.get("text", "")
                         break
+            
+            # 提取图片生成结果
+            elif item.get("type") == "image_generation_call":
+                image_gen = {
+                    "id": item.get("id"),
+                    "type": "image_generation_call",
+                    "status": item.get("status"),
+                    "result": item.get("result"),  # base64编码的图片数据
+                    "revised_prompt": item.get("revised_prompt")
+                }
+                image_generations.append(image_gen)
             
             # 提取助手消息内容
             elif item.get("type") == "message" and item.get("role") == "assistant":
@@ -366,7 +440,24 @@ class AIProviderService:
                 if reasoning_content:
                     choice["message"]["reasoning"] = reasoning_content
                 
+                # 如果有图片生成结果，添加到消息中
+                if image_generations:
+                    choice["message"]["image_generations"] = image_generations
+                
                 choices.append(choice)
+        
+        # 如果没有助手消息但有图片生成结果，创建一个空消息来承载图片
+        if not choices and image_generations:
+            choice = {
+                "message": {
+                    "role": "assistant",
+                    "content": "",
+                    "image_generations": image_generations
+                },
+                "finish_reason": "stop",
+                "index": 0
+            }
+            choices.append(choice)
         
         # 构造标准格式响应
         converted_result = {
@@ -586,7 +677,13 @@ class AIProviderService:
                             })
                     
                     # 准备工具配置
-                    tools_config = self._prepare_tools_config(messages)
+                    tools_config = self._prepare_tools_config(messages, tools)
+                    
+                    # 检查是否有图片生成工具并查找之前的图片生成结果
+                    previous_image_gen_id = ""
+                    has_image_gen_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
+                    if has_image_gen_tool:
+                        previous_image_gen_id = self._find_previous_image_generation(messages)
                     
                     # 使用 Responses API 的多模态参数结构
                     completion_params = {
@@ -597,6 +694,11 @@ class AIProviderService:
                             "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                         }
                     }
+                    
+                    # 如果有之前的图片生成结果，添加到请求中（用于多轮图像生成）
+                    if previous_image_gen_id:
+                        completion_params["previous_response_id"] = previous_image_gen_id
+                        logger.info(f"使用previous_response_id进行多轮图像生成: {previous_image_gen_id}")
                     
                     # 添加工具配置
                     if tools_config["tools"]:
@@ -687,7 +789,13 @@ class AIProviderService:
                             })
                     
                     # 准备工具配置
-                    tools_config = self._prepare_tools_config(messages)
+                    tools_config = self._prepare_tools_config(messages, tools)
+                    
+                    # 检查是否有图片生成工具并查找之前的图片生成结果
+                    previous_image_gen_id = ""
+                    has_image_gen_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
+                    if has_image_gen_tool:
+                        previous_image_gen_id = self._find_previous_image_generation(messages)
                     
                     # 使用结构化输入格式
                     completion_params = {
@@ -698,6 +806,11 @@ class AIProviderService:
                             "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                         }
                     }
+                    
+                    # 如果有之前的图片生成结果，添加到请求中（用于多轮图像生成）
+                    if previous_image_gen_id:
+                        completion_params["previous_response_id"] = previous_image_gen_id
+                        logger.info(f"使用previous_response_id进行多轮图像生成: {previous_image_gen_id}")
                     
                     # 添加工具配置
                     if tools_config["tools"]:
@@ -722,6 +835,12 @@ class AIProviderService:
                         elif role == "assistant":
                             input_text += f"Assistant: {content}\n"
                     
+                    # 检查是否有图片生成工具并查找之前的图片生成结果
+                    previous_image_gen_id = ""
+                    has_image_gen_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
+                    if has_image_gen_tool:
+                        previous_image_gen_id = self._find_previous_image_generation(messages)
+                    
                     completion_params = {
                         "model": model,
                         "input": input_text.strip(),
@@ -730,6 +849,11 @@ class AIProviderService:
                             "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                         }
                     }
+                    
+                    # 如果有之前的图片生成结果，添加到请求中（用于多轮图像生成）
+                    if previous_image_gen_id:
+                        completion_params["previous_response_id"] = previous_image_gen_id
+                        logger.info(f"使用previous_response_id进行多轮图像生成: {previous_image_gen_id}")
                 
                 # 添加 instructions 如果有 system 消息
                 if instructions_text:

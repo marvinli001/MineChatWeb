@@ -27,6 +27,15 @@ export interface FileAttachment {
   }
 }
 
+export interface ImageGeneration {
+  id: string
+  type: 'image_generation_call'
+  status: 'completed' | 'failed' | 'in_progress'
+  result?: string  // base64编码的图片数据
+  revised_prompt?: string
+  created_at?: string
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
@@ -40,6 +49,7 @@ export interface ChatMessage {
   thinking_start_time?: number  // 思考开始时间戳
   citations?: Citation[]  // 添加引用支持
   sources?: SearchSource[]  // 添加来源支持
+  image_generations?: ImageGeneration[]  // 添加图片生成支持
 }
 
 export interface Conversation {
@@ -118,6 +128,15 @@ export interface UserLocation {
   city?: string
   region?: string
   timezone?: string
+}
+
+// 图片生成选项类型
+export interface ImageGenerationOptions {
+  size: string
+  quality: string
+  format: string
+  compression: number
+  background: string
 }
 
 // React Syntax Highlighter 类型定义
