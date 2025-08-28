@@ -21,6 +21,11 @@ class ChatMessage(BaseModel):
     images: Optional[List[ImageContent]] = None
     files: Optional[List[FileContent]] = None
 
+class ToolConfig(BaseModel):
+    type: str
+    user_location: Optional[Dict[str, Any]] = None
+    search_context_size: Optional[str] = None
+
 class ChatRequest(BaseModel):
     provider: str
     model: str
@@ -30,6 +35,8 @@ class ChatRequest(BaseModel):
     thinking_mode: bool = False
     reasoning_summaries: str = "auto"
     reasoning: str = "medium"
+    tools: Optional[List[ToolConfig]] = None
+    use_native_search: Optional[bool] = None
 
 class Usage(BaseModel):
     prompt_tokens: Optional[int] = 0

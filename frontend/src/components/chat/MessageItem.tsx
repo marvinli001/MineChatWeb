@@ -11,6 +11,8 @@ import { useChatStore } from '@/store/chatStore'
 import { modelConfigService } from '@/services/modelConfigService'
 import ThinkingChain from './ThinkingChain'
 import TypewriterEffect from './TypewriterEffect'
+import SearchSources from './SearchSources'
+import CitationText from './CitationText'
 import toast from 'react-hot-toast'
 
 interface MessageItemProps {
@@ -299,11 +301,18 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
               />
             )}
             
-            {/* 使用打字机效果渲染AI消息内容 */}
-            <TypewriterEffect
-              text={message.content}
-              isComplete={!isLoading || !isLast}
-            />
+            {/* 渲染AI消息内容（支持引用） */}
+            {message.citations ? (
+              <CitationText 
+                text={message.content} 
+                citations={message.citations}
+              />
+            ) : (
+              <TypewriterEffect
+                text={message.content}
+                isComplete={!isLoading || !isLast}
+              />
+            )}
             
             {/* 显示生成的文件（从Code Interpreter）*/}
             {message.files && message.files.some(f => f.processing_result?.generated_files?.length > 0) && (
@@ -355,6 +364,11 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                     )))}
                 </div>
               </div>
+            )}
+
+            {/* 显示搜索来源 */}
+            {message.sources && message.sources.length > 0 && (
+              <SearchSources sources={message.sources} />
             )}
             
             {/* 处理旧的thinking标签格式兼容性 */}

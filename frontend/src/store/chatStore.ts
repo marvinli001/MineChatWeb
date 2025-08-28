@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { ChatMessage, Conversation, ImageAttachment, FileAttachment } from '@/lib/types'
+import { formatWebSearchError } from '@/lib/webSearchUtils'
 
 interface ChatState {
   conversations: Conversation[]
@@ -21,9 +22,9 @@ interface ChatState {
   // Actions
   createNewConversation: () => void
   setCurrentConversation: (id: string) => void
-  sendMessage: (content: string, images?: ImageAttachment[], files?: FileAttachment[]) => Promise<void>
-  _sendMessageWithStreaming: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => Promise<void>
-  _sendMessageNormal: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => Promise<void>
+  sendMessage: (content: string, images?: ImageAttachment[], files?: FileAttachment[], tools?: any[]) => Promise<void>
+  _sendMessageWithStreaming: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string, tools?: any[]) => Promise<void>
+  _sendMessageNormal: (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string, tools?: any[]) => Promise<void>
   stopGeneration: () => void
   deleteConversation: (id: string) => void
   updateConversationTitle: (id: string, title: string) => void
@@ -168,7 +169,7 @@ export const useChatStore = create<ChatState>()(
         set({ conversations: [], currentConversationId: null })
       },
 
-      sendMessage: async (content: string, images?: ImageAttachment[], files?: FileAttachment[]) => {
+      sendMessage: async (content: string, images?: ImageAttachment[], files?: FileAttachment[], tools?: any[]) => {
         // 动态导入 settingsStore 和 modelConfigService 以避免循环依赖
         const { useSettingsStore } = await import('./settingsStore')
         const { modelConfigService } = await import('../services/modelConfigService')
@@ -212,6 +213,7 @@ export const useChatStore = create<ChatState>()(
           content,
           images,
           files,
+          tools,
           created_at: new Date().toISOString()
         }
 
@@ -243,14 +245,14 @@ export const useChatStore = create<ChatState>()(
         
         if (supportsStreaming && !effectiveThinkingMode) {
           // 使用流式输出
-          await get()._sendMessageWithStreaming(content, targetConversationId, settings, apiKey, assistantMessage.id)
+          await get()._sendMessageWithStreaming(content, targetConversationId, settings, apiKey, assistantMessage.id, tools)
         } else {
           // 使用普通输出（推理模型或不支持流式的模型）
-          await get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessage.id)
+          await get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessage.id, tools)
         }
       },
 
-      _sendMessageWithStreaming: async (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => {
+      _sendMessageWithStreaming: async (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string, tools?: any[]) => {
         const abortController = new AbortController()
         set({ abortController })
 
@@ -311,7 +313,11 @@ export const useChatStore = create<ChatState>()(
               // Setup heartbeat
               get()._setupHeartbeat(ws)
 
-              const request = {
+              // 动态导入工具配置函数
+              const { supportsNativeWebSearch, buildWebSearchToolConfig } = await import('../lib/webSearchUtils')
+              
+              // 构建基础请求
+              const request: any = {
                 provider: settings.chatProvider,
                 model: settings.chatModel,
                 messages,
@@ -319,6 +325,15 @@ export const useChatStore = create<ChatState>()(
                 thinking_mode: settings.thinkingMode || settings.chatModel?.includes('gpt-5') || false,
                 reasoning_summaries: 'auto',
                 reasoning: settings.reasoning || 'medium'
+              }
+
+              // 如果用户选择了搜索工具，添加工具配置
+              if (tools && tools.length > 0 && tools.some(tool => tool.id === 'search')) {
+                const useNativeSearch = supportsNativeWebSearch(settings.chatProvider, settings.chatModel)
+                const webSearchTool = buildWebSearchToolConfig(useNativeSearch)
+                
+                request.tools = [webSearchTool]
+                request.use_native_search = useNativeSearch
               }
 
               ws.onmessage = (event) => {
@@ -331,7 +346,9 @@ export const useChatStore = create<ChatState>()(
                   }
                   
                   if (chunk.error) {
-                    throw new Error(chunk.error)
+                    // 格式化WebSocket错误
+                    const formattedError = formatWebSearchError(chunk.error)
+                    throw new Error(formattedError.message)
                   }
 
                   if (chunk.choices && chunk.choices[0]?.delta?.content) {
@@ -399,7 +416,7 @@ export const useChatStore = create<ChatState>()(
                 } else {
                   // Fallback to HTTP after max attempts
                   console.log('WebSocket重连失败，切换到HTTP模式')
-                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId)
+                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId, tools)
                 }
               }
 
@@ -412,7 +429,7 @@ export const useChatStore = create<ChatState>()(
                   }, get().wsReconnectDelay * Math.pow(2, attempt))
                 } else if (!event.wasClean && attempt >= get().wsMaxReconnectAttempts) {
                   console.log('WebSocket连接断开且重连失败，切换到HTTP模式')
-                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId)
+                  get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId, tools)
                 } else {
                   set({ isLoading: false, abortController: null })
                 }
@@ -429,7 +446,7 @@ export const useChatStore = create<ChatState>()(
                 }, get().wsReconnectDelay * Math.pow(2, attempt))
               } else {
                 console.log('WebSocket连接彻底失败，切换到HTTP模式')
-                get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId)
+                get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId, tools)
               }
             }
           }
@@ -451,7 +468,7 @@ export const useChatStore = create<ChatState>()(
           // Final fallback to HTTP
           try {
             console.log('尝试HTTP fallback')
-            await get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId)
+            await get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId, tools)
           } catch (httpError: any) {
             console.error('HTTP fallback也失败了:', httpError)
             throw httpError
@@ -459,7 +476,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
 
-      _sendMessageNormal: async (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string) => {
+      _sendMessageNormal: async (content: string, targetConversationId: string, settings: any, apiKey: string, assistantMessageId: string, tools?: any[]) => {
         const abortController = new AbortController()
         set({ abortController })
 
@@ -493,21 +510,36 @@ export const useChatStore = create<ChatState>()(
               })) } : {})
             }))
 
+          // 动态导入工具配置函数
+          const { supportsNativeWebSearch, buildWebSearchToolConfig } = await import('../lib/webSearchUtils')
+          
+          // 构建基础请求体
+          const requestBody: any = {
+            provider: settings.chatProvider,
+            model: settings.chatModel,
+            messages,
+            api_key: apiKey,
+            thinking_mode: settings.thinkingMode || settings.chatModel?.includes('gpt-5') || false,
+            reasoning_summaries: 'auto',
+            reasoning: settings.reasoning || 'medium',
+            stream: false
+          }
+
+          // 如果用户选择了搜索工具，添加工具配置
+          if (tools && tools.length > 0 && tools.some(tool => tool.id === 'search')) {
+            const useNativeSearch = supportsNativeWebSearch(settings.chatProvider, settings.chatModel)
+            const webSearchTool = buildWebSearchToolConfig(useNativeSearch)
+            
+            requestBody.tools = [webSearchTool]
+            requestBody.use_native_search = useNativeSearch
+          }
+
           const response = await fetch('/api/v1/chat/completion', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-              provider: settings.chatProvider,
-              model: settings.chatModel,
-              messages,
-              api_key: apiKey,
-              thinking_mode: settings.thinkingMode || settings.chatModel?.includes('gpt-5') || false,
-              reasoning_summaries: 'auto',  // Default to auto mode as recommended by OpenAI
-              reasoning: settings.reasoning || 'medium',
-              stream: false
-            }),
+            body: JSON.stringify(requestBody),
             signal: abortController.signal
           })
 
@@ -537,6 +569,11 @@ export const useChatStore = create<ChatState>()(
           // Extract reasoning data if available
           const reasoningContent = data.choices[0]?.message?.reasoning
 
+          // 提取引用和来源信息
+          const { extractCitations, extractSearchSources } = await import('../lib/webSearchUtils')
+          const citations = extractCitations(data.choices[0]?.message)
+          const sources = extractSearchSources(data)
+
           // 更新已存在的AI消息
           set(state => {
             const newConversations = state.conversations.map(conv =>
@@ -548,7 +585,9 @@ export const useChatStore = create<ChatState>()(
                         ? {
                             ...msg,
                             content: assistantContent,
-                            ...(reasoningContent && { reasoning: reasoningContent })
+                            ...(reasoningContent && { reasoning: reasoningContent }),
+                            ...(citations.length > 0 && { citations }),
+                            ...(sources.length > 0 && { sources })
                           }
                         : msg
                     ),
@@ -600,7 +639,11 @@ export const useChatStore = create<ChatState>()(
         } catch (error: any) {
           console.error('发送消息失败:', error)
           set({ isLoading: false, abortController: null })
-          throw error
+          
+          // 使用工具函数格式化错误
+          const formattedError = formatWebSearchError(error)
+          
+          throw new Error(formattedError.message)
         }
       },
 

@@ -66,10 +66,23 @@ async def chat_completion(request: ChatRequest):
             stream=request.stream,
             thinking_mode=request.thinking_mode,
             reasoning_summaries=request.reasoning_summaries,
-            reasoning=request.reasoning
+            reasoning=request.reasoning,
+            tools=[tool.dict() for tool in request.tools] if request.tools else None,
+            use_native_search=request.use_native_search
         )
         
         logger.info(f"[{request_id}] AI服务调用成功，耗时: {time.time() - start_time:.2f}秒")
+        
+        # 提取搜索相关信息（如果有）
+        citations = []
+        sources = []
+        if request.tools and any(tool.type in ["web_search", "web_search_preview"] for tool in request.tools):
+            try:
+                citations = ai_service.web_search_service.extract_citations_from_response(response)
+                sources = ai_service.web_search_service.extract_sources_from_response(response)
+                logger.info(f"[{request_id}] 提取到 {len(citations)} 个引用，{len(sources)} 个来源")
+            except Exception as e:
+                logger.warning(f"[{request_id}] 提取搜索信息时出错: {e}")
         
         # 验证响应格式
         if not response:
@@ -91,8 +104,16 @@ async def chat_completion(request: ChatRequest):
         
         # 处理choices
         for choice in response.get("choices", []):
+            message = choice.get("message", {})
+            
+            # 添加搜索相关信息到消息中
+            if citations:
+                message["citations"] = citations
+            if sources:
+                message["sources"] = sources
+                
             cleaned_choice = {
-                "message": choice.get("message", {}),
+                "message": message,
                 "finish_reason": choice.get("finish_reason", "stop"),
                 "index": choice.get("index", 0)
             }
@@ -169,7 +190,9 @@ async def websocket_chat(websocket: WebSocket):
                 api_key=request_data["api_key"],
                 thinking_mode=request_data.get("thinking_mode", False),
                 reasoning_summaries=request_data.get("reasoning_summaries", "auto"),
-                reasoning=request_data.get("reasoning", "medium")
+                reasoning=request_data.get("reasoning", "medium"),
+                tools=request_data.get("tools"),
+                use_native_search=request_data.get("use_native_search")
             ):
                 await manager.send_personal_message(
                     json.dumps(chunk), 

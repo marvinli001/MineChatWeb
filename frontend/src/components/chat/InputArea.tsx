@@ -10,6 +10,7 @@ import ModelSelector from '@/components/ui/ModelSelector'
 import ThinkingBudgetButton from '@/components/ui/ThinkingBudgetButton'
 import { ThinkingBudget, ImageAttachment, FileAttachment, FileProcessMode } from '@/lib/types'
 import { createFileAttachment, validateFile, getFileIcon, formatFileSize, getProcessModeDescription } from '@/lib/fileUtils'
+import { supportsNativeWebSearch } from '@/lib/webSearchUtils'
 import toast from 'react-hot-toast'
 
 interface InputAreaProps {
@@ -513,6 +514,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   const messageContent = input.trim()
   const messageImages = [...attachedImages]
   const messageFiles = [...attachedFiles]
+  const messageTools = [...selectedTools]  // 获取选择的工具
   
   // 检查是否有文件正在处理中
   const hasProcessingFiles = messageFiles.some(file => 
@@ -536,7 +538,8 @@ const handleSubmit = async (e: React.FormEvent) => {
     await sendMessage(
       messageContent, 
       messageImages.length > 0 ? messageImages : undefined,
-      messageFiles.length > 0 ? messageFiles : undefined
+      messageFiles.length > 0 ? messageFiles : undefined,
+      messageTools.length > 0 ? messageTools : undefined  // 传递工具
     )
   } catch (error: any) {
     console.error('发送消息失败:', error)

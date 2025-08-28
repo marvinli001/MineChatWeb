@@ -33,10 +33,13 @@ export interface ChatMessage {
   content: string
   images?: ImageAttachment[]
   files?: FileAttachment[]
+  tools?: Tool[]  // 添加工具支持
   reasoning?: string
   timestamp?: string
   created_at?: string
   thinking_start_time?: number  // 思考开始时间戳
+  citations?: Citation[]  // 添加引用支持
+  sources?: SearchSource[]  // 添加来源支持
 }
 
 export interface Conversation {
@@ -83,6 +86,39 @@ export interface AuthResponse {
 
 // 思考预算类型定义
 export type ThinkingBudget = 'low' | 'medium' | 'high'
+
+// 工具相关类型
+export interface Tool {
+  id: string
+  name: string
+  type: string
+  config?: any
+}
+
+// 搜索引用类型
+export interface Citation {
+  start_index: number
+  end_index: number
+  url: string
+  title: string
+}
+
+// 搜索来源类型
+export interface SearchSource {
+  url: string
+  title: string
+  domain: string
+  snippet: string
+}
+
+// 用户位置类型
+export interface UserLocation {
+  type: 'approximate'
+  country?: string
+  city?: string
+  region?: string
+  timezone?: string
+}
 
 // React Syntax Highlighter 类型定义
 export interface SyntaxHighlighterProps {

@@ -7,6 +7,7 @@ import logging
 import json
 import os
 import httpx
+from .web_search_service import WebSearchService
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class AIProviderService:
         self.config_timeout = 30  # 配置加载超时
         self.max_retries = 2  # 最大重试次数
         self._models_config = None
+        self.web_search_service = WebSearchService()  # 初始化搜索服务
         
     def _get_message_attr(self, msg: Union[Dict[str, Any], Any], attr: str) -> str:
         """安全地获取消息属性，支持字典和Pydantic对象"""
@@ -105,7 +107,7 @@ class AIProviderService:
             "content": content_parts
         }
     
-    def _prepare_tools_config(self, messages: List[Union[Dict[str, Any], Any]]) -> Dict[str, Any]:
+    def _prepare_tools_config(self, messages: List[Union[Dict[str, Any], Any]], tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:
         """准备工具配置，基于消息中的文件类型"""
         tools_config = {"tools": []}
         
@@ -150,7 +152,42 @@ class AIProviderService:
                 "vector_store_ids": list(vector_stores)
             })
         
+        # 添加前端传来的工具配置（包括 Web Search）
+        if tools:
+            for tool_config in tools:
+                if tool_config.get("type") in ["web_search", "web_search_preview"]:
+                    # 构建 web search 工具配置
+                    web_search_tool = self.web_search_service.build_web_search_tool_config(tool_config)
+                    tools_config["tools"].append(web_search_tool)
+        
         return tools_config
+    
+    async def _handle_web_search_fallback(
+        self, 
+        completion_params: Dict[str, Any], 
+        tools: List[Dict[str, Any]], 
+        messages: List[Union[Dict[str, str], Any]]
+    ) -> Dict[str, Any]:
+        """
+        处理Web Search的旧版回退逻辑
+        使用旧版 web_search_preview 参数格式
+        """
+        # 查找搜索工具配置
+        search_tool = None
+        for tool in tools:
+            if tool.get("type") in ["web_search", "web_search_preview"]:
+                search_tool = tool
+                break
+        
+        if search_tool:
+            # 旧版实现：添加 web_search_preview 参数
+            completion_params["web_search_preview"] = True
+            
+            # 添加用户位置信息（如果提供）
+            if search_tool.get("user_location"):
+                completion_params["user_location"] = search_tool["user_location"]
+        
+        return completion_params
         
     async def _load_models_config(self) -> Dict[str, Any]:
         """加载模型配置"""
@@ -172,7 +209,9 @@ class AIProviderService:
         stream: bool = False,
         thinking_mode: bool = False,
         reasoning_summaries: str = "auto",
-        reasoning: str = "medium"
+        reasoning: str = "medium",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None
     ) -> Dict[str, Any]:
         """获取AI完成响应"""
         logger.info(f"开始调用 {provider} API, 模型: {model}, 思考模式: {thinking_mode}")
@@ -184,12 +223,12 @@ class AIProviderService:
                 if provider == "openai":
                     # 对于 GPT-5 系列模型，根据 thinking_mode 选择 API
                     if self._is_gpt5_model(model) and thinking_mode:
-                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning)
+                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
                     # 判断是否使用 Responses API (对于其他模型)
                     elif await self._is_openai_responses_api(model):
-                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning)
+                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
                     else:
-                        return await self._openai_chat_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries)
+                        return await self._openai_chat_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries, tools, use_native_search)
                 elif provider == "anthropic":
                     return await self._anthropic_completion(model, messages, api_key, thinking_mode)
                 elif provider == "google":
@@ -349,7 +388,9 @@ class AIProviderService:
         api_key: str,
         stream: bool = False,
         thinking_mode: bool = False,
-        reasoning_summaries: str = "auto"
+        reasoning_summaries: str = "auto",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None
     ) -> Dict[str, Any]:
         """OpenAI Chat Completions API 调用"""
         try:
@@ -364,7 +405,7 @@ class AIProviderService:
             converted_messages = [self._convert_message_to_openai_format(msg) for msg in messages]
             
             # 准备工具配置
-            tools_config = self._prepare_tools_config(messages)
+            tools_config = self._prepare_tools_config(messages, tools)
             
             # 思考模型特殊处理
             if self._is_thinking_model(model):
@@ -398,8 +439,13 @@ class AIProviderService:
                     "stream": stream
                 }
                 
-                # 添加工具配置
-                if tools_config["tools"]:
+                # 处理Web Search工具的回退逻辑
+                if tools and use_native_search is False:
+                    # 对于不支持新版web_search的模型，使用旧版回退
+                    completion_params = await self._handle_web_search_fallback(
+                        completion_params, tools, messages
+                    )
+                elif tools_config["tools"]:
                     completion_params.update(tools_config)
                 
                 # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
@@ -441,7 +487,9 @@ class AIProviderService:
         api_key: str,
         thinking_mode: bool = False,
         reasoning_summaries: str = "auto",
-        reasoning: str = "medium"
+        reasoning: str = "medium",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None
     ) -> Dict[str, Any]:
         """OpenAI Responses API 调用"""
         try:
@@ -690,6 +738,11 @@ class AIProviderService:
                 # GPT-5 系列模型使用 max_output_tokens (不是 max_completion_tokens)
                 completion_params["max_output_tokens"] = 4000
                 
+                # 准备工具配置并添加到请求中
+                tools_config = self._prepare_tools_config(messages, tools)
+                if tools_config["tools"]:
+                    completion_params.update(tools_config)
+                
                 # 打印实际发送的 JSON
                 logger.info(f"📤 发送给 OpenAI Responses API 的完整请求: {json.dumps(completion_params, ensure_ascii=False, indent=2)}")
                 logger.info(f"使用 Responses API 参数格式{'（包含文件支持）' if has_files else '（纯文本模式）'}")
@@ -893,7 +946,9 @@ class AIProviderService:
         api_key: str,
         thinking_mode: bool = False,
         reasoning_summaries: str = "auto",
-        reasoning: str = "medium"
+        reasoning: str = "medium",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """流式完成（WebSocket使用）"""
         logger.info(f"开始流式调用 {provider} API")
@@ -902,12 +957,12 @@ class AIProviderService:
             if provider == "openai":
                 # 检查模型是否支持流式输出
                 if await self._supports_streaming(provider, model):
-                    async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries):
+                    async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries, tools, use_native_search):
                         yield chunk
                 else:
                     # 不支持流式的模型，直接返回完整响应
                     logger.info(f"模型 {model} 不支持流式输出，使用普通请求")
-                    response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries, reasoning)
+                    response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
                     yield response
             else:
                 # 其他提供商暂不支持流式
@@ -924,7 +979,9 @@ class AIProviderService:
         messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
         thinking_mode: bool = False,
-        reasoning_summaries: str = "auto"
+        reasoning_summaries: str = "auto",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """OpenAI流式完成"""
         try:
@@ -933,12 +990,27 @@ class AIProviderService:
                 timeout=self.default_timeout
             )
             
+            # 转换消息格式以支持图片和文件
+            converted_messages = [self._convert_message_to_openai_format(msg) for msg in messages]
+            
+            # 准备工具配置
+            tools_config = self._prepare_tools_config(messages, tools)
+            
             # 根据模型类型选择合适的参数
             stream_params = {
                 "model": model,
-                "messages": messages,
+                "messages": converted_messages,
                 "stream": True
             }
+            
+            # 处理Web Search工具的回退逻辑
+            if tools and use_native_search is False:
+                # 对于不支持新版web_search的模型，使用旧版回退
+                stream_params = await self._handle_web_search_fallback(
+                    stream_params, tools, messages
+                )
+            elif tools_config["tools"]:
+                stream_params.update(tools_config)
             
             # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
             if not self._is_gpt5_model(model):
