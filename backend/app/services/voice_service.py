@@ -16,13 +16,21 @@ class VoiceService:
         audio_file_path: str,
         provider: str,
         api_key: str,
-        language: str = "zh"
+        model: str = "gpt-4o-transcribe",
+        language: str = None,
+        prompt: str = None
     ) -> str:
         """
         语音转文字
         """
         if provider == "openai":
-            return await self._openai_transcribe(audio_file_path, api_key, language)
+            return await self._openai_transcribe(
+                audio_file_path, 
+                api_key, 
+                model, 
+                language, 
+                prompt
+            )
         elif provider == "azure":
             return await self._azure_transcribe(audio_file_path, api_key, language)
         elif provider == "google":
@@ -53,21 +61,57 @@ class VoiceService:
         self,
         audio_file_path: str,
         api_key: str,
-        language: str
+        model: str = "gpt-4o-transcribe",
+        language: str = None,
+        prompt: str = None
     ) -> str:
         """
-        OpenAI Whisper API转录
+        OpenAI 语音转文本API
+        支持 whisper-1, gpt-4o-transcribe, gpt-4o-mini-transcribe
         """
         client = openai.AsyncOpenAI(api_key=api_key)
         
-        with open(audio_file_path, "rb") as audio_file:
-            transcript = await client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                language=language
-            )
+        # 准备请求参数
+        params = {
+            "model": model,
+            "response_format": "text"  # 直接返回文本格式
+        }
         
-        return transcript.text
+        # 添加可选参数
+        if language:
+            params["language"] = language
+            
+        if prompt:
+            params["prompt"] = prompt
+        
+        try:
+            with open(audio_file_path, "rb") as audio_file:
+                transcript = await client.audio.transcriptions.create(
+                    file=audio_file,
+                    **params
+                )
+            
+            # 对于不同的response_format，处理返回值
+            if hasattr(transcript, 'text'):
+                return transcript.text
+            else:
+                # 如果是text格式，直接返回字符串
+                return str(transcript)
+                
+        except Exception as e:
+            # 记录详细错误信息
+            error_msg = f"OpenAI转录失败: {str(e)}"
+            if "invalid_request_error" in str(e).lower():
+                if "model" in str(e).lower():
+                    error_msg = f"不支持的模型: {model}"
+                elif "file" in str(e).lower():
+                    error_msg = "音频文件格式不支持或文件损坏"
+            elif "rate_limit" in str(e).lower():
+                error_msg = "API调用频率限制，请稍后重试"
+            elif "insufficient_quota" in str(e).lower():
+                error_msg = "API配额不足，请检查账户余额"
+                
+            raise Exception(error_msg)
 
     async def _openai_synthesize(
         self,

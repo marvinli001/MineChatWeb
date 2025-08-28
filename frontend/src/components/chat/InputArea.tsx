@@ -47,6 +47,32 @@ const availableTools: Tool[] = [
   }
 ]
 
+// 录音可视化组件
+function RecordingOverlay({ 
+  isRecording
+}: { 
+  isRecording: boolean
+}) {
+  if (!isRecording) return null
+  
+  return (
+    <>
+      {/* 左半边渐变纯色覆盖 */}
+      <div className="absolute left-0 top-0 bottom-0 w-1/2 z-5 bg-gradient-to-r from-black/30 to-transparent rounded-l-3xl pointer-events-none" />
+      
+      {/* 居中录音状态指示 */}
+      <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+        <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-black/40 via-black/60 to-black/40 backdrop-blur-sm rounded-full shadow-lg">
+          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+          <span className="text-sm font-medium text-white">
+            正在录音...
+          </span>
+        </div>
+      </div>
+    </>
+  )
+}
+
 // 图片预览模态框组件
 function ImagePreviewModal({ image, onClose }: ImagePreviewModalProps) {
   return (
@@ -96,6 +122,8 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   const [isRecording, setIsRecording] = useState(false)
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
   const [audioChunks, setAudioChunks] = useState<Blob[]>([])
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null)
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [previewImage, setPreviewImage] = useState<ImageAttachment | null>(null)
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set())
@@ -490,12 +518,28 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
 
   // 录音功能
   const startRecording = async () => {
+    // 立即启动UI动画，无需等待麦克风权限
+    setIsRecording(true)
+    
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
+      // 获取媒体流
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      })
+      
+      // 创建录音器
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      })
+      
+      setAudioStream(stream)
       setMediaRecorder(recorder)
       setAudioChunks([])
-      setIsRecording(true)
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -503,22 +547,116 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
         }
       }
 
-      recorder.start()
+      recorder.onstop = async () => {
+        // 停止所有音频轨道
+        stream.getTracks().forEach(track => track.stop())
+        
+        // 处理录音数据
+        await processRecordedAudio()
+      }
+
+      recorder.start(1000) // 每秒收集一次数据
+      
     } catch (error) {
-      toast.error('无法访问麦克风')
+      console.error('录音启动失败:', error)
+      // 即使麦克风权限被拒，动画依然可以正常显示
+      // toast.error('无法访问麦克风，但录音动画仍将继续')
     }
   }
 
-  const stopRecording = () => {
-    if (mediaRecorder && isRecording) {
+  const stopRecording = async () => {
+    // 立即停止UI动画并冻结最后一帧
+    setIsRecording(false)
+    
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
       mediaRecorder.stop()
-      setIsRecording(false)
+    } else {
+      // 如果没有真实录音数据，直接调用转录逻辑（模拟）
+      await processRecordedAudio()
+    }
+  }
+  
+  // 处理录音数据
+  const processRecordedAudio = async () => {
+    if (audioChunks.length === 0) {
+      toast.error('未检测到录音数据')
+      return
+    }
+    
+    try {
+      setIsTranscribing(true)
       
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' })
-        // 这里可以处理音频文件
-        toast.success('录音完成')
+      // 检查API密钥
+      const currentProvider = settings.chatProvider || 'openai'
+      const apiKey = settings.apiKeys?.[currentProvider]
+      
+      if (!apiKey) {
+        toast.error(`请先配置${currentProvider}的API密钥`)
+        return
       }
+      
+      // 创建音频文件
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' })
+      
+      // 创建FormData
+      const formData = new FormData()
+      formData.append('audio', audioBlob, 'recording.webm')
+      formData.append('model', 'gpt-4o-transcribe') // 默认使用gpt-4o-transcribe
+      // 可选参数
+      // formData.append('language', 'zh') // 中文
+      
+      // 发送到后端转录
+      const response = await fetch('/api/v1/voice/transcribe', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': apiKey, // 通过请求头传递API密钥
+        },
+        body: formData,
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        const errorMsg = errorData.detail?.message || errorData.message || errorData.detail || '语音转录失败'
+        throw new Error(errorMsg)
+      }
+      
+      const result = await response.json()
+      const transcribedText = result.text || ''
+      
+      if (transcribedText.trim()) {
+        // 将转录的文本添加到输入框
+        setInput(prev => prev + (prev ? ' ' : '') + transcribedText.trim())
+        toast.success('语音转录完成')
+        
+        // 自动聚焦输入框
+        if (textareaRef.current) {
+          textareaRef.current.focus()
+        }
+      } else {
+        toast.error('未识别到语音内容，请检查录音质量')
+      }
+      
+    } catch (error: any) {
+      console.error('语音转录失败:', error)
+      let errorMessage = '语音转录失败'
+      
+      if (error.message) {
+        if (error.message.includes('API密钥')) {
+          errorMessage = 'API密钥错误，请检查配置'
+        } else if (error.message.includes('配额')) {
+          errorMessage = 'API配额不足，请检查账户余额'
+        } else if (error.message.includes('频率限制')) {
+          errorMessage = '调用频率过高，请稍后重试'
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
+      // 确保错误信息是字符串，避免 [object Object]
+      const finalErrorMessage = typeof errorMessage === 'string' ? errorMessage : '语音转录失败'
+      toast.error(finalErrorMessage)
+    } finally {
+      setIsTranscribing(false)
     }
   }
 
@@ -605,6 +743,11 @@ const handleSubmit = async (e: React.FormEvent) => {
           onDragOver={handleDragOver}
           onDrop={handleDrop}
         >
+          {/* 录音覆盖层 */}
+          <RecordingOverlay 
+            isRecording={isRecording}
+          />
+          
           {/* 拖拽蒙版 */}
           {isDragging && (
             <div className="fixed inset-0 z-40 flex items-center justify-center bg-blue-500/20 backdrop-blur-sm animate-in fade-in-0 duration-200">
@@ -936,15 +1079,20 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
-                  className={`p-2 rounded-full transition-colors duration-200 ${
+                  disabled={isTranscribing}
+                  className={`p-2 rounded-full transition-colors duration-200 relative ${
                     isRecording 
                       ? 'bg-red-500 text-white animate-pulse hover:bg-red-600' 
+                      : isTranscribing
+                      ? 'bg-blue-500 text-white'
                       : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
-                  title={isRecording ? '停止录音' : '开始录音'}
+                  title={isRecording ? '停止录音' : isTranscribing ? '转录中...' : '开始录音'}
                 >
                   {isRecording ? (
                     <StopIcon className="w-4 h-4" />
+                  ) : isTranscribing ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   ) : (
                     <MicrophoneIcon className="w-4 h-4" />
                   )}
@@ -1411,15 +1559,20 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
-                  className={`p-2 rounded-full transition-colors duration-200 ${
+                  disabled={isTranscribing}
+                  className={`p-2 rounded-full transition-colors duration-200 relative ${
                     isRecording 
                       ? 'bg-red-500 text-white animate-pulse hover:bg-red-600' 
+                      : isTranscribing
+                      ? 'bg-blue-500 text-white'
                       : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
-                  title={isRecording ? '停止录音' : '开始录音'}
+                  title={isRecording ? '停止录音' : isTranscribing ? '转录中...' : '开始录音'}
                 >
                   {isRecording ? (
                     <StopIcon className="w-4 h-4" />
+                  ) : isTranscribing ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   ) : (
                     <MicrophoneIcon className="w-4 h-4" />
                   )}
@@ -1568,6 +1721,11 @@ const handleSubmit = async (e: React.FormEvent) => {
           <ModelSelector onModelMarketClick={onModelMarketClick} />
         </div>
 
+        {/* 录音覆盖层 */}
+        <RecordingOverlay 
+          isRecording={isRecording}
+        />
+        
         {/* 图片预览模态框 */}
         {previewImage && (
           <ImagePreviewModal 
