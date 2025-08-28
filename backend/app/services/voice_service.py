@@ -5,11 +5,7 @@ import base64
 
 class VoiceService:
     def __init__(self):
-        self.providers = {
-            "openai": self._openai_voice,
-            "azure": self._azure_voice,
-            "google": self._google_voice
-        }
+        pass
 
     async def transcribe(
         self,
