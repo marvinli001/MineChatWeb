@@ -68,7 +68,8 @@ async def chat_completion(request: ChatRequest):
             reasoning_summaries=request.reasoning_summaries,
             reasoning=request.reasoning,
             tools=[tool.dict() for tool in request.tools] if request.tools else None,
-            use_native_search=request.use_native_search
+            use_native_search=request.use_native_search,
+            base_url=request.base_url
         )
         
         logger.info(f"[{request_id}] AI服务调用成功，耗时: {time.time() - start_time:.2f}秒")

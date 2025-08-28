@@ -327,6 +327,11 @@ export const useChatStore = create<ChatState>()(
                 reasoning: settings.reasoning || 'medium'
               }
 
+              // 为OpenAI兼容提供商添加base_url
+              if (settings.chatProvider === 'openai_compatible' && settings.openaiCompatibleConfig?.baseUrl) {
+                request.base_url = settings.openaiCompatibleConfig.baseUrl
+              }
+
               // 如果用户选择了搜索工具，添加工具配置
               if (tools && tools.length > 0 && tools.some(tool => tool.id === 'search')) {
                 const useNativeSearch = supportsNativeWebSearch(settings.chatProvider, settings.chatModel)
@@ -523,6 +528,11 @@ export const useChatStore = create<ChatState>()(
             reasoning_summaries: 'auto',
             reasoning: settings.reasoning || 'medium',
             stream: false
+          }
+
+          // 为OpenAI兼容提供商添加base_url
+          if (settings.chatProvider === 'openai_compatible' && settings.openaiCompatibleConfig?.baseUrl) {
+            requestBody.base_url = settings.openaiCompatibleConfig.baseUrl
           }
 
           // 如果用户选择了搜索工具，添加工具配置

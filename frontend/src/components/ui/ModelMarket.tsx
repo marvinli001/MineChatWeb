@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { XMarkIcon, CheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import { useSettingsStore } from '@/store/settingsStore'
+import { XMarkIcon, CheckIcon, ArrowPathIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { useSettingsStore, type CustomModel } from '@/store/settingsStore'
 import { modelConfigService, type ModelsConfig, type ModelConfig } from '@/services/modelConfigService'
 import { toast } from 'react-hot-toast'
 
@@ -15,7 +15,19 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
   const [config, setConfig] = useState<ModelsConfig | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<string>('openai')
-  const { settings, updateSettings } = useSettingsStore()
+  const [showAddModelDialog, setShowAddModelDialog] = useState(false)
+  const [newModelForm, setNewModelForm] = useState({
+    name: '',
+    description: '',
+    supports_reasoning: false
+  })
+  const { 
+    settings, 
+    updateSettings, 
+    addCustomModel, 
+    removeCustomModel, 
+    updateCustomModel 
+  } = useSettingsStore()
 
   useEffect(() => {
     if (isOpen) {
@@ -63,6 +75,39 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
 
   const hasApiKey = (providerId: string) => {
     return Boolean(settings.apiKeys[providerId])
+  }
+
+  // 自定义模型管理方法
+  const handleAddCustomModel = () => {
+    if (!newModelForm.name.trim()) {
+      toast.error('请输入模型名称')
+      return
+    }
+    
+    addCustomModel({
+      name: newModelForm.name.trim(),
+      description: newModelForm.description.trim() || '自定义模型',
+      supports_reasoning: newModelForm.supports_reasoning
+    })
+    
+    setNewModelForm({
+      name: '',
+      description: '',
+      supports_reasoning: false
+    })
+    setShowAddModelDialog(false)
+    toast.success('模型已添加')
+  }
+
+  const handleRemoveCustomModel = (modelId: string, modelName: string) => {
+    if (confirm(`确定要删除模型 "${modelName}" 吗？`)) {
+      removeCustomModel(modelId)
+      toast.success('模型已删除')
+    }
+  }
+
+  const getCustomModels = (): CustomModel[] => {
+    return settings.openaiCompatibleConfig?.customModels || []
   }
 
   if (!isOpen) return null
@@ -161,7 +206,102 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                   </div>
 
                   <div className="grid gap-4">
-                    {Object.entries(config.providers[selectedProvider].models).map(([modelId, model]) => (
+                    {selectedProvider === 'openai_compatible' ? (
+                      // OpenAI兼容提供商的自定义模型管理界面
+                      <>
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-md font-medium text-gray-900 dark:text-white">
+                            自定义模型
+                          </h4>
+                          <button
+                            onClick={() => setShowAddModelDialog(true)}
+                            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                          >
+                            <PlusIcon className="w-4 h-4" />
+                            添加模型
+                          </button>
+                        </div>
+
+                        {getCustomModels().length === 0 ? (
+                          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                            <p>暂无自定义模型</p>
+                            <p className="text-sm mt-2">点击上方按钮添加您的第一个自定义模型</p>
+                          </div>
+                        ) : (
+                          getCustomModels().map((model) => (
+                            <div
+                              key={model.id}
+                              className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="font-medium text-gray-900 dark:text-white">
+                                      {model.name}
+                                    </h4>
+                                    <span className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 px-2 py-1 rounded-full">
+                                      自定义
+                                    </span>
+                                    {isCurrentModel('openai_compatible', model.id) && (
+                                      <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 px-2 py-1 rounded-full">
+                                        当前使用
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                    {model.description}
+                                  </p>
+                                  <div className="flex gap-2">
+                                    <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                                      📝 纯文本对话
+                                    </span>
+                                    {model.supports_reasoning && (
+                                      <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                                        🧠 支持推理
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                    创建时间: {new Date(model.created_at).toLocaleString()}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 ml-4">
+                                  <button
+                                    onClick={() => selectModel('openai_compatible', model.id)}
+                                    disabled={!hasApiKey('openai_compatible')}
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                                      isCurrentModel('openai_compatible', model.id)
+                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
+                                        : hasApiKey('openai_compatible')
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    }`}
+                                  >
+                                    {isCurrentModel('openai_compatible', model.id) ? (
+                                      <>
+                                        <CheckIcon className="w-4 h-4 inline mr-1" />
+                                        已选择
+                                      </>
+                                    ) : (
+                                      '选择'
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => handleRemoveCustomModel(model.id, model.name)}
+                                    className="p-2 text-red-600 hover:text-red-700 transition-colors"
+                                    title="删除模型"
+                                  >
+                                    <TrashIcon className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </>
+                    ) : (
+                      // 其他提供商的标准模型列表
+                      Object.entries(config.providers[selectedProvider].models).map(([modelId, model]) => (
                       <div
                         key={modelId}
                         className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
@@ -235,7 +375,8 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                           </button>
                         </div>
                       </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               ) : (
@@ -256,6 +397,96 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
           </div>
         )}
       </div>
+
+      {/* 添加自定义模型对话框 */}
+      {showAddModelDialog && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                添加自定义模型
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAddModelDialog(false)
+                  setNewModelForm({
+                    name: '',
+                    description: '',
+                    supports_reasoning: false
+                  })
+                }}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  模型名称 *
+                </label>
+                <input
+                  type="text"
+                  value={newModelForm.name}
+                  onChange={(e) => setNewModelForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="例如：gpt-4-turbo"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  模型描述
+                </label>
+                <textarea
+                  value={newModelForm.description}
+                  onChange={(e) => setNewModelForm(prev => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="可选的模型描述..."
+                  rows={3}
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="supports_reasoning"
+                  checked={newModelForm.supports_reasoning}
+                  onChange={(e) => setNewModelForm(prev => ({ ...prev, supports_reasoning: e.target.checked }))}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="supports_reasoning" className="text-sm text-gray-700 dark:text-gray-300">
+                  支持推理模式
+                </label>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowAddModelDialog(false)
+                  setNewModelForm({
+                    name: '',
+                    description: '',
+                    supports_reasoning: false
+                  })
+                }}
+                className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleAddCustomModel}
+                disabled={!newModelForm.name.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                添加模型
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

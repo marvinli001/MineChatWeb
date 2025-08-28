@@ -37,6 +37,7 @@ class ChatRequest(BaseModel):
     reasoning: str = "medium"
     tools: Optional[List[ToolConfig]] = None
     use_native_search: Optional[bool] = None
+    base_url: Optional[str] = None  # OpenAI兼容提供商的自定义base_url
 
 class Usage(BaseModel):
     prompt_tokens: Optional[int] = 0

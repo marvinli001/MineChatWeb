@@ -7,7 +7,8 @@ export default function ApiSettings() {
   const { settings, updateSettings } = useSettingsStore()
 
   const providers = [
-    { id: 'openai', name: 'OpenAI', description: 'ChatGPT, GPT-4, o1系列等模型' },
+    { id: 'openai', name: 'OpenAI', description: 'ChatGPT, GPT-4, o1系列等模型（仅Responses API）' },
+    { id: 'openai_compatible', name: 'OpenAI兼容', description: '自定义OpenAI兼容API（支持Chat Completions API）' },
     { id: 'anthropic', name: 'Anthropic', description: 'Claude系列模型' },
     { id: 'google', name: 'Google', description: 'Gemini系列模型' },
     { id: 'azure', name: 'Azure OpenAI', description: '微软Azure OpenAI服务' },
@@ -20,6 +21,15 @@ export default function ApiSettings() {
       apiKeys: {
         ...settings.apiKeys,
         [provider]: value
+      }
+    })
+  }
+
+  const handleBaseUrlChange = (value: string) => {
+    updateSettings({
+      openaiCompatibleConfig: {
+        ...settings.openaiCompatibleConfig,
+        baseUrl: value
       }
     })
   }
@@ -44,6 +54,28 @@ export default function ApiSettings() {
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {provider.description}
             </p>
+            
+            {/* OpenAI兼容提供商的额外设置 */}
+            {provider.id === 'openai_compatible' && (
+              <div className="space-y-3 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                    基础URL
+                  </label>
+                  <Input
+                    type="url"
+                    placeholder="https://api.openai.com/v1"
+                    value={settings.openaiCompatibleConfig?.baseUrl || ''}
+                    onChange={(e) => handleBaseUrlChange(e.target.value)}
+                    className="text-sm"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    设置OpenAI兼容API的基础URL
+                  </p>
+                </div>
+              </div>
+            )}
+            
             <Input
               type="password"
               placeholder={`请输入${provider.name} API Key`}

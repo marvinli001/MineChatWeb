@@ -273,7 +273,8 @@ class AIProviderService:
         reasoning_summaries: str = "auto",
         reasoning: str = "medium",
         tools: List[Dict[str, Any]] = None,
-        use_native_search: bool = None
+        use_native_search: bool = None,
+        base_url: str = None
     ) -> Dict[str, Any]:
         """获取AI完成响应"""
         logger.info(f"开始调用 {provider} API, 模型: {model}, 思考模式: {thinking_mode}")
@@ -283,18 +284,14 @@ class AIProviderService:
         for attempt in range(self.max_retries + 1):
             try:
                 if provider == "openai":
-                    # 对于 GPT-5 系列模型，根据 thinking_mode 选择 API
-                    if self._is_gpt5_model(model) and thinking_mode:
-                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
-                    # 判断是否使用 Responses API (对于其他模型)
-                    elif await self._is_openai_responses_api(model):
-                        return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
-                    else:
-                        return await self._openai_chat_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries, tools, use_native_search)
+                    # OpenAI 提供商现在只使用 Responses API
+                    return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
                 elif provider == "anthropic":
                     return await self._anthropic_completion(model, messages, api_key, thinking_mode)
                 elif provider == "google":
                     return await self._google_completion(model, messages, api_key, thinking_mode)
+                elif provider == "openai_compatible":
+                    return await self._openai_compatible_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries, tools, use_native_search, base_url)
                 else:
                     raise ValueError(f"不支持的提供商: {provider}")
                     
@@ -1062,6 +1059,70 @@ class AIProviderService:
             logger.error(f"Google API调用失败: {str(e)}")
             raise Exception(f"Google API调用失败: {str(e)}")
 
+    async def _openai_compatible_completion(
+        self,
+        model: str,
+        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
+        api_key: str,
+        stream: bool = False,
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None,
+        base_url: str = None
+    ) -> Dict[str, Any]:
+        """OpenAI 兼容 API 调用 (Chat Completions API)"""
+        try:
+            # 如果没有提供base_url，使用默认的OpenAI URL
+            if not base_url:
+                base_url = "https://api.openai.com/v1"
+            
+            client = openai.AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=self.default_timeout
+            )
+            
+            logger.info(f"调用OpenAI兼容API模型: {model}, 消息数量: {len(messages)}, 基础URL: {base_url}")
+            
+            # 转换消息格式 - 只支持基本的文本消息格式
+            converted_messages = []
+            for msg in messages:
+                role = self._get_message_attr(msg, "role")
+                content = self._get_message_attr(msg, "content")
+                converted_messages.append({"role": role, "content": content})
+            
+            # 基础完成参数（OpenAI兼容提供商只支持纯文本对话）
+            completion_params = {
+                "model": model,
+                "messages": converted_messages,
+                "stream": stream,
+                "temperature": 0.7,
+                "max_tokens": 4000
+            }
+            
+            response = await asyncio.wait_for(
+                client.chat.completions.create(**completion_params),
+                timeout=self.default_timeout
+            )
+            
+            result = response.model_dump()
+            logger.info(f"OpenAI兼容API调用成功，返回选择数量: {len(result.get('choices', []))}")
+            return result
+            
+        except openai.AuthenticationError as e:
+            logger.error(f"OpenAI兼容API认证失败: {str(e)}")
+            raise Exception("OpenAI兼容API密钥无效，请检查您的API密钥")
+        except openai.RateLimitError as e:
+            logger.error(f"OpenAI兼容API速率限制: {str(e)}")
+            raise Exception("OpenAI兼容API请求频率过高，请稍后重试")
+        except openai.InternalServerError as e:
+            logger.error(f"OpenAI兼容API服务器错误: {str(e)}")
+            raise Exception("OpenAI兼容API服务器暂时不可用，请稍后重试")
+        except Exception as e:
+            logger.error(f"OpenAI兼容API调用异常: {str(e)}")
+            raise Exception(f"OpenAI兼容API调用失败: {str(e)}")
+
     async def stream_completion(
         self,
         provider: str,
@@ -1088,6 +1149,10 @@ class AIProviderService:
                     logger.info(f"模型 {model} 不支持流式输出，使用普通请求")
                     response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
                     yield response
+            elif provider == "openai_compatible":
+                # OpenAI兼容提供商支持流式
+                async for chunk in self._openai_compatible_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries, tools, use_native_search):
+                    yield chunk
             else:
                 # 其他提供商暂不支持流式
                 response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries, reasoning)
@@ -1153,4 +1218,52 @@ class AIProviderService:
                 
         except Exception as e:
             logger.error(f"OpenAI流式调用失败: {str(e)}")
+            yield {"error": str(e)}
+
+    async def _openai_compatible_stream_completion(
+        self,
+        model: str,
+        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
+        api_key: str,
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None,
+        base_url: str = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """OpenAI兼容流式完成"""
+        try:
+            # 如果没有提供base_url，使用默认的OpenAI URL
+            if not base_url:
+                base_url = "https://api.openai.com/v1"
+                
+            client = openai.AsyncOpenAI(
+                api_key=api_key,
+                base_url=base_url,
+                timeout=self.default_timeout
+            )
+            
+            # 转换消息格式 - 只支持基本的文本消息格式
+            converted_messages = []
+            for msg in messages:
+                role = self._get_message_attr(msg, "role")
+                content = self._get_message_attr(msg, "content")
+                converted_messages.append({"role": role, "content": content})
+            
+            # 流式参数
+            stream_params = {
+                "model": model,
+                "messages": converted_messages,
+                "stream": True,
+                "temperature": 0.7,
+                "max_tokens": 4000
+            }
+            
+            stream = await client.chat.completions.create(**stream_params)
+            
+            async for chunk in stream:
+                yield chunk.model_dump()
+                
+        except Exception as e:
+            logger.error(f"OpenAI兼容流式调用失败: {str(e)}")
             yield {"error": str(e)}

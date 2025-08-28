@@ -21,8 +21,30 @@ export default function ModelSelector({ onModelMarketClick, showDetailedInfo = f
 
   const loadCurrentModelConfig = async () => {
     if (settings.chatProvider && settings.chatModel) {
-      const config = await modelConfigService.getModelConfig(settings.chatProvider, settings.chatModel)
-      setCurrentModelConfig(config)
+      if (settings.chatProvider === 'openai_compatible') {
+        // 对于OpenAI兼容提供商，从设置存储中获取自定义模型
+        const customModel = settings.openaiCompatibleConfig?.customModels?.find(
+          m => m.id === settings.chatModel
+        )
+        if (customModel) {
+          setCurrentModelConfig({
+            name: customModel.name,
+            description: customModel.description,
+            api_type: 'chat_completions',
+            context_length: 0,
+            supports_vision: false,
+            supports_function_calling: false,
+            supports_thinking: false,
+            supports_streaming: true,
+            pricing: { input: 0, output: 0 }
+          })
+        } else {
+          setCurrentModelConfig(null)
+        }
+      } else {
+        const config = await modelConfigService.getModelConfig(settings.chatProvider, settings.chatModel)
+        setCurrentModelConfig(config)
+      }
     } else {
       setCurrentModelConfig(null)
     }
@@ -33,7 +55,8 @@ export default function ModelSelector({ onModelMarketClick, showDetailedInfo = f
       openai: 'OpenAI',
       anthropic: 'Anthropic',
       google: 'Google',
-      deepseek: 'DeepSeek'
+      deepseek: 'DeepSeek',
+      openai_compatible: 'OpenAI兼容'
     }
     return providerNames[providerId] || providerId
   }

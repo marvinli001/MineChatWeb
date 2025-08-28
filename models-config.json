@@ -249,19 +249,6 @@
           }
         },
 
-        "gpt-4-turbo": {
-          "name": "GPT-4 Turbo",
-          "description": "An older high-intelligence GPT model",
-          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-4-turbo.png",
-          "api_type": "chat_completions",
-          "context_length": 128000,
-          "supports_vision": true,
-          "supports_function_calling": true,
-          "pricing": {
-            "input": 10.00,
-            "output": 30.00
-          }
-        },
         "chatgpt-4o-latest": {
           "name": "ChatGPT-4o",
           "description": "GPT-4o model used in ChatGPT",
@@ -402,6 +389,15 @@
           }
         }
       }
+    },
+    "openai_compatible": {
+      "name": "OpenAI兼容",
+      "description": "自定义OpenAI兼容API模型",
+      "supports_thinking": false,
+      "supports_custom_host": true,
+      "supports_custom_models": true,
+      "supports_reasoning": false,
+      "models": {}
     }
   }
 }

@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export interface CustomModel {
+  id: string
+  name: string
+  description: string
+  supports_reasoning: boolean
+  created_at: string
+}
+
 export interface Settings {
   // API设置
   apiKeys: Record<string, string>
@@ -30,6 +38,12 @@ export interface Settings {
     apiToken: string
     databaseId: string
   }
+  
+  // OpenAI兼容提供商设置
+  openaiCompatibleConfig: {
+    baseUrl: string
+    customModels: CustomModel[]
+  }
 }
 
 interface SettingsState {
@@ -40,6 +54,12 @@ interface SettingsState {
   resetSettings: () => void
   saveSettings: () => void
   initializeSettings: () => void
+  
+  // OpenAI兼容提供商自定义模型管理
+  addCustomModel: (model: Omit<CustomModel, 'id' | 'created_at'>) => void
+  removeCustomModel: (modelId: string) => void
+  updateCustomModel: (modelId: string, updates: Partial<CustomModel>) => void
+  getCustomModel: (modelId: string) => CustomModel | undefined
 }
 
 const defaultSettings: Settings = {
@@ -61,6 +81,10 @@ const defaultSettings: Settings = {
     accountId: '',
     apiToken: '',
     databaseId: ''
+  },
+  openaiCompatibleConfig: {
+    baseUrl: 'https://api.openai.com/v1',
+    customModels: []
   }
 }
 
@@ -94,6 +118,55 @@ export const useSettingsStore = create<SettingsState>()(
         }
         
         set({ initialized: true })
+      },
+
+      // OpenAI兼容提供商自定义模型管理
+      addCustomModel: (model) => {
+        const newModel: CustomModel = {
+          ...model,
+          id: `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          created_at: new Date().toISOString()
+        }
+        
+        set(state => ({
+          settings: {
+            ...state.settings,
+            openaiCompatibleConfig: {
+              ...state.settings.openaiCompatibleConfig,
+              customModels: [...state.settings.openaiCompatibleConfig.customModels, newModel]
+            }
+          }
+        }))
+      },
+
+      removeCustomModel: (modelId) => {
+        set(state => ({
+          settings: {
+            ...state.settings,
+            openaiCompatibleConfig: {
+              ...state.settings.openaiCompatibleConfig,
+              customModels: state.settings.openaiCompatibleConfig.customModels.filter(m => m.id !== modelId)
+            }
+          }
+        }))
+      },
+
+      updateCustomModel: (modelId, updates) => {
+        set(state => ({
+          settings: {
+            ...state.settings,
+            openaiCompatibleConfig: {
+              ...state.settings.openaiCompatibleConfig,
+              customModels: state.settings.openaiCompatibleConfig.customModels.map(m =>
+                m.id === modelId ? { ...m, ...updates } : m
+              )
+            }
+          }
+        }))
+      },
+
+      getCustomModel: (modelId) => {
+        return get().settings.openaiCompatibleConfig.customModels.find(m => m.id === modelId)
       }
     }),
     {
