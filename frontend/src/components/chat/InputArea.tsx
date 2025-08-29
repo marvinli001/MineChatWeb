@@ -163,6 +163,24 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
       return isGPT5Model(settings.chatModel)
     }
     
+    // 对于Anthropic，从模型配置中检查是否支持thinking
+    if (settings.chatProvider === 'anthropic') {
+      // 动态检查模型配置，如果无法获取配置则使用硬编码列表作为后备
+      try {
+        // 可以通过modelConfigService来检查，但这里为了避免异步复杂性，先使用硬编码列表
+        const anthropicThinkingModels = [
+          'claude-opus-4-1-20250805',
+          'claude-opus-4-20250514', 
+          'claude-sonnet-4-20250514',
+          'claude-3-7-sonnet-20250219'
+        ]
+        return anthropicThinkingModels.includes(settings.chatModel)
+      } catch (error) {
+        console.warn('无法检查模型配置，使用默认设置')
+        return false
+      }
+    }
+    
     return false
   }
 
@@ -937,6 +955,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <ThinkingBudgetButton
                     budget={settings.reasoning}
                     onChange={(budget) => updateSettings({ reasoning: budget })}
+                    provider={settings.chatProvider}
+                    thinkingEnabled={settings.thinkingMode}
+                    onThinkingToggle={(enabled) => updateSettings({ thinkingMode: enabled })}
                   />
                 )}
                 
@@ -1425,6 +1446,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <ThinkingBudgetButton
                     budget={settings.reasoning}
                     onChange={(budget) => updateSettings({ reasoning: budget })}
+                    provider={settings.chatProvider}
+                    thinkingEnabled={settings.thinkingMode}
+                    onThinkingToggle={(enabled) => updateSettings({ thinkingMode: enabled })}
                   />
                 )}
                 

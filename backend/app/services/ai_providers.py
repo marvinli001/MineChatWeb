@@ -287,7 +287,7 @@ class AIProviderService:
                     # OpenAI 提供商现在只使用 Responses API
                     return await self._openai_responses_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
                 elif provider == "anthropic":
-                    return await self._anthropic_completion(model, messages, api_key, thinking_mode)
+                    return await self._anthropic_completion(model, messages, api_key, thinking_mode, tools, stream)
                 elif provider == "google":
                     return await self._google_completion(model, messages, api_key, thinking_mode)
                 elif provider == "openai_compatible":
@@ -927,25 +927,165 @@ class AIProviderService:
             logger.error(f"OpenAI Responses API调用失败: {str(e)}")
             raise Exception(f"OpenAI Responses API调用失败: {str(e)}")
 
+    def _convert_message_to_anthropic_format(self, msg: Union[Dict[str, Any], Any]) -> Dict[str, Any]:
+        """将消息转换为Anthropic Messages API格式，支持图片、文件、搜索结果和引用"""
+        role = self._get_message_attr(msg, "role")
+        content = self._get_message_attr(msg, "content")
+        
+        # 获取多媒体和附加数据
+        images = None
+        files = None
+        search_results = None
+        citations_enabled = False
+        
+        if isinstance(msg, dict):
+            images = msg.get("images")
+            files = msg.get("files")
+            search_results = msg.get("search_results")
+            citations_enabled = msg.get("citations_enabled", False)
+        else:
+            images = getattr(msg, "images", None)
+            files = getattr(msg, "files", None)
+            search_results = getattr(msg, "search_results", None)
+            citations_enabled = getattr(msg, "citations_enabled", False)
+        
+        # 检查是否有多媒体内容
+        has_multimedia = (images and len(images) > 0) or (files and len(files) > 0) or (search_results and len(search_results) > 0)
+        
+        # 如果没有多媒体内容，使用传统格式
+        if not has_multimedia:
+            return {"role": role, "content": content}
+        
+        # 构造支持多媒体的消息格式
+        content_parts = []
+        
+        # 添加文本内容（如果有）
+        if content and content.strip():
+            content_parts.append({"type": "text", "text": content})
+        
+        # 添加图片内容（Vision支持）
+        if images:
+            for image in images:
+                if isinstance(image, dict):
+                    image_data = image.get("data")
+                    mime_type = image.get("mime_type", "image/jpeg")
+                else:
+                    image_data = getattr(image, "data", "")
+                    mime_type = getattr(image, "mime_type", "image/jpeg")
+                
+                if image_data:
+                    content_parts.append({
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": mime_type,
+                            "data": image_data
+                        }
+                    })
+        
+        # 添加文档内容（Files API和PDF支持）
+        if files:
+            for file in files:
+                if isinstance(file, dict):
+                    file_id = file.get("anthropic_file_id")
+                    filename = file.get("filename")
+                    file_data = file.get("data")  # base64数据
+                    mime_type = file.get("mime_type", "application/pdf")
+                else:
+                    file_id = getattr(file, "anthropic_file_id", "")
+                    filename = getattr(file, "filename", "")
+                    file_data = getattr(file, "data", "")
+                    mime_type = getattr(file, "mime_type", "application/pdf")
+                
+                if file_id:
+                    # 使用Files API上传的文件
+                    content_parts.append({
+                        "type": "document",
+                        "source": {
+                            "type": "file",
+                            "file_id": file_id
+                        },
+                        "title": filename or "Document",
+                        "citations": {"enabled": citations_enabled}
+                    })
+                elif file_data and mime_type == "application/pdf":
+                    # 直接传输的PDF文件
+                    content_parts.append({
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": mime_type,
+                            "data": file_data
+                        },
+                        "title": filename or "PDF Document",
+                        "citations": {"enabled": citations_enabled}
+                    })
+                elif file_data and mime_type.startswith("text/"):
+                    # 文本文件
+                    content_parts.append({
+                        "type": "document",
+                        "source": {
+                            "type": "text",
+                            "media_type": mime_type,
+                            "data": file_data  # 假设是文本内容，不是base64
+                        },
+                        "title": filename or "Text Document",
+                        "citations": {"enabled": citations_enabled}
+                    })
+        
+        # 添加搜索结果内容（Search Results支持）
+        if search_results:
+            for result in search_results:
+                if isinstance(result, dict):
+                    source = result.get("source", "")
+                    title = result.get("title", "")
+                    result_content = result.get("content", "")
+                else:
+                    source = getattr(result, "source", "")
+                    title = getattr(result, "title", "")
+                    result_content = getattr(result, "content", "")
+                
+                if result_content:
+                    content_parts.append({
+                        "type": "search_result",
+                        "source": source,
+                        "title": title,
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": result_content
+                            }
+                        ],
+                        "citations": {"enabled": citations_enabled}
+                    })
+        
+        return {
+            "role": role,
+            "content": content_parts
+        }
+
     async def _anthropic_completion(
         self,
         model: str,
         messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
         api_key: str,
-        thinking_mode: bool = False
+        thinking_mode: bool = False,
+        tools: List[Dict[str, Any]] = None,
+        stream: bool = False
     ) -> Dict[str, Any]:
-        """Anthropic Claude API 调用"""
+        """Anthropic Claude Messages API 调用，支持Extended Thinking、Vision、Files、Citations和Search Results"""
         try:
             client = anthropic.AsyncAnthropic(
                 api_key=api_key,
                 timeout=self.default_timeout
             )
             
-            logger.info(f"调用Anthropic模型: {model}")
+            logger.info(f"调用Anthropic模型: {model}, 扩展思考模式: {thinking_mode}, 流式输出: {stream}")
             
             system_message = ""
             user_messages = []
             
+            # 转换消息格式以支持多媒体内容
             for msg in messages:
                 role = self._get_message_attr(msg, "role")
                 content = self._get_message_attr(msg, "content")
@@ -953,53 +1093,147 @@ class AIProviderService:
                 if role == "system":
                     system_message = content
                 else:
-                    # 为了确保向后兼容，如果是Pydantic对象，转换为字典
-                    if isinstance(msg, dict):
-                        user_messages.append(msg)
-                    else:
-                        user_messages.append({"role": role, "content": content})
+                    # 转换为Anthropic Messages API格式
+                    converted_msg = self._convert_message_to_anthropic_format(msg)
+                    user_messages.append(converted_msg)
             
+            # 构建请求参数
             kwargs = {
                 "model": model,
                 "max_tokens": 4000,
                 "messages": user_messages,
-                "temperature": 0.7
+                "temperature": 0.7,
+                "stream": stream
             }
             
+            # 添加system消息（如果有）
             if system_message:
                 kwargs["system"] = system_message
             
+            # Extended Thinking支持（Claude不允许用户设置budget_tokens，使用固定值10000）
+            if thinking_mode:
+                kwargs["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": 10000  # 固定值，如文档要求
+                }
+                logger.info("启用Claude扩展思考模式，budget_tokens: 10000")
+            
+            # 工具配置（如果有）
+            if tools:
+                # 转换工具配置为Anthropic格式
+                anthropic_tools = self._convert_tools_to_anthropic_format(tools)
+                if anthropic_tools:
+                    kwargs["tools"] = anthropic_tools
+            
+            # 调用Anthropic Messages API
             response = await asyncio.wait_for(
                 client.messages.create(**kwargs),
                 timeout=self.default_timeout
             )
             
-            # 转换为OpenAI格式
-            result = {
-                "id": f"msg_{response.id}",
-                "choices": [{
-                    "message": {
-                        "role": "assistant",
-                        "content": response.content[0].text if response.content else ""
-                    },
-                    "finish_reason": "stop"
-                }],
-                "usage": {
-                    "prompt_tokens": response.usage.input_tokens,
-                    "completion_tokens": response.usage.output_tokens,
-                    "total_tokens": response.usage.input_tokens + response.usage.output_tokens
-                }
-            }
+            # 转换响应为OpenAI兼容格式
+            result = self._convert_anthropic_response_to_openai_format(response, thinking_mode)
             
-            logger.info(f"Anthropic API调用成功")
+            logger.info(f"Anthropic API调用成功，响应内容块数量: {len(response.content) if hasattr(response, 'content') else 0}")
             return result
             
         except anthropic.AuthenticationError as e:
             logger.error(f"Anthropic认证失败: {str(e)}")
             raise Exception("Anthropic API密钥无效，请检查您的API密钥")
+        except anthropic.RateLimitError as e:
+            logger.error(f"Anthropic速率限制: {str(e)}")
+            raise Exception("Anthropic API请求频率过高，请稍后重试")
         except Exception as e:
             logger.error(f"Anthropic API调用失败: {str(e)}")
             raise Exception(f"Anthropic API调用失败: {str(e)}")
+
+    def _convert_tools_to_anthropic_format(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """将工具配置转换为Anthropic格式"""
+        anthropic_tools = []
+        
+        for tool in tools:
+            tool_type = tool.get("type")
+            
+            if tool_type == "web_search":
+                # Web Search工具
+                anthropic_tools.append({
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_uses": tool.get("max_uses", 5)
+                })
+            # 可以在这里添加其他工具类型的支持
+        
+        return anthropic_tools
+
+    def _convert_anthropic_response_to_openai_format(self, response: Any, thinking_mode: bool = False) -> Dict[str, Any]:
+        """将Anthropic响应转换为OpenAI兼容格式"""
+        content_text = ""
+        thinking_content = ""
+        citations = []
+        
+        # 处理响应内容
+        if hasattr(response, 'content') and response.content:
+            for content_block in response.content:
+                if hasattr(content_block, 'type'):
+                    if content_block.type == "text":
+                        # 文本内容
+                        content_text += getattr(content_block, 'text', '')
+                        
+                        # 提取citations（如果有）
+                        if hasattr(content_block, 'citations') and content_block.citations:
+                            for citation in content_block.citations:
+                                citations.append({
+                                    "type": getattr(citation, 'type', 'unknown'),
+                                    "cited_text": getattr(citation, 'cited_text', ''),
+                                    "source": getattr(citation, 'source', ''),
+                                    "title": getattr(citation, 'title', ''),
+                                    "document_index": getattr(citation, 'document_index', 0),
+                                    "start_char_index": getattr(citation, 'start_char_index', 0),
+                                    "end_char_index": getattr(citation, 'end_char_index', 0)
+                                })
+                    
+                    elif content_block.type == "thinking" and thinking_mode:
+                        # 扩展思考内容
+                        thinking_content = getattr(content_block, 'content', '') or getattr(content_block, 'thinking', '')
+        
+        # 构建消息对象
+        message = {
+            "role": "assistant",
+            "content": content_text
+        }
+        
+        # 添加思考内容（如果有）
+        if thinking_content and thinking_mode:
+            message["reasoning"] = thinking_content
+        
+        # 添加citations（如果有）
+        if citations:
+            message["citations"] = citations
+        
+        # 构建完整响应
+        result = {
+            "id": f"msg_{getattr(response, 'id', 'unknown')}",
+            "choices": [{
+                "message": message,
+                "finish_reason": self._map_anthropic_stop_reason(getattr(response, 'stop_reason', None))
+            }],
+            "usage": {
+                "prompt_tokens": getattr(response.usage, 'input_tokens', 0) if hasattr(response, 'usage') else 0,
+                "completion_tokens": getattr(response.usage, 'output_tokens', 0) if hasattr(response, 'usage') else 0,
+                "total_tokens": (getattr(response.usage, 'input_tokens', 0) + getattr(response.usage, 'output_tokens', 0)) if hasattr(response, 'usage') else 0
+            }
+        }
+        
+        return result
+
+    def _map_anthropic_stop_reason(self, stop_reason: str) -> str:
+        """映射Anthropic的停止原因到OpenAI格式"""
+        mapping = {
+            "end_turn": "stop",
+            "max_tokens": "length",
+            "tool_use": "tool_calls"
+        }
+        return mapping.get(stop_reason, "stop")
 
     async def _google_completion(
         self,
@@ -1149,6 +1383,10 @@ class AIProviderService:
                     logger.info(f"模型 {model} 不支持流式输出，使用普通请求")
                     response = await self.get_completion(provider, model, messages, api_key, False, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
                     yield response
+            elif provider == "anthropic":
+                # Anthropic支持流式输出
+                async for chunk in self._anthropic_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries, tools, use_native_search):
+                    yield chunk
             elif provider == "openai_compatible":
                 # OpenAI兼容提供商支持流式
                 async for chunk in self._openai_compatible_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries, tools, use_native_search):
@@ -1267,3 +1505,192 @@ class AIProviderService:
         except Exception as e:
             logger.error(f"OpenAI兼容流式调用失败: {str(e)}")
             yield {"error": str(e)}
+
+    async def _anthropic_stream_completion(
+        self,
+        model: str,
+        messages: List[Union[Dict[str, str], Any]],
+        api_key: str,
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Anthropic流式完成，支持Extended Thinking、Vision、Citations等功能"""
+        try:
+            client = anthropic.AsyncAnthropic(
+                api_key=api_key,
+                timeout=self.default_timeout
+            )
+            
+            logger.info(f"开始Anthropic流式调用: {model}, 扩展思考模式: {thinking_mode}")
+            
+            system_message = ""
+            user_messages = []
+            
+            # 转换消息格式以支持多媒体内容
+            for msg in messages:
+                role = self._get_message_attr(msg, "role")
+                content = self._get_message_attr(msg, "content")
+                
+                if role == "system":
+                    system_message = content
+                else:
+                    # 转换为Anthropic Messages API格式
+                    converted_msg = self._convert_message_to_anthropic_format(msg)
+                    user_messages.append(converted_msg)
+            
+            # 构建流式请求参数
+            stream_params = {
+                "model": model,
+                "max_tokens": 4000,
+                "messages": user_messages,
+                "temperature": 0.7,
+                "stream": True
+            }
+            
+            # 添加system消息（如果有）
+            if system_message:
+                stream_params["system"] = system_message
+            
+            # Extended Thinking支持
+            if thinking_mode:
+                stream_params["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": 10000  # 固定值
+                }
+                logger.info("启用Claude流式扩展思考模式，budget_tokens: 10000")
+            
+            # 工具配置（如果有）
+            if tools:
+                anthropic_tools = self._convert_tools_to_anthropic_format(tools)
+                if anthropic_tools:
+                    stream_params["tools"] = anthropic_tools
+            
+            # 创建流式响应
+            async with client.messages.stream(**stream_params) as stream:
+                content_text = ""
+                thinking_content = ""
+                message_id = None
+                current_citations = []
+                
+                async for event in stream:
+                    try:
+                        # 根据事件类型处理不同的流式数据
+                        if hasattr(event, 'type'):
+                            if event.type == "message_start":
+                                # 消息开始
+                                if hasattr(event, 'message') and hasattr(event.message, 'id'):
+                                    message_id = event.message.id
+                                
+                                # 发送初始chunk
+                                chunk = {
+                                    "id": f"msg_{message_id or 'stream'}",
+                                    "choices": [{
+                                        "delta": {
+                                            "role": "assistant",
+                                            "content": ""
+                                        },
+                                        "index": 0,
+                                        "finish_reason": None
+                                    }]
+                                }
+                                yield chunk
+                            
+                            elif event.type == "content_block_start":
+                                # 内容块开始 - 可能是text或thinking
+                                if hasattr(event, 'content_block'):
+                                    block_type = getattr(event.content_block, 'type', 'text')
+                                    if block_type == "thinking" and thinking_mode:
+                                        logger.debug("开始接收thinking内容")
+                            
+                            elif event.type == "content_block_delta":
+                                # 内容增量
+                                if hasattr(event, 'delta'):
+                                    delta_type = getattr(event.delta, 'type', 'text_delta')
+                                    
+                                    if delta_type == "text_delta":
+                                        # 文本增量
+                                        text_delta = getattr(event.delta, 'text', '')
+                                        content_text += text_delta
+                                        
+                                        chunk = {
+                                            "id": f"msg_{message_id or 'stream'}",
+                                            "choices": [{
+                                                "delta": {
+                                                    "content": text_delta
+                                                },
+                                                "index": 0,
+                                                "finish_reason": None
+                                            }]
+                                        }
+                                        yield chunk
+                                    
+                                    elif delta_type == "thinking_delta" and thinking_mode:
+                                        # 思考增量
+                                        thinking_delta = getattr(event.delta, 'content', '') or getattr(event.delta, 'thinking', '')
+                                        thinking_content += thinking_delta
+                                        
+                                        # 思考内容作为reasoning字段发送
+                                        chunk = {
+                                            "id": f"msg_{message_id or 'stream'}",
+                                            "choices": [{
+                                                "delta": {
+                                                    "reasoning": thinking_delta
+                                                },
+                                                "index": 0,
+                                                "finish_reason": None
+                                            }]
+                                        }
+                                        yield chunk
+                                    
+                                    elif delta_type == "citations_delta":
+                                        # Citations增量
+                                        if hasattr(event.delta, 'citation'):
+                                            citation = {
+                                                "type": getattr(event.delta.citation, 'type', 'unknown'),
+                                                "cited_text": getattr(event.delta.citation, 'cited_text', ''),
+                                                "source": getattr(event.delta.citation, 'source', ''),
+                                                "title": getattr(event.delta.citation, 'title', ''),
+                                                "document_index": getattr(event.delta.citation, 'document_index', 0)
+                                            }
+                                            current_citations.append(citation)
+                            
+                            elif event.type == "message_delta":
+                                # 消息级别的增量，通常包含停止原因
+                                if hasattr(event, 'delta') and hasattr(event.delta, 'stop_reason'):
+                                    stop_reason = self._map_anthropic_stop_reason(event.delta.stop_reason)
+                                    
+                                    chunk = {
+                                        "id": f"msg_{message_id or 'stream'}",
+                                        "choices": [{
+                                            "delta": {},
+                                            "index": 0,
+                                            "finish_reason": stop_reason
+                                        }]
+                                    }
+                                    
+                                    # 如果有citations，在最后的chunk中包含
+                                    if current_citations:
+                                        chunk["choices"][0]["delta"]["citations"] = current_citations
+                                    
+                                    yield chunk
+                            
+                            elif event.type == "message_stop":
+                                # 消息结束
+                                logger.info(f"Anthropic流式调用完成，总文本长度: {len(content_text)}, thinking长度: {len(thinking_content)}")
+                                break
+                    
+                    except Exception as e:
+                        logger.error(f"处理Anthropic流式事件时出错: {str(e)}")
+                        continue
+                        
+        except anthropic.AuthenticationError as e:
+            logger.error(f"Anthropic流式认证失败: {str(e)}")
+            yield {"error": "Anthropic API密钥无效，请检查您的API密钥"}
+        except anthropic.RateLimitError as e:
+            logger.error(f"Anthropic流式速率限制: {str(e)}")
+            yield {"error": "Anthropic API请求频率过高，请稍后重试"}
+        except Exception as e:
+            logger.error(f"Anthropic流式调用失败: {str(e)}")
+            yield {"error": f"Anthropic流式调用失败: {str(e)}"}

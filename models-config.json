@@ -269,44 +269,118 @@
       "name": "Anthropic",
       "description": "Claude 系列模型",
       "supports_thinking": true,
+      "supports_vision": true,
+      "supports_citations": true,
+      "supports_files": true,
+      "supports_search_results": true,
+      "supports_streaming": true,
       "models": {
-        "claude-opus-4-1": {
+        "claude-opus-4-1-20250805": {
           "name": "Claude Opus 4.1",
-          "description": "Our most capable model",
+          "description": "Our most capable model with enhanced reasoning and multimodal capabilities",
           "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
           "api_type": "messages",
           "context_length": 200000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_thinking": true,
+          "supports_streaming": true,
+          "supports_citations": true,
+          "supports_files": true,
+          "supports_search_results": true,
           "pricing": {
             "input": 15.0,
             "output": 75.0
           }
         },
-        "claude-opus-4-0": {
+        "claude-opus-4-20250514": {
           "name": "Claude Opus 4",
-          "description": "Our previous flagship model",
+          "description": "High-performance flagship model",
           "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
           "api_type": "messages",
           "context_length": 200000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_thinking": true,
+          "supports_streaming": true,
+          "supports_citations": true,
+          "supports_files": true,
+          "supports_search_results": true,
           "pricing": {
             "input": 15.0,
             "output": 75.0
           }
         },
-        "claude-sonnet-4-0": {
+        "claude-sonnet-4-20250514": {
           "name": "Claude Sonnet 4",
-          "description": "High-performance model",
+          "description": "Balanced performance and cost efficiency",
           "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
           "api_type": "messages",
           "context_length": 200000,
           "supports_vision": true,
           "supports_function_calling": true,
+          "supports_thinking": true,
+          "supports_streaming": true,
+          "supports_citations": true,
+          "supports_files": true,
+          "supports_search_results": true,
           "pricing": {
             "input": 3.0,
             "output": 15.0
+          }
+        },
+        "claude-3-7-sonnet-20250219": {
+          "name": "Claude Sonnet 3.7",
+          "description": "Advanced reasoning with excellent performance",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
+          "api_type": "messages",
+          "context_length": 200000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_thinking": true,
+          "supports_streaming": true,
+          "supports_citations": true,
+          "supports_files": true,
+          "supports_search_results": true,
+          "pricing": {
+            "input": 3.0,
+            "output": 15.0
+          }
+        },
+        "claude-3-5-sonnet-20241022": {
+          "name": "Claude 3.5 Sonnet",
+          "description": "Latest Claude 3.5 model with improved capabilities",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
+          "api_type": "messages",
+          "context_length": 200000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_thinking": false,
+          "supports_streaming": true,
+          "supports_citations": true,
+          "supports_files": true,
+          "supports_search_results": true,
+          "pricing": {
+            "input": 3.0,
+            "output": 15.0
+          }
+        },
+        "claude-3-5-haiku-20241022": {
+          "name": "Claude 3.5 Haiku",
+          "description": "Fast and cost-effective model for everyday tasks",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
+          "api_type": "messages",
+          "context_length": 200000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_thinking": false,
+          "supports_streaming": true,
+          "supports_citations": true,
+          "supports_files": true,
+          "supports_search_results": true,
+          "pricing": {
+            "input": 0.25,
+            "output": 1.25
           }
         }
       }

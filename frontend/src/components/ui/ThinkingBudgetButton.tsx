@@ -7,6 +7,9 @@ import { ThinkingBudget } from '@/lib/types'
 interface ThinkingBudgetButtonProps {
   budget: ThinkingBudget
   onChange: (budget: ThinkingBudget) => void
+  provider?: string
+  thinkingEnabled?: boolean
+  onThinkingToggle?: (enabled: boolean) => void
   className?: string
 }
 
@@ -85,11 +88,48 @@ function ThinkingBudgetPopover({ current, onChange, onClose }: ThinkingBudgetPop
   )
 }
 
-export default function ThinkingBudgetButton({ budget, onChange, className = "" }: ThinkingBudgetButtonProps) {
+export default function ThinkingBudgetButton({ 
+  budget, 
+  onChange, 
+  provider = 'openai', 
+  thinkingEnabled = false, 
+  onThinkingToggle, 
+  className = "" 
+}: ThinkingBudgetButtonProps) {
   const [showPopover, setShowPopover] = useState(false)
   
   const currentOption = budgetOptions.find(opt => opt.value === budget)
+  const isAnthropicProvider = provider === 'anthropic'
 
+  // Anthropic扩展思考模式：显示为开关按钮
+  if (isAnthropicProvider && onThinkingToggle) {
+    return (
+      <div className={`relative ${className}`}>
+        <button
+          type="button"
+          onClick={() => onThinkingToggle(!thinkingEnabled)}
+          className={`p-2 rounded-full transition-all duration-200 hover:scale-110 active:scale-95 ${
+            thinkingEnabled
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+          title={thinkingEnabled ? '扩展思考已启用 (budget_tokens: 10000)' : '点击启用扩展思考'}
+          aria-label={thinkingEnabled ? 'Disable extended thinking' : 'Enable extended thinking'}
+        >
+          <LightBulbIcon className={`w-5 h-5 ${thinkingEnabled ? 'drop-shadow-sm' : ''}`} />
+        </button>
+        
+        {/* 扩展思考状态指示器 */}
+        {thinkingEnabled && (
+          <div className="absolute -top-1 -right-1">
+            <div className="w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse" />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // OpenAI预算选择模式：显示为原来的预算选择器
   return (
     <div className={`relative ${className}`}>
       <button
