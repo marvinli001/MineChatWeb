@@ -983,55 +983,113 @@ class AIProviderService:
                         }
                     })
         
-        # 添加文档内容（Files API和PDF支持）
+        # 添加文件内容（根据类型分流为image或document）
         if files:
             for file in files:
                 if isinstance(file, dict):
                     file_id = file.get("anthropic_file_id")
                     filename = file.get("filename")
                     file_data = file.get("data")  # base64数据
-                    mime_type = file.get("mime_type", "application/pdf")
+                    mime_type = file.get("mime_type", "application/octet-stream")
+                    file_url = file.get("url")  # URL方式
                 else:
                     file_id = getattr(file, "anthropic_file_id", "")
                     filename = getattr(file, "filename", "")
                     file_data = getattr(file, "data", "")
-                    mime_type = getattr(file, "mime_type", "application/pdf")
+                    mime_type = getattr(file, "mime_type", "application/octet-stream")
+                    file_url = getattr(file, "url", "")
                 
-                if file_id:
-                    # 使用Files API上传的文件
-                    content_parts.append({
-                        "type": "document",
-                        "source": {
-                            "type": "file",
-                            "file_id": file_id
-                        },
-                        "title": filename or "Document",
-                        "citations": {"enabled": citations_enabled}
-                    })
-                elif file_data and mime_type == "application/pdf":
-                    # 直接传输的PDF文件
-                    content_parts.append({
-                        "type": "document",
-                        "source": {
-                            "type": "base64",
-                            "media_type": mime_type,
-                            "data": file_data
-                        },
-                        "title": filename or "PDF Document",
-                        "citations": {"enabled": citations_enabled}
-                    })
-                elif file_data and mime_type.startswith("text/"):
-                    # 文本文件
-                    content_parts.append({
-                        "type": "document",
-                        "source": {
-                            "type": "text",
-                            "media_type": mime_type,
-                            "data": file_data  # 假设是文本内容，不是base64
-                        },
-                        "title": filename or "Text Document",
-                        "citations": {"enabled": citations_enabled}
-                    })
+                # 根据MIME类型判断是图片还是文档
+                if mime_type.startswith("image/"):
+                    # 图片文件：作为image content处理（Vision支持）
+                    if file_id:
+                        # 使用Files API上传的图片
+                        content_parts.append({
+                            "type": "image",
+                            "source": {
+                                "type": "file",
+                                "file_id": file_id
+                            }
+                        })
+                    elif file_url:
+                        # URL方式的图片
+                        content_parts.append({
+                            "type": "image",
+                            "source": {
+                                "type": "url",
+                                "url": file_url
+                            }
+                        })
+                    elif file_data:
+                        # Base64方式的图片
+                        content_parts.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": mime_type,
+                                "data": file_data
+                            }
+                        })
+                else:
+                    # 非图片文件：作为document content处理（PDF、文档等）
+                    if file_id:
+                        # 使用Files API上传的文档
+                        content_parts.append({
+                            "type": "document",
+                            "source": {
+                                "type": "file",
+                                "file_id": file_id
+                            }
+                        })
+                    elif file_url:
+                        # URL方式的文档
+                        content_parts.append({
+                            "type": "document",
+                            "source": {
+                                "type": "url",
+                                "url": file_url
+                            }
+                        })
+                    elif file_data and mime_type == "application/pdf":
+                        # Base64方式的PDF文档
+                        content_parts.append({
+                            "type": "document",
+                            "source": {
+                                "type": "base64",
+                                "media_type": mime_type,
+                                "data": file_data
+                            }
+                        })
+                    elif file_data and (mime_type.startswith("text/") or mime_type in ["application/json", "application/xml"]):
+                        # 文本类文档（需要解码base64为文本）
+                        try:
+                            import base64
+                            if file_data.strip():  # 检查是否为base64
+                                try:
+                                    text_content = base64.b64decode(file_data).decode('utf-8')
+                                except:
+                                    text_content = file_data  # 假设已经是文本
+                            else:
+                                text_content = file_data
+                            
+                            content_parts.append({
+                                "type": "document",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": mime_type,
+                                    "data": file_data
+                                }
+                            })
+                        except Exception as e:
+                            # 如果解码失败，仍然按原始数据处理
+                            content_parts.append({
+                                "type": "document", 
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": mime_type,
+                                    "data": file_data
+                                }
+                            })
         
         # 添加搜索结果内容（Search Results支持）
         if search_results:
@@ -1063,6 +1121,25 @@ class AIProviderService:
             "role": role,
             "content": content_parts
         }
+
+    def _check_uses_files_api(self, messages: List[Dict[str, Any]]) -> bool:
+        """检查消息中是否使用了Files API"""
+        for message in messages:
+            content = message.get("content", [])
+            if isinstance(content, list):
+                for content_block in content:
+                    if isinstance(content_block, dict):
+                        # 检查image content blocks
+                        if content_block.get("type") == "image":
+                            source = content_block.get("source", {})
+                            if source.get("type") == "file":
+                                return True
+                        # 检查document content blocks
+                        elif content_block.get("type") == "document":
+                            source = content_block.get("source", {})
+                            if source.get("type") == "file":
+                                return True
+        return False
 
     async def _anthropic_completion(
         self,
@@ -1125,11 +1202,23 @@ class AIProviderService:
                 if anthropic_tools:
                     kwargs["tools"] = anthropic_tools
             
+            # 检查是否使用了Files API，如果是则添加betas参数
+            uses_files_api = self._check_uses_files_api(user_messages)
+            if uses_files_api:
+                kwargs["betas"] = ["files-api-2025-04-14"]
+                logger.info("检测到Files API使用，已添加betas参数")
+            
             # 调用Anthropic Messages API
-            response = await asyncio.wait_for(
-                client.messages.create(**kwargs),
-                timeout=self.default_timeout
-            )
+            if uses_files_api:
+                response = await asyncio.wait_for(
+                    client.beta.messages.create(**kwargs),
+                    timeout=self.default_timeout
+                )
+            else:
+                response = await asyncio.wait_for(
+                    client.messages.create(**kwargs),
+                    timeout=self.default_timeout
+                )
             
             # 转换响应为OpenAI兼容格式
             result = self._convert_anthropic_response_to_openai_format(response, thinking_mode)
@@ -1560,8 +1649,7 @@ class AIProviderService:
                 "model": model,
                 "max_tokens": 4000,
                 "messages": user_messages,
-                "temperature": 0.7,
-                "stream": True
+                "temperature": 0.7
             }
             
             # 添加system消息（如果有）
@@ -1582,13 +1670,22 @@ class AIProviderService:
                 if anthropic_tools:
                     stream_params["tools"] = anthropic_tools
             
+            # 检查是否使用了Files API，如果是则添加betas参数
+            uses_files_api = self._check_uses_files_api(user_messages)
+            if uses_files_api:
+                stream_params["betas"] = ["files-api-2025-04-14"]
+                logger.info("流式调用检测到Files API使用，已添加betas参数")
+            
             # 创建流式响应
-            async with client.messages.stream(**stream_params) as stream:
-                content_text = ""
-                thinking_content = ""
-                message_id = None
-                current_citations = []
-                
+            content_text = ""
+            thinking_content = ""
+            message_id = None
+            current_citations = []
+            
+            # 根据是否使用Files API选择正确的客户端方法
+            stream_context = client.beta.messages.stream(**stream_params) if uses_files_api else client.messages.stream(**stream_params)
+            
+            async with stream_context as stream:
                 async for event in stream:
                     try:
                         # 根据事件类型处理不同的流式数据

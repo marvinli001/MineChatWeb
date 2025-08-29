@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import openai
 from openai import OpenAI
+import anthropic
+from anthropic import Anthropic
 import json
 
 logger = logging.getLogger(__name__)
@@ -181,6 +183,71 @@ class FileProcessor:
                 detail=f"File Search处理文件失败: {str(e)}"
             )
 
+class AnthropicFileProcessor:
+    """Anthropic Files API处理器"""
+    
+    def __init__(self, api_key: str):
+        self.client = Anthropic(api_key=api_key)
+    
+    async def upload_file(self, file_content: bytes, filename: str, mime_type: str) -> Dict[str, Any]:
+        """上传文件到Anthropic Files API"""
+        try:
+            # 创建临时文件
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{filename}") as temp_file:
+                temp_file.write(file_content)
+                temp_file_path = temp_file.name
+            
+            try:
+                # 上传到Anthropic Files API
+                with open(temp_file_path, 'rb') as f:
+                    file_response = self.client.beta.files.upload(
+                        file=(filename, f, mime_type)
+                    )
+                
+                return {
+                    "anthropic_file_id": file_response.id,
+                    "filename": filename,
+                    "size": len(file_content),
+                    "mime_type": mime_type,
+                    "provider": "anthropic",
+                    "status": "completed"
+                }
+            finally:
+                # 清理临时文件
+                os.unlink(temp_file_path)
+                
+        except Exception as e:
+            logger.error(f"Anthropic文件上传失败: {filename}, {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Anthropic文件上传失败: {str(e)}"
+            )
+    
+    async def get_file_content(self, file_id: str) -> bytes:
+        """获取文件内容"""
+        try:
+            file_content = self.client.beta.files.content(
+                file_id=file_id
+            )
+            return file_content
+        except Exception as e:
+            logger.error(f"获取Anthropic文件内容失败: {file_id}, {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"获取Anthropic文件内容失败: {str(e)}"
+            )
+    
+    async def delete_file(self, file_id: str) -> bool:
+        """删除文件"""
+        try:
+            self.client.beta.files.delete(
+                file_id=file_id
+            )
+            return True
+        except Exception as e:
+            logger.error(f"删除Anthropic文件失败: {file_id}, {str(e)}")
+            return False
+
 def get_file_extension(filename: str) -> str:
     """获取文件扩展名"""
     return Path(filename).suffix.lower().lstrip('.')
@@ -229,15 +296,17 @@ async def process_file(
     file: UploadFile = File(...),
     process_mode: Optional[str] = Form(None),
     vector_store_id: Optional[str] = Form(None),
-    api_key: Optional[str] = Form(None)
+    api_key: Optional[str] = Form(None),
+    provider: Optional[str] = Form("openai")  # 新增provider参数
 ):
     """处理上传的文件
     
     Args:
         file: 上传的文件
-        process_mode: 处理模式 (direct/code_interpreter/file_search)
-        vector_store_id: 向量库ID (仅file_search模式需要)
-        api_key: OpenAI API密钥 (可选，如果未提供则从环境变量读取)
+        process_mode: 处理模式 (direct/code_interpreter/file_search) - 仅适用于OpenAI
+        vector_store_id: 向量库ID (仅file_search模式需要) - 仅适用于OpenAI
+        api_key: API密钥 (OpenAI或Anthropic)
+        provider: 提供商 ("openai"或"anthropic")
     
     Returns:
         处理结果，包含file_id和相关信息
@@ -276,33 +345,48 @@ async def process_file(
         # 获取API密钥
         if not api_key:
             # 这里应该从环境变量或配置中获取
-            # api_key = os.getenv("OPENAI_API_KEY")
+            # api_key = os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
             raise HTTPException(
                 status_code=400,
-                detail="需要提供OpenAI API密钥"
+                detail=f"需要提供{provider.upper()} API密钥"
             )
         
-        # 创建文件处理器
-        processor = FileProcessor(api_key)
-        
-        # 根据处理模式处理文件
-        if final_process_mode == "direct":
-            result = await processor.process_file_direct(
-                file_content, file.filename, file.content_type or SUPPORTED_FILE_FORMATS.get(extension, 'application/octet-stream')
+        # 根据提供商处理文件
+        if provider.lower() == "anthropic":
+            # 使用Anthropic Files API
+            processor = AnthropicFileProcessor(api_key)
+            result = await processor.upload_file(
+                file_content, 
+                file.filename, 
+                file.content_type or SUPPORTED_FILE_FORMATS.get(extension, 'application/octet-stream')
             )
-        elif final_process_mode == "code_interpreter":
-            result = await processor.process_file_code_interpreter(
-                file_content, file.filename, file.content_type or SUPPORTED_FILE_FORMATS.get(extension, 'application/octet-stream')
-            )
-        elif final_process_mode == "file_search":
-            result = await processor.process_file_search(
-                file_content, file.filename, file.content_type or SUPPORTED_FILE_FORMATS.get(extension, 'application/octet-stream'),
-                vector_store_id
-            )
+        elif provider.lower() == "openai":
+            # 使用OpenAI Files API
+            processor = FileProcessor(api_key)
+            
+            # 根据处理模式处理文件
+            if final_process_mode == "direct":
+                result = await processor.process_file_direct(
+                    file_content, file.filename, file.content_type or SUPPORTED_FILE_FORMATS.get(extension, 'application/octet-stream')
+                )
+            elif final_process_mode == "code_interpreter":
+                result = await processor.process_file_code_interpreter(
+                    file_content, file.filename, file.content_type or SUPPORTED_FILE_FORMATS.get(extension, 'application/octet-stream')
+                )
+            elif final_process_mode == "file_search":
+                result = await processor.process_file_search(
+                    file_content, file.filename, file.content_type or SUPPORTED_FILE_FORMATS.get(extension, 'application/octet-stream'),
+                    vector_store_id
+                )
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"不支持的处理模式: {final_process_mode}"
+                )
         else:
             raise HTTPException(
                 status_code=400,
-                detail=f"不支持的处理模式: {final_process_mode}"
+                detail=f"不支持的提供商: {provider}"
             )
         
         return {

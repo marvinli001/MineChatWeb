@@ -1,9 +1,13 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Request
-from typing import List
+from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Form
+from typing import List, Optional
 import base64
 import logging
 from PIL import Image
 import io
+import anthropic
+from anthropic import Anthropic
+import tempfile
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -14,18 +18,29 @@ SUPPORTED_FORMATS = {'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'imag
 MAX_FILE_SIZE = 15 * 1024 * 1024  # 15MB
 
 @router.post("/upload")
-async def upload_images(request: Request, files: List[UploadFile] = File(...)):
-    """上传图片文件并转换为base64格式
+async def upload_images(
+    request: Request, 
+    files: List[UploadFile] = File(...),
+    provider: Optional[str] = Form("openai"),
+    api_key: Optional[str] = Form(None)
+):
+    """上传图片文件，支持OpenAI base64格式和Anthropic Files API
     
     接口契约:
     - 请求: multipart/form-data
     - 字段名: files (支持多个文件)
+    - provider: 提供商 ("openai"使用base64, "anthropic"使用Files API)
+    - api_key: Anthropic API密钥 (当provider=anthropic时必需)
     - 支持格式: JPG, PNG, WebP, GIF
     - 最大文件大小: 15MB
     
     响应格式:
     成功 (200): {"code": 200, "message": "success", "data": {"images": [...], "count": N}}
     失败 (4xx): {"code": 4xx, "message": "错误描述", "details": {...}}
+    
+    响应数据格式:
+    - OpenAI: {"filename": str, "mime_type": str, "data": str(base64), "size": int, "provider": "openai"}
+    - Anthropic: {"filename": str, "mime_type": str, "anthropic_file_id": str, "size": int, "provider": "anthropic"}
     """
     try:
         logger.info(f"收到图片上传请求，Content-Type: {request.headers.get('content-type')}")
@@ -135,17 +150,61 @@ async def upload_images(request: Request, files: List[UploadFile] = File(...)):
                         }
                     )
                 
-                # 转换为base64
-                base64_data = base64.b64encode(content).decode('utf-8')
-                
-                uploaded_images.append({
-                    "filename": file.filename,
-                    "mime_type": file.content_type,
-                    "data": base64_data,
-                    "size": len(content)
-                })
-                
-                logger.info(f"成功处理图片: {file.filename}, 大小: {len(content)} bytes")
+                # 根据提供商处理图片
+                if provider.lower() == "anthropic":
+                    # 使用Anthropic Files API上传
+                    if not api_key:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="使用Anthropic提供商需要提供API密钥"
+                        )
+                    
+                    try:
+                        # 创建临时文件并上传到Anthropic Files API
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as temp_file:
+                            temp_file.write(content)
+                            temp_file_path = temp_file.name
+                        
+                        try:
+                            client = Anthropic(api_key=api_key)
+                            with open(temp_file_path, 'rb') as f:
+                                file_response = client.beta.files.upload(
+                                    file=(file.filename, f, file.content_type)
+                                )
+                            
+                            uploaded_images.append({
+                                "filename": file.filename,
+                                "mime_type": file.content_type,
+                                "anthropic_file_id": file_response.id,
+                                "size": len(content),
+                                "provider": "anthropic"
+                            })
+                            
+                            logger.info(f"成功上传图片到Anthropic Files API: {file.filename}, file_id: {file_response.id}")
+                            
+                        finally:
+                            # 清理临时文件
+                            os.unlink(temp_file_path)
+                            
+                    except Exception as e:
+                        logger.error(f"Anthropic图片上传失败: {file.filename}, {str(e)}")
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Anthropic图片上传失败: {str(e)}"
+                        )
+                else:
+                    # 传统的base64方式（OpenAI）
+                    base64_data = base64.b64encode(content).decode('utf-8')
+                    
+                    uploaded_images.append({
+                        "filename": file.filename,
+                        "mime_type": file.content_type,
+                        "data": base64_data,
+                        "size": len(content),
+                        "provider": "openai"
+                    })
+                    
+                    logger.info(f"成功处理图片: {file.filename}, 大小: {len(content)} bytes")
                 
             except HTTPException:
                 raise
