@@ -48,7 +48,7 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
   }, {} as Record<string, typeof conversations>)
 
   return (
-    <div className="w-64 bg-gray-50 dark:bg-gray-800 flex flex-col h-screen">
+    <div className="w-auto min-w-64 bg-gray-50 dark:bg-gray-800 flex flex-col h-screen">
       {/* 头部 - 新建对话 */}
       <div className="p-4 animate-in fade-in-0 slide-in-from-top-2 duration-300">
         <Button

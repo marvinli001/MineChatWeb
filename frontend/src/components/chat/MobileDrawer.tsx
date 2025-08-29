@@ -97,7 +97,7 @@ export default function MobileDrawer({ isOpen, onClose, children }: MobileDrawer
       <div 
         className={`
           fixed inset-0 bg-black/50 backdrop-blur-sm 
-          transition-opacity duration-300 ease-in-out
+          transition-opacity duration-300 ease-out
           ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}
         `}
         onClick={onClose}
@@ -110,10 +110,10 @@ export default function MobileDrawer({ isOpen, onClose, children }: MobileDrawer
         className={`
           fixed left-0 top-0 h-full bg-gray-50 dark:bg-gray-800 
           shadow-2xl select-none overflow-auto
-          ${isDragging ? 'transition-none' : 'transition-transform duration-300 ease-in-out'}
+          ${isDragging ? 'transition-none' : 'transition-transform duration-300 ease-out'}
         `}
         style={{
-          width: '70vw',
+          width: '80vw',
           transform: isOpen 
             ? `translateX(-${translateX}px)` 
             : 'translateX(-100%)'

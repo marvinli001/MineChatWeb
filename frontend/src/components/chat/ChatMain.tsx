@@ -69,7 +69,7 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
           {/* 主内容区域 - 居中显示欢迎信息和输入框 */}
           <div className="flex-1 flex flex-col items-center justify-center welcome-container">
             <div className="text-center max-w-2xl mx-auto px-4 mb-8">
-              <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-8 animate-in fade-in-0 slide-in-from-bottom-3 duration-500">
+              <h1 className="text-3xl sm:text-4xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-8 animate-in fade-in-0 slide-in-from-bottom-3 duration-500">
                 {welcomeTitle}
               </h1>
             </div>
