@@ -114,7 +114,7 @@ export default function MobileDrawer({ isOpen, onClose, children }: MobileDrawer
           ${isOpen ? 'shadow-2xl' : ''}
         `}
         style={{
-          width: '80vw',
+          width: '235px',
           transform: isOpen 
             ? `translateX(-${translateX}px)` 
             : 'translateX(-100%)'
