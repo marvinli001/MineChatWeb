@@ -1,6 +1,6 @@
 {
-  "version": "7a48021",
-  "last_updated": "2025-08-09T21:15:43Z",
+  "version": "711f589",
+  "last_updated": "2025-08-29T17:49:43Z",
   "providers": {
     "openai": {
       "name": "OpenAI",
@@ -273,6 +273,7 @@
       "supports_citations": true,
       "supports_files": true,
       "supports_search_results": true,
+      "supports_web_search": true,
       "supports_streaming": true,
       "models": {
         "claude-opus-4-1-20250805": {
@@ -288,6 +289,7 @@
           "supports_citations": true,
           "supports_files": true,
           "supports_search_results": true,
+          "supports_web_search": true,
           "pricing": {
             "input": 15.0,
             "output": 75.0
@@ -306,6 +308,7 @@
           "supports_citations": true,
           "supports_files": true,
           "supports_search_results": true,
+          "supports_web_search": true,
           "pricing": {
             "input": 15.0,
             "output": 75.0
@@ -324,6 +327,7 @@
           "supports_citations": true,
           "supports_files": true,
           "supports_search_results": true,
+          "supports_web_search": true,
           "pricing": {
             "input": 3.0,
             "output": 15.0
@@ -342,6 +346,7 @@
           "supports_citations": true,
           "supports_files": true,
           "supports_search_results": true,
+          "supports_web_search": true,
           "pricing": {
             "input": 3.0,
             "output": 15.0
@@ -360,6 +365,7 @@
           "supports_citations": true,
           "supports_files": true,
           "supports_search_results": true,
+          "supports_web_search": true,
           "pricing": {
             "input": 3.0,
             "output": 15.0
@@ -378,6 +384,7 @@
           "supports_citations": true,
           "supports_files": true,
           "supports_search_results": true,
+          "supports_web_search": true,
           "pricing": {
             "input": 0.25,
             "output": 1.25

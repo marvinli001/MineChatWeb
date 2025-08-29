@@ -7,27 +7,43 @@ import { UserLocation } from '@/lib/types'
 
 /**
  * 判断指定模型是否支持新版 web_search 工具
- * 基于 openai-web-search.md 中的兼容型号说明
+ * 基于 OpenAI 和 Anthropic 文档中的兼容型号说明
  */
 export function supportsNativeWebSearch(provider: string, model: string): boolean {
-  if (provider !== 'openai') {
-    return false
+  if (provider === 'openai') {
+    // 根据 OpenAI 文档，支持新版 web_search 工具的模型
+    const supportedModels = [
+      'gpt-4o-mini',
+      'gpt-4o', 
+      'gpt-4.1-mini',
+      'gpt-4.1',
+      'o4-mini',
+      'o3',
+      'gpt-5'  // with reasoning levels low, medium and high
+    ]
+
+    return supportedModels.some(supportedModel => 
+      model.includes(supportedModel) || model.startsWith(supportedModel)
+    )
+  }
+  
+  if (provider === 'anthropic') {
+    // 根据 Anthropic 文档，支持 web_search_20250305 工具的模型
+    const supportedAnthropicModels = [
+      'claude-opus-4-1-20250805',
+      'claude-opus-4-20250514',
+      'claude-sonnet-4-20250514',
+      'claude-3-7-sonnet-20250219',
+      'claude-3-5-sonnet-latest',
+      'claude-3-5-sonnet-20241022',  // 配置文件中的实际模型ID
+      'claude-3-5-haiku-latest',
+      'claude-3-5-haiku-20241022'    // 配置文件中的实际模型ID
+    ]
+    
+    return supportedAnthropicModels.includes(model)
   }
 
-  // 根据 OpenAI 文档，支持新版 web_search 工具的模型
-  const supportedModels = [
-    'gpt-4o-mini',
-    'gpt-4o', 
-    'gpt-4.1-mini',
-    'gpt-4.1',
-    'o4-mini',
-    'o3',
-    'gpt-5'  // with reasoning levels low, medium and high
-  ]
-
-  return supportedModels.some(supportedModel => 
-    model.includes(supportedModel) || model.startsWith(supportedModel)
-  )
+  return false
 }
 
 /**
@@ -47,17 +63,27 @@ export function getUserLocation(): UserLocation {
 
 /**
  * 构建 web search 工具配置
- * 支持新版 web_search 和回退版本 web_search_preview
+ * 支持 OpenAI web_search、Anthropic web_search_20250305 和回退版本
  */
-export function buildWebSearchToolConfig(useNativeSearch: boolean): any {
+export function buildWebSearchToolConfig(useNativeSearch: boolean, provider?: string): any {
   const userLocation = getUserLocation()
 
   if (useNativeSearch) {
-    // 使用新版 web_search 工具
-    return {
-      type: 'web_search',
-      user_location: userLocation,
-      search_context_size: 'medium'
+    if (provider === 'anthropic') {
+      // 使用 Anthropic web_search_20250305 工具格式
+      return {
+        type: 'web_search_20250305',
+        name: 'web_search',
+        max_uses: 5,
+        user_location: userLocation
+      }
+    } else {
+      // 使用 OpenAI web_search 工具格式
+      return {
+        type: 'web_search',
+        user_location: userLocation,
+        search_context_size: 'medium'
+      }
     }
   } else {
     // 回退到旧版 web_search_preview 实现

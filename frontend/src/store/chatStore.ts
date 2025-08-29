@@ -335,7 +335,7 @@ export const useChatStore = create<ChatState>()(
               // 如果用户选择了搜索工具，添加工具配置
               if (tools && tools.length > 0 && tools.some(tool => tool.id === 'search')) {
                 const useNativeSearch = supportsNativeWebSearch(settings.chatProvider, settings.chatModel)
-                const webSearchTool = buildWebSearchToolConfig(useNativeSearch)
+                const webSearchTool = buildWebSearchToolConfig(useNativeSearch, settings.chatProvider)
                 
                 request.tools = [webSearchTool]
                 request.use_native_search = useNativeSearch
@@ -538,7 +538,7 @@ export const useChatStore = create<ChatState>()(
           // 如果用户选择了搜索工具，添加工具配置
           if (tools && tools.length > 0 && tools.some(tool => tool.id === 'search')) {
             const useNativeSearch = supportsNativeWebSearch(settings.chatProvider, settings.chatModel)
-            const webSearchTool = buildWebSearchToolConfig(useNativeSearch)
+            const webSearchTool = buildWebSearchToolConfig(useNativeSearch, settings.chatProvider)
             
             requestBody.tools = [webSearchTool]
             requestBody.use_native_search = useNativeSearch

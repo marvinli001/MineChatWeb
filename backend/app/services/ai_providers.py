@@ -1154,13 +1154,28 @@ class AIProviderService:
         for tool in tools:
             tool_type = tool.get("type")
             
-            if tool_type == "web_search":
-                # Web Search工具
-                anthropic_tools.append({
+            if tool_type == "web_search" or tool_type == "web_search_20250305":
+                # Web Search工具 - 支持Anthropic web_search_20250305格式
+                anthropic_tool = {
                     "type": "web_search_20250305",
-                    "name": "web_search",
-                    "max_uses": tool.get("max_uses", 5)
-                })
+                    "name": "web_search"
+                }
+                
+                # 添加可选参数
+                if tool.get("max_uses"):
+                    anthropic_tool["max_uses"] = tool.get("max_uses", 5)
+                
+                if tool.get("user_location"):
+                    anthropic_tool["user_location"] = tool.get("user_location")
+                
+                if tool.get("allowed_domains"):
+                    anthropic_tool["allowed_domains"] = tool.get("allowed_domains")
+                
+                if tool.get("blocked_domains"):
+                    anthropic_tool["blocked_domains"] = tool.get("blocked_domains")
+                
+                anthropic_tools.append(anthropic_tool)
+            
             # 可以在这里添加其他工具类型的支持
         
         return anthropic_tools

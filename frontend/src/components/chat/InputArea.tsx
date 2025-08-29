@@ -195,6 +195,27 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     return settings.chatProvider !== 'openai_compatible'
   }
 
+  // 根据当前提供商过滤可用工具
+  const getAvailableTools = (): Tool[] => {
+    if (settings.chatProvider === 'anthropic') {
+      // Anthropic（Claude）不支持图片生成，只显示搜索工具
+      return availableTools.filter(tool => tool.id !== 'image_generation')
+    }
+    // 其他提供商显示所有工具
+    return availableTools
+  }
+
+  // 当切换到Anthropic提供商时，自动移除不支持的工具
+  useEffect(() => {
+    if (settings.chatProvider === 'anthropic') {
+      // 移除图片生成工具（如果已选中）
+      const hasImageGenTool = selectedTools.some(tool => tool.id === 'image_generation')
+      if (hasImageGenTool) {
+        setSelectedTools(selectedTools.filter(tool => tool.id !== 'image_generation'))
+      }
+    }
+  }, [settings.chatProvider, selectedTools])
+
   // 自动调整文本框高度，限制最大高度（统一两种模式）
   useEffect(() => {
     if (textareaRef.current) {
@@ -916,7 +937,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-2">
                                 工具
                               </div>
-                              {availableTools.map((tool) => {
+                              {getAvailableTools().map((tool) => {
                                 const isSelected = selectedTools.some(t => t.id === tool.id)
                                 return (
                                   <button
@@ -1407,7 +1428,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-2">
                                 工具
                               </div>
-                              {availableTools.map((tool) => {
+                              {getAvailableTools().map((tool) => {
                                 const isSelected = selectedTools.some(t => t.id === tool.id)
                                 return (
                                   <button
