@@ -1263,10 +1263,10 @@ const handleSubmit = async (e: React.FormEvent) => {
   // 对话模式输入框样式（与欢迎页保持一致）
   return (
     <div className="bg-white dark:bg-gray-900 py-4 input-area">
-      <div className="max-w-[min(1100px,90vw)] mx-auto px-4 lg:px-4 sm:px-3">
+      <div className="px-4 lg:px-4 sm:px-3">
         <form onSubmit={handleSubmit} className="relative">
           {/* 两行一体式容器 - 与欢迎页样式保持一致 */}
-          <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 lg:rounded-3xl sm:rounded-2xl">
+          <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
             
             {/* 第一行：输入框 */}
             <div className="relative">

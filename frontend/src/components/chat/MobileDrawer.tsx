@@ -89,28 +89,29 @@ export default function MobileDrawer({ isOpen, onClose, children }: MobileDrawer
     }
   }, [isOpen])
 
-  if (!mounted || !isOpen) return null
+  if (!mounted) return null
 
   return (
-    <div className="mobile-drawer fixed inset-0 z-50">
+    <div className={`mobile-drawer fixed inset-0 z-50 ${isOpen ? '' : 'pointer-events-none'}`}>
       {/* 纯色玉璃遮罩 */}
       <div 
         className={`
           fixed inset-0 bg-black/50 backdrop-blur-sm 
           transition-opacity duration-300 ease-out
-          ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+          ${isOpen ? 'opacity-100' : 'opacity-0'}
         `}
         onClick={onClose}
         aria-hidden="true"
       />
       
-      {/* 抽屉内容 - 占据70%屏幕宽度 */}
+      {/* 抽屉内容 - 占据80%屏幕宽度 */}
       <div 
         ref={drawerRef}
         className={`
           fixed left-0 top-0 h-full bg-gray-50 dark:bg-gray-800 
-          shadow-2xl select-none overflow-auto
+          select-none overflow-auto
           ${isDragging ? 'transition-none' : 'transition-transform duration-300 ease-out'}
+          ${isOpen ? 'shadow-2xl' : ''}
         `}
         style={{
           width: '80vw',
