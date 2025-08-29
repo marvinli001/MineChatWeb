@@ -84,8 +84,304 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
+  overscroll-behavior: none; /* 防止下拉刷新 */
 }
 
 #__next {
   height: 100%;
+}
+
+/* iOS Safari 视口高度修正脚本支持 */
+@media (max-width: 768px) {
+  /* 当键盘弹出时避免布局跳动 */
+  .keyboard-adjust {
+    transition: none;
+  }
+  
+  /* 键盘弹出时推动内容上移 */
+  .keyboard-open .messages-container {
+    padding-bottom: 0;
+  }
+  
+  .keyboard-open .input-area {
+    position: fixed;
+    bottom: 0;
+  }
+}
+
+/* ===== 移动端适配样式 ===== */
+
+/* 桌面端侧边栏 - 移动端隐藏 */
+.desktop-sidebar {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .desktop-sidebar {
+    display: none !important;
+  }
+}
+
+/* 移动端抽屉 - 只在移动端显示 */
+.mobile-drawer {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-drawer {
+    display: block !important;
+  }
+}
+
+/* CSS 变量：safe area 支持 */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0);
+  --safe-area-inset-right: env(safe-area-inset-right, 0);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
+  --safe-area-inset-left: env(safe-area-inset-left, 0);
+  
+  /* iOS 视口高度修正 */
+  --vh: 1vh;
+  --mobile-vh: 100vh;
+}
+
+/* 移动端视口高度处理 */
+@media (max-width: 768px) {
+  :root {
+    --mobile-vh: calc(var(--vh, 1vh) * 100);
+  }
+  
+  .chat-layout {
+    height: var(--mobile-vh);
+    min-height: var(--mobile-vh);
+  }
+}
+
+/* 移动端头部样式 - 只在移动端显示 */
+.mobile-header {
+  display: none;
+  padding-top: max(0.75rem, var(--safe-area-inset-top));
+  padding-left: max(1rem, var(--safe-area-inset-left));
+  padding-right: max(1rem, var(--safe-area-inset-right));
+}
+
+@media (max-width: 768px) {
+  .mobile-header {
+    display: flex !important;
+  }
+}
+
+/* 移动端欢迎页面布局 - 输入框粘底，欢迎文字居中 */
+@media (max-width: 768px) {
+  .welcome-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 120px); /* 减去头部和输入框高度 */
+    padding-top: 2rem;
+    padding-bottom: 0;
+  }
+  
+  .input-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    padding-bottom: max(1rem, var(--safe-area-inset-bottom));
+    padding-left: max(1rem, var(--safe-area-inset-left));
+    padding-right: max(1rem, var(--safe-area-inset-right));
+    background: white;
+    border-top: 1px solid rgb(229 231 235);
+  }
+  
+  .dark .input-container {
+    background: rgb(17 24 39);
+    border-top-color: rgb(55 65 81);
+  }
+}
+
+/* 移动端消息区域 */
+@media (max-width: 768px) {
+  .messages-container {
+    padding-bottom: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .messages-content {
+    padding-left: max(1rem, calc(var(--safe-area-inset-left) + 0.25rem));
+    padding-right: max(1rem, calc(var(--safe-area-inset-right) + 0.25rem));
+    padding-bottom: 60px; /* 底部填充避免被输入框遮挡 */
+  }
+}
+
+/* 移动端输入区域 - 粘底设计 */
+@media (max-width: 768px) {
+  .input-area {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    padding-bottom: max(1rem, var(--safe-area-inset-bottom));
+    padding-left: max(1rem, var(--safe-area-inset-left));
+    padding-right: max(1rem, var(--safe-area-inset-right));
+    background: white;
+    border-top: 1px solid rgb(229 231 235);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  
+  .dark .input-area {
+    background: rgb(17 24 39 / 0.95);
+    border-top-color: rgb(55 65 81);
+  }
+}
+
+/* 移动端消息气泡样式 */
+@media (max-width: 768px) {
+  .message-bubble {
+    max-width: 92%;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  
+  .message-bubble.user {
+    margin-left: auto;
+  }
+  
+  .message-bubble.assistant {
+    margin-right: auto;
+  }
+  
+  /* 代码块横向滚动和复制按钮 */
+  .message-bubble pre {
+    position: relative;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .message-bubble code {
+    position: relative;
+  }
+  
+  .message-bubble .copy-code-button {
+    display: block !important;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    border: none;
+    cursor: pointer;
+    z-index: 10;
+    min-width: 44px;
+    min-height: 32px;
+  }
+  
+  .dark .message-bubble .copy-code-button {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+  }
+  
+  /* 图片和表格自适应 */
+  .message-bubble img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+  }
+  
+  .message-bubble table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+  }
+  
+  .message-bubble thead {
+    position: sticky;
+    top: 0;
+    background: white;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    z-index: 1;
+  }
+  
+  .dark .message-bubble thead {
+    background: rgb(17 24 39);
+  }
+}
+
+/* 最小触摸目标尺寸 - 44x44pt */
+@media (max-width: 768px) {
+  button, 
+  .clickable,
+  [role="button"] {
+    min-width: 44px;
+    min-height: 44px;
+    touch-action: manipulation;
+  }
+}
+
+/* 系统字体缩放支持 */
+@media (max-width: 768px) {
+  body {
+    font-size: max(16px, 1rem);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* 触摸优化和手势支持 */
+@media (max-width: 768px) {
+  /* 防止触摸延迟 */
+  a, button, input, select, textarea {
+    touch-action: manipulation;
+  }
+  
+  /* 滚动优化 */
+  .scrollable,
+  .messages-container {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: bounce;
+    overscroll-behavior-x: contain;
+  }
+  
+  /* 上滑隐藏输入附件栏效果 */
+  .input-attachments {
+    transform: translateY(0);
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .input-attachments.hidden {
+    transform: translateY(100%);
+  }
+}
+
+/* 回到底部按钮移动端样式 */
+@media (max-width: 768px) {
+  .scroll-to-bottom {
+    position: fixed;
+    bottom: calc(80px + max(1rem, var(--safe-area-inset-bottom)));
+    right: max(1rem, var(--safe-area-inset-right));
+    z-index: 20;
+    width: 44px;
+    height: 44px;
+    border-radius: 22px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+/* PWA 支持 - 隐藏地址栏时的处理 */
+@media (max-width: 768px) {
+  @supports (display-mode: standalone) {
+    .chat-layout {
+      padding-top: var(--safe-area-inset-top);
+    }
+  }
 }

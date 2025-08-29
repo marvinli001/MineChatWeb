@@ -127,7 +127,7 @@ export default function ModelSelector({ onModelMarketClick, showDetailedInfo = f
             className="fixed inset-0 z-10" 
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute bottom-full left-0 mb-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20">
+          <div className="absolute left-0 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 bottom-full mb-2 lg:bottom-full lg:mb-2 sm:top-full sm:mt-2 sm:rounded-xl sm:mx-4 sm:left-0 sm:right-4 sm:w-auto">
             <div className="p-4">
               {/* 当前选择的模型信息 */}
               <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">

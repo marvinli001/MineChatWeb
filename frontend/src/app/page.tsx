@@ -25,8 +25,8 @@ export default function Home() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900 overflow-hidden">
-      {/* 侧边栏 */}
-      <div className="flex-shrink-0">
+      {/* 桌面端侧边栏 - 移动端隐藏 */}
+      <div className="flex-shrink-0 desktop-sidebar">
         <ChatSidebar 
           onSettingsClick={() => setShowSettings(true)}
           onLoginClick={() => setShowLogin(true)}
@@ -36,7 +36,11 @@ export default function Home() {
       
       {/* 主聊天区域 */}
       <div className="flex-1 min-w-0">
-        <ChatMain onModelMarketClick={handleModelMarketClick} />
+        <ChatMain 
+          onModelMarketClick={handleModelMarketClick}
+          onSettingsClick={() => setShowSettings(true)}
+          onLoginClick={() => setShowLogin(true)}
+        />
       </div>
       
       {/* 设置对话框 */}

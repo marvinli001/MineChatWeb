@@ -136,7 +136,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
       {isUser ? (
         // 用户消息 - 右侧对齐，暗灰色气泡，默认markdown渲染
         <div className="flex justify-end">
-          <div className="max-w-[70%]">
+          <div className="max-w-[70%] lg:max-w-[70%] message-bubble user sm:max-w-[92%]">
             {/* 图片缩略图 - 显示在消息上方 */}
             {message.images && message.images.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2 justify-end">
@@ -224,7 +224,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
             )}
             
             <div className="bg-gray-700 text-white rounded-2xl px-4 py-3">
-              <div className="prose prose-sm prose-invert max-w-none text-sm">
+              <div className="prose prose-sm prose-invert max-w-none text-sm lg:text-sm">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -269,7 +269,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
         // AI消息 - 左侧对齐，OpenAI风格
         <div className="flex gap-3 group">
           {/* AI头像 - 使用模型的icon */}
-          <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden lg:w-8 lg:h-8">
             {currentModelIcon ? (
               <img 
                 src={currentModelIcon} 
@@ -289,7 +289,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
           </div>
 
           {/* 消息内容 */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 message-bubble assistant sm:max-w-[92%]">
             {/* 显示推理链（推理模型的消息都显示思维链） */}
             {isReasoningModel && message.thinking_start_time && (
               <ThinkingChain 
@@ -391,7 +391,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
             })}
 
             {/* 操作按钮 - 只在AI消息上显示，hover时出现 */}
-            <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => copyToClipboard(message.content)}
                 className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"

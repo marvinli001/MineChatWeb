@@ -778,7 +778,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           )}
           
           {/* 两行一体式容器 - 固定宽度作为默认形态 */}
-          <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto">
+          <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
             
             {/* 第一行：输入框 */}
             <div className="relative">
@@ -788,7 +788,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="询问任何问题..."
-                className="w-full resize-none border-none rounded-none px-6 py-4 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-base leading-6"
+                className="w-full resize-none border-none rounded-none px-6 py-4 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-base leading-6 lg:text-base lg:px-6 lg:py-4 sm:text-base sm:px-4 sm:py-3"
                 rows={1}
                 disabled={isLoading}
                 style={{ minHeight: '56px', lineHeight: '24px' }}
@@ -1249,11 +1249,11 @@ const handleSubmit = async (e: React.FormEvent) => {
           />
         </form>
 
-        {/* 底部模型选择和提示文字 */}
-        <div className="mt-4 flex items-center justify-center gap-4">
+        {/* 欢迎模式下移动端不显示底部模型选择器 */}
+        <div className="mt-4 items-center justify-center gap-4 hidden lg:flex">
             <ModelSelector 
               onModelMarketClick={onModelMarketClick} 
-              showDetailedInfo={false} // 欢迎模式下不显示详细信息
+              showDetailedInfo={false}
             />
         </div>
       </div>
@@ -1262,11 +1262,11 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   // 对话模式输入框样式（与欢迎页保持一致）
   return (
-    <div className="bg-white dark:bg-gray-900 py-4">
-      <div className="max-w-[min(1100px,90vw)] mx-auto px-4">
+    <div className="bg-white dark:bg-gray-900 py-4 input-area">
+      <div className="max-w-[min(1100px,90vw)] mx-auto px-4 lg:px-4 sm:px-3">
         <form onSubmit={handleSubmit} className="relative">
           {/* 两行一体式容器 - 与欢迎页样式保持一致 */}
-          <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300">
+          <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 lg:rounded-3xl sm:rounded-2xl">
             
             {/* 第一行：输入框 */}
             <div className="relative">
@@ -1276,7 +1276,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="询问任何问题..."
-                className="w-full resize-none border-none rounded-none px-6 py-4 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-base leading-6"
+                className="w-full resize-none border-none rounded-none px-6 py-4 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none text-base leading-6 lg:text-base lg:px-6 lg:py-4 sm:text-base sm:px-4 sm:py-3"
                 rows={1}
                 disabled={isLoading}
                 style={{ minHeight: '56px', lineHeight: '24px' }}
@@ -1737,8 +1737,8 @@ const handleSubmit = async (e: React.FormEvent) => {
           />
         </form>
 
-        {/* 当前模型显示 */}
-        <div className="mt-2 flex items-center justify-center gap-4">
+        {/* 当前模型显示 - 移动端隐藏 */}
+        <div className="mt-2 items-center justify-center gap-4 hidden lg:flex">
           <ModelSelector onModelMarketClick={onModelMarketClick} />
         </div>
 
