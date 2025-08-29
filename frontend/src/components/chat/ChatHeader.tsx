@@ -26,6 +26,7 @@ export default function ChatHeader({ onMenuClick, onModelMarketClick }: ChatHead
         <ModelSelector 
           onModelMarketClick={onModelMarketClick} 
           showDetailedInfo={false}
+          dropdownDirection="down"
         />
       </div>
     </header>

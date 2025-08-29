@@ -8,9 +8,10 @@ import { modelConfigService, type ModelConfig } from '@/services/modelConfigServ
 interface ModelSelectorProps {
   onModelMarketClick?: () => void
   showDetailedInfo?: boolean // 新增属性控制是否显示详细信息
+  dropdownDirection?: 'up' | 'down' | 'auto' // 控制浮窗弹出方向
 }
 
-export default function ModelSelector({ onModelMarketClick, showDetailedInfo = false }: ModelSelectorProps) {
+export default function ModelSelector({ onModelMarketClick, showDetailedInfo = false, dropdownDirection = 'down' }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [currentModelConfig, setCurrentModelConfig] = useState<ModelConfig | null>(null)
   const { settings, updateSettings } = useSettingsStore()
@@ -70,6 +71,27 @@ export default function ModelSelector({ onModelMarketClick, showDetailedInfo = f
     }
   }
 
+  // 判断浮窗实际弹出方向
+  const getDropdownDirection = (): 'up' | 'down' => {
+    if (dropdownDirection === 'up') return 'up'
+    if (dropdownDirection === 'down') return 'down'
+    
+    // auto 模式：根据屏幕尺寸和位置自动判断
+    if (dropdownDirection === 'auto') {
+      // 检测是否为移动端
+      const isMobile = window.innerWidth < 1024 // lg 断点
+      if (isMobile) return 'down' // 移动端始终向下
+      
+      // PC端：检测元素位置，如果在屏幕下半部分则向上弹出
+      // 这里暂时返回 'up'，在实际使用时会根据具体位置调整
+      return 'up'
+    }
+    
+    return 'down' // 默认向下
+  }
+
+  const actualDirection = getDropdownDirection()
+
   // 如果没有选择提供商，显示提示
   if (!settings.chatProvider || !settings.chatModel) {
     return (
@@ -127,7 +149,11 @@ export default function ModelSelector({ onModelMarketClick, showDetailedInfo = f
             className="fixed inset-0 z-10" 
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute left-0 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 top-full mt-2 lg:left-0 lg:w-80 sm:mx-4 sm:left-0 sm:right-4 sm:w-auto">
+          <div className={`absolute left-0 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 lg:left-0 lg:w-80 sm:mx-4 sm:left-0 sm:right-4 sm:w-auto ${
+            actualDirection === 'up' 
+              ? 'bottom-full mb-2' 
+              : 'top-full mt-2'
+          }`}>
             <div className="p-4">
               {/* 当前选择的模型信息 */}
               <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">

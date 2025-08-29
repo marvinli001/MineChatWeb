@@ -14,6 +14,7 @@ interface ChatMainProps {
   onModelMarketClick?: () => void
   onSettingsClick: () => void
   onLoginClick: () => void
+  onDeepResearchClick?: () => void
 }
 
 // 欢迎页随机标题文案
@@ -28,7 +29,7 @@ const welcomeTitles = [
   "您今天想聊什么？"
 ]
 
-export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginClick }: ChatMainProps) {
+export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginClick, onDeepResearchClick }: ChatMainProps) {
   const { isLoading } = useChatStore()
   const currentConversation = useCurrentConversation()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -47,6 +48,13 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
 
   const handleCloseSidebar = () => {
     setIsSidebarOpen(false)
+  }
+
+  const handleDeepResearchClick = () => {
+    setIsSidebarOpen(false) // 关闭移动端抽屉
+    if (onDeepResearchClick) {
+      onDeepResearchClick()
+    }
   }
 
   // 设置随机欢迎标题
@@ -87,6 +95,7 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
             onSettingsClick={onSettingsClick} 
             onLoginClick={onLoginClick} 
             onModelMarketClick={onModelMarketClick}
+            onDeepResearchClick={handleDeepResearchClick}
           />
         </MobileDrawer>
       </>
@@ -136,6 +145,7 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
           onSettingsClick={onSettingsClick} 
           onLoginClick={onLoginClick} 
           onModelMarketClick={onModelMarketClick}
+          onDeepResearchClick={handleDeepResearchClick}
         />
       </MobileDrawer>
     </>

@@ -67,7 +67,26 @@ class ModelConfigService {
               context_length: 128000,
               supports_vision: true,
               supports_function_calling: true,
+              supports_streaming: true,
               pricing: { input: 5.0, output: 15.0 }
+            }
+          }
+        },
+        anthropic: {
+          name: "Anthropic",
+          description: "Anthropic Claude 模型",
+          supports_thinking: true,
+          models: {
+            "claude-opus-4-1-20250805": {
+              name: "Claude Opus 4.1",
+              description: "Claude 最强模型",
+              api_type: "messages",
+              context_length: 200000,
+              supports_vision: true,
+              supports_function_calling: true,
+              supports_thinking: true,
+              supports_streaming: true,
+              pricing: { input: 15.0, output: 75.0 }
             }
           }
         }
@@ -123,10 +142,9 @@ class ModelConfigService {
       return modelConfig?.supports_streaming || false
     } catch (error) {
       console.warn('无法检查模型流式支持，使用回退逻辑:', error)
-      // 对于OpenAI，除了thinking模型外，默认支持流式
-      if (providerId === 'openai') {
-        const thinkingModels = ['o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini']
-        return !thinkingModels.includes(modelId)
+      // 根据API文档，OpenAI和Anthropic的所有模型都支持流式输出
+      if (providerId === 'openai' || providerId === 'anthropic') {
+        return true
       }
       return false
     }

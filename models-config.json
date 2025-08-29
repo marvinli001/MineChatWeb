@@ -145,6 +145,7 @@
           "supports_vision": false,
           "supports_function_calling": false,
           "supports_thinking": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 15.00,
             "output": 60.00
@@ -159,6 +160,7 @@
           "supports_vision": false,
           "supports_function_calling": false,
           "supports_thinking": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 1.10,
             "output": 4.40
@@ -173,6 +175,7 @@
           "supports_vision": false,
           "supports_function_calling": false,
           "supports_thinking": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 15.00,
             "output": 60.00
@@ -187,6 +190,7 @@
           "supports_vision": false,
           "supports_function_calling": false,
           "supports_thinking": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 2.00,
             "output": 8.00
@@ -201,6 +205,7 @@
           "supports_vision": false,
           "supports_function_calling": false,
           "supports_thinking": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 1.10,
             "output": 4.40
@@ -215,6 +220,7 @@
           "supports_vision": false,
           "supports_function_calling": false,
           "supports_thinking": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 1.10,
             "output": 4.40
@@ -229,6 +235,7 @@
           "supports_vision": false,
           "supports_function_calling": false,
           "supports_thinking": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 5.00,
             "output": 20.00
@@ -243,6 +250,7 @@
           "supports_vision": false,
           "supports_function_calling": false,
           "supports_thinking": true,
+          "supports_streaming": true,
           "pricing": {
             "input": 2.20,
             "output": 8.80

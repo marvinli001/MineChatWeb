@@ -1296,6 +1296,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             <ModelSelector 
               onModelMarketClick={onModelMarketClick} 
               showDetailedInfo={false}
+              dropdownDirection="down"
             />
         </div>
       </div>
@@ -1309,6 +1310,10 @@ const handleSubmit = async (e: React.FormEvent) => {
         <form onSubmit={handleSubmit} className="relative">
           {/* 两行一体式容器 - 与欢迎页样式保持一致 */}
           <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
+            {/* 录音覆盖层 */}
+            <RecordingOverlay 
+              isRecording={isRecording}
+            />
             
             {/* 第一行：输入框 */}
             <div className="relative">
@@ -1784,14 +1789,12 @@ const handleSubmit = async (e: React.FormEvent) => {
 
         {/* 当前模型显示 - 移动端隐藏 */}
         <div className="mt-2 items-center justify-center gap-4 hidden lg:flex">
-          <ModelSelector onModelMarketClick={onModelMarketClick} />
+          <ModelSelector 
+            onModelMarketClick={onModelMarketClick} 
+            dropdownDirection="up"
+          />
         </div>
 
-        {/* 录音覆盖层 */}
-        <RecordingOverlay 
-          isRecording={isRecording}
-        />
-        
         {/* 图片预览模态框 */}
         {previewImage && (
           <ImagePreviewModal 

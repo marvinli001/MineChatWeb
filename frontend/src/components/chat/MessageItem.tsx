@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ClipboardIcon, CheckIcon, SpeakerWaveIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
@@ -180,6 +181,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                       modal.querySelector('button')?.addEventListener('click', closeModal)
                     }}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`data:${image.mime_type};base64,${image.data}`}
                       alt={image.filename}
@@ -271,21 +273,24 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
           {/* AI头像 - 使用模型的icon */}
           <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden lg:w-8 lg:h-8">
             {currentModelIcon ? (
-              <img 
-                src={currentModelIcon} 
-                alt="AI Model" 
-                className="w-6 h-6 object-contain"
-                onError={(e) => {
-                  // 如果图片加载失败，显示默认emoji
-                  const target = e.target as HTMLImageElement
-                  target.style.display = 'none'
-                  target.nextElementSibling!.textContent = '🤖'
-                }}
-              />
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img 
+                  src={currentModelIcon} 
+                  alt="AI Model" 
+                  className="w-6 h-6 object-contain"
+                  onError={(e) => {
+                    // 如果图片加载失败，显示默认emoji
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                    target.nextElementSibling!.textContent = '🤖'
+                  }}
+                />
+                <span className="text-sm hidden">🤖</span>
+              </>
             ) : (
               <span className="text-sm">🤖</span>
             )}
-            <span className="text-sm hidden">🤖</span>
           </div>
 
           {/* 消息内容 */}
@@ -311,6 +316,12 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
               <TypewriterEffect
                 text={message.content}
                 isComplete={!isLoading || !isLast}
+                showWaitingEffect={
+                  isLast && 
+                  isLoading && 
+                  !message.content && 
+                  !isReasoningModel
+                }
               />
             )}
             

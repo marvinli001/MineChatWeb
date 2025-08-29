@@ -243,11 +243,11 @@ export const useChatStore = create<ChatState>()(
         // 检查模型是否支持流式输出
         const supportsStreaming = await modelConfigService.supportsStreaming(settings.chatProvider, settings.chatModel)
         
-        if (supportsStreaming && !effectiveThinkingMode) {
-          // 使用流式输出
+        if (supportsStreaming) {
+          // 使用流式输出（包括thinking模式）
           await get()._sendMessageWithStreaming(content, targetConversationId, settings, apiKey, assistantMessage.id, tools)
         } else {
-          // 使用普通输出（推理模型或不支持流式的模型）
+          // 使用普通输出（不支持流式的模型）
           await get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessage.id, tools)
         }
       },

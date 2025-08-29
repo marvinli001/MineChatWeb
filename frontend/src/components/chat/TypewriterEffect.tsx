@@ -8,13 +8,40 @@ interface TypewriterEffectProps {
   text: string
   isComplete: boolean
   className?: string
+  showWaitingEffect?: boolean
 }
 
-export default function TypewriterEffect({ text, isComplete, className = '' }: TypewriterEffectProps) {
+export default function TypewriterEffect({ text, isComplete, className = '', showWaitingEffect = false }: TypewriterEffectProps) {
   const [displayText, setDisplayText] = useState('')
   const [showCursor, setShowCursor] = useState(true)
+  const [waitingDots, setWaitingDots] = useState('')
   const indexRef = useRef(0)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const waitingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // 等待效果 - 显示动画点
+  useEffect(() => {
+    if (showWaitingEffect && text.length === 0 && !isComplete) {
+      let dotCount = 0
+      waitingIntervalRef.current = setInterval(() => {
+        dotCount = (dotCount + 1) % 4
+        setWaitingDots('.'.repeat(dotCount))
+        setShowCursor(true)
+      }, 500)
+      
+      return () => {
+        if (waitingIntervalRef.current) {
+          clearInterval(waitingIntervalRef.current)
+        }
+      }
+    } else {
+      if (waitingIntervalRef.current) {
+        clearInterval(waitingIntervalRef.current)
+        waitingIntervalRef.current = null
+      }
+      setWaitingDots('')
+    }
+  }, [showWaitingEffect, text.length, isComplete])
 
   // 打字机效果
   useEffect(() => {
@@ -61,9 +88,18 @@ export default function TypewriterEffect({ text, isComplete, className = '' }: T
     }
   }, [isComplete, showCursor])
 
-  return (
-    <div className={`typewriter-container ${className}`}>
-      <div className="prose prose-gray dark:prose-invert max-w-none">
+  // 如果正在等待且没有内容，显示等待文本
+  const renderContent = () => {
+    if (showWaitingEffect && text.length === 0 && !isComplete) {
+      return (
+        <div className="text-gray-500 dark:text-gray-400">
+          <span>正在思考{waitingDots}</span>
+        </div>
+      )
+    }
+    
+    if (displayText) {
+      return (
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -120,7 +156,17 @@ export default function TypewriterEffect({ text, isComplete, className = '' }: T
         >
           {displayText}
         </ReactMarkdown>
-        {!isComplete && showCursor && (
+      )
+    }
+    
+    return null
+  }
+
+  return (
+    <div className={`typewriter-container ${className}`}>
+      <div className="prose prose-gray dark:prose-invert max-w-none">
+        {renderContent()}
+        {!isComplete && showCursor && (showWaitingEffect ? waitingDots : displayText) && (
           <span className="typewriter-cursor">|</span>
         )}
       </div>
