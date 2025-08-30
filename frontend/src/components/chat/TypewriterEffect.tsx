@@ -45,6 +45,8 @@ export default function TypewriterEffect({ text, isComplete, className = '', sho
 
   // 打字机效果
   useEffect(() => {
+    const currentInterval = intervalRef.current
+
     if (text.length === 0) {
       setDisplayText('')
       return
@@ -71,8 +73,8 @@ export default function TypewriterEffect({ text, isComplete, className = '', sho
     }
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
+      if (currentInterval) {
+        clearInterval(currentInterval)
       }
     }
   }, [text, isComplete])
@@ -128,7 +130,7 @@ export default function TypewriterEffect({ text, isComplete, className = '', sho
             },
             pre: ({ node, ...props }) => (
               <pre
-                className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto border border-gray-200 dark:border-gray-600"
+                className="bg-gray-900 text-gray-100 rounded-lg p-3 overflow-x-auto border border-gray-600"
                 {...props}
               />
             ),

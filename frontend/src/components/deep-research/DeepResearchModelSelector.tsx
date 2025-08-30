@@ -56,7 +56,7 @@ export default function DeepResearchModelSelector({ selectedModel, onModelChange
             className="fixed inset-0 z-10" 
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute bottom-full left-0 mb-2 w-full min-w-[280px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20">
+          <div className="absolute top-full left-0 mt-2 w-full min-w-[280px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20">
             <div className="p-2">
               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 px-2 py-1 mb-1">
                 深度研究模型

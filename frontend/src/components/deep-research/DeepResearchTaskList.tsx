@@ -1,7 +1,7 @@
 'use client'
 
 import { StopIcon, ClockIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import type { DeepResearchTask } from './DeepResearchPage'
+import type { DeepResearchTask } from '../../services/deepResearchService'
 
 interface DeepResearchTaskListProps {
   tasks: DeepResearchTask[]
@@ -40,6 +40,8 @@ export default function DeepResearchTaskList({
     switch (status) {
       case 'running':
         return <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent" />
+      case 'warning':
+        return <div className="animate-spin rounded-full h-4 w-4 border-2 border-yellow-600 border-t-transparent" />
       case 'completed':
         return <CheckCircleIcon className="w-4 h-4 text-green-500" />
       case 'failed':
@@ -52,6 +54,8 @@ export default function DeepResearchTaskList({
   const getStatusText = (status: DeepResearchTask['status']) => {
     switch (status) {
       case 'running':
+        return '研究中...'
+      case 'warning':
         return '研究中...'
       case 'completed':
         return '已完成'
@@ -66,6 +70,8 @@ export default function DeepResearchTaskList({
     switch (status) {
       case 'running':
         return 'text-blue-600 dark:text-blue-400'
+      case 'warning':
+        return 'text-yellow-600 dark:text-yellow-400'
       case 'completed':
         return 'text-green-600 dark:text-green-400'
       case 'failed':
@@ -77,9 +83,8 @@ export default function DeepResearchTaskList({
 
   if (tasks.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 h-full flex items-center justify-center">
         <div className="text-center text-gray-500 dark:text-gray-400">
-          <div className="text-lg mb-2">🔍</div>
           <div className="text-sm">还没有深度研究任务</div>
           <div className="text-xs mt-1">在上方输入框中提交您的研究问题开始</div>
         </div>
@@ -136,7 +141,7 @@ export default function DeepResearchTaskList({
                 </div>
                 
                 {/* 中止按钮 */}
-                {task.status === 'running' && (
+                {(task.status === 'running' || task.status === 'warning') && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation()

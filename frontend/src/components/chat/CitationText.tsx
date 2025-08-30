@@ -45,7 +45,7 @@ export default function CitationText({ text, citations }: CitationTextProps) {
             },
             pre: ({ node, ...props }) => (
               <pre
-                className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto text-sm mt-2 border"
+                className="bg-gray-900 text-gray-100 rounded-lg p-3 overflow-x-auto text-sm mt-2 border border-gray-600"
                 {...props}
               />
             ),
