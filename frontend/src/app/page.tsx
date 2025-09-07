@@ -5,6 +5,7 @@ import ChatSidebar from '@/components/chat/ChatSidebar'
 import ChatMain from '@/components/chat/ChatMain'
 import SettingsDialog from '@/components/settings/SettingsDialog'
 import ModelMarket from '@/components/ui/ModelMarket'
+import PluginMarket from '@/components/ui/PluginMarket'
 import DeepResearchPage from '@/components/deep-research/DeepResearchPage'
 import { useSettingsStore } from '@/store/settingsStore'
 
@@ -12,6 +13,7 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
   const [showModelMarket, setShowModelMarket] = useState(false)
+  const [showPluginMarket, setShowPluginMarket] = useState(false)
   const [currentView, setCurrentView] = useState<'chat' | 'deep-research'>('chat')
   const { initialized, initializeSettings } = useSettingsStore()
 
@@ -23,6 +25,10 @@ export default function Home() {
 
   const handleModelMarketClick = () => {
     setShowModelMarket(true)
+  }
+
+  const handlePluginMarketClick = () => {
+    setShowPluginMarket(true)
   }
 
   const handleDeepResearchClick = () => {
@@ -37,6 +43,7 @@ export default function Home() {
           onSettingsClick={() => setShowSettings(true)}
           onLoginClick={() => setShowLogin(true)}
           onModelMarketClick={handleModelMarketClick}
+          onPluginMarketClick={handlePluginMarketClick}
           onDeepResearchClick={handleDeepResearchClick}
           onBackToChat={currentView === 'deep-research' ? () => setCurrentView('chat') : undefined}
         />
@@ -70,6 +77,12 @@ export default function Home() {
       <ModelMarket 
         isOpen={showModelMarket}
         onClose={() => setShowModelMarket(false)}
+      />
+      
+      {/* 插件市场弹窗 */}
+      <PluginMarket 
+        isOpen={showPluginMarket}
+        onClose={() => setShowPluginMarket(false)}
       />
     </div>
   )

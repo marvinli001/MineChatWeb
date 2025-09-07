@@ -9,11 +9,12 @@ interface ChatSidebarProps {
   onSettingsClick: () => void
   onLoginClick: () => void
   onModelMarketClick?: () => void
+  onPluginMarketClick?: () => void
   onDeepResearchClick?: () => void
   onBackToChat?: () => void // 新增：返回聊天的回调
 }
 
-export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMarketClick, onDeepResearchClick, onBackToChat }: ChatSidebarProps) {
+export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMarketClick, onPluginMarketClick, onDeepResearchClick, onBackToChat }: ChatSidebarProps) {
   const { conversations, currentConversationId, createNewConversation, setCurrentConversation, deleteConversation } = useChatStore()
 
   const handleNewChat = () => {
@@ -31,8 +32,9 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
   }
 
   const handlePluginMarketClick = () => {
-    // TODO: 打开插件市场浮窗
-    console.log('打开插件市场')
+    if (onPluginMarketClick) {
+      onPluginMarketClick()
+    }
   }
 
   const handleDeepResearchClick = () => {
