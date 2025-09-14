@@ -11,6 +11,8 @@ import ThinkingBudgetButton from '@/components/ui/ThinkingBudgetButton'
 import { ThinkingBudget, ImageAttachment, FileAttachment, FileProcessMode, ImageGenerationOptions } from '@/lib/types'
 import { createFileAttachment, validateFile, getFileIcon, formatFileSize, getProcessModeDescription } from '@/lib/fileUtils'
 import { supportsNativeWebSearch } from '@/lib/webSearchUtils'
+import { usePluginStore } from '@/store/pluginStore'
+import MCPServerToggle from '@/components/ui/MCPServerToggle'
 import toast from 'react-hot-toast'
 
 interface InputAreaProps {
@@ -135,6 +137,13 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     background: 'auto'
   })
   const [showImageGenOptions, setShowImageGenOptions] = useState(false)
+
+  // 插件选择状态
+  const [selectedPluginIds, setSelectedPluginIds] = useState<string[]>([])
+
+  // MCP服务器激活状态（替代selectedMCPServerIds）
+  const [activatedMCPServerIds, setActivatedMCPServerIds] = useState<string[]>([])
+
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
@@ -147,6 +156,7 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   
   const currentConversation = useCurrentConversation()
   const { settings, updateSettings } = useSettingsStore()
+  const { convertPluginsToTools, convertMCPServersToTools } = usePluginStore()
 
   // 检查是否为GPT-5系列模型
   const isGPT5Model = (model: string): boolean => {
@@ -205,6 +215,32 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     return availableTools
   }
 
+  // 获取所有可用工具（内置工具 + 已添加的插件）
+  const getAllAvailableTools = (): Tool[] => {
+    const builtinTools = getAvailableTools()
+
+    // 将已添加的插件转换为工具
+    const { plugins } = usePluginStore.getState()
+    const pluginTools = plugins.map(plugin => ({
+      id: plugin.id,
+      name: plugin.name,
+      icon: WrenchScrewdriverIcon,
+      description: plugin.description
+    }))
+
+    return [...builtinTools, ...pluginTools]
+  }
+
+  // 检查工具是否被选中（包括插件）
+  const isToolSelected = (toolId: string): boolean => {
+    // 检查内置工具
+    if (selectedTools.some(t => t.id === toolId)) {
+      return true
+    }
+    // 检查插件是否被选中
+    return selectedPluginIds.includes(toolId)
+  }
+
   // 当切换到Anthropic提供商时，自动移除不支持的工具
   useEffect(() => {
     if (settings.chatProvider === 'anthropic') {
@@ -240,17 +276,50 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
 
   // 工具管理函数
   const toggleTool = (tool: Tool) => {
-    const isSelected = selectedTools.some(t => t.id === tool.id)
-    if (isSelected) {
-      setSelectedTools(selectedTools.filter(t => t.id !== tool.id))
+    // 检查是否为插件
+    const { plugins } = usePluginStore.getState()
+    const isPlugin = plugins.some(p => p.id === tool.id)
+
+    if (isPlugin) {
+      // 对于插件，切换selectedPluginIds
+      handlePluginToggle(tool.id)
     } else {
-      setSelectedTools([...selectedTools, tool])
+      // 对于内置工具，使用原有逻辑
+      const isSelected = selectedTools.some(t => t.id === tool.id)
+      if (isSelected) {
+        setSelectedTools(selectedTools.filter(t => t.id !== tool.id))
+      } else {
+        setSelectedTools([...selectedTools, tool])
+      }
     }
     setShowTools(false)
   }
 
   const removeTool = (toolId: string) => {
-    setSelectedTools(selectedTools.filter(t => t.id !== toolId))
+    // 检查是否为插件
+    if (selectedPluginIds.includes(toolId)) {
+      handlePluginToggle(toolId)
+    } else {
+      setSelectedTools(selectedTools.filter(t => t.id !== toolId))
+    }
+  }
+
+  // 插件处理函数
+  const handlePluginToggle = (pluginId: string) => {
+    setSelectedPluginIds(prev =>
+      prev.includes(pluginId)
+        ? prev.filter(id => id !== pluginId)
+        : [...prev, pluginId]
+    )
+  }
+
+  // MCP服务器激活切换函数
+  const handleMCPServerActivate = (serverId: string) => {
+    setActivatedMCPServerIds(prev =>
+      prev.includes(serverId)
+        ? prev.filter(id => id !== serverId)
+        : [...prev, serverId]
+    )
   }
 
   const removeFile = (fileId: string) => {
@@ -712,8 +781,8 @@ const handleSubmit = async (e: React.FormEvent) => {
   const messageImages = [...attachedImages]
   const messageFiles = [...attachedFiles]
   
-  // 处理工具配置，为图片生成工具添加自定义选项和input_image
-  const messageTools = selectedTools.map(tool => {
+  // 处理工具配置，包括内置工具和插件
+  const messageTools = [...selectedTools.map(tool => {
     if (tool.id === 'image_generation') {
       const imageGenTool: any = {
         ...tool,
@@ -721,18 +790,25 @@ const handleSubmit = async (e: React.FormEvent) => {
         ...imageGenOptions,  // 添加图片生成选项
         moderation: 'low'    // 默认审核级别
       }
-      
+
       // 如果有上传的图片，将其作为input_image传递（使用第一张图片）
       if (messageImages.length > 0) {
         // 使用data URL格式传递图片
         const firstImage = messageImages[0]
         imageGenTool.input_image = `data:${firstImage.mime_type};base64,${firstImage.data}`
       }
-      
+
       return imageGenTool
     }
     return tool
-  })
+  })]
+
+  // 添加自定义插件工具
+  const pluginTools = convertPluginsToTools(selectedPluginIds)
+  const mcpTools = convertMCPServersToTools(activatedMCPServerIds) // 使用激活的MCP服务器
+
+  // 合并所有工具
+  const allTools = [...messageTools, ...pluginTools, ...mcpTools]
   
   // 检查是否有文件正在处理中
   const hasProcessingFiles = messageFiles.some(file => 
@@ -747,17 +823,19 @@ const handleSubmit = async (e: React.FormEvent) => {
   // 先清空输入，避免重复提交
   setInput('')
   setSelectedTools([])
+  setSelectedPluginIds([])
   setAttachedFiles([])
   setAttachedImages([])
   setShowTools(false)
+  // 注意：不清空activatedMCPServerIds，因为用户可能希望保持MCP服务器的激活状态
 
   try {
     // sendMessage 内部已经处理创建新对话的逻辑，不需要手动调用 createNewConversation
     await sendMessage(
-      messageContent, 
+      messageContent,
       messageImages.length > 0 ? messageImages : undefined,
       messageFiles.length > 0 ? messageFiles : undefined,
-      messageTools.length > 0 ? messageTools : undefined  // 传递工具
+      allTools.length > 0 ? allTools : undefined  // 传递所有工具
     )
   } catch (error: any) {
     console.error('发送消息失败:', error)
@@ -773,7 +851,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 
   // 检查是否有附加内容
-  const hasAttachments = selectedTools.length > 0 || attachedFiles.length > 0 || attachedImages.length > 0
+  const hasAttachments = selectedTools.length > 0 || selectedPluginIds.length > 0 || attachedFiles.length > 0 || attachedImages.length > 0
 
   // 欢迎模式（首页居中样式）
   if (isWelcomeMode) {
@@ -937,8 +1015,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-2">
                                 工具
                               </div>
-                              {getAvailableTools().map((tool) => {
-                                const isSelected = selectedTools.some(t => t.id === tool.id)
+                              {getAllAvailableTools().map((tool) => {
+                                const isSelected = isToolSelected(tool.id)
                                 return (
                                   <button
                                     key={tool.id}
@@ -1123,6 +1201,31 @@ const handleSubmit = async (e: React.FormEvent) => {
                       </button>
                     </div>
                   ))}
+
+                  {/* 显示已选择的插件 */}
+                  {selectedPluginIds.map((pluginId, index) => {
+                    const { plugins } = usePluginStore.getState()
+                    const plugin = plugins.find(p => p.id === pluginId)
+                    if (!plugin) return null
+
+                    return (
+                      <div
+                        key={pluginId}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-sm border border-purple-200 dark:border-purple-800 animate-in fade-in-0 duration-200"
+                        style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + selectedTools.length + index) * 50}ms` }}
+                      >
+                        <WrenchScrewdriverIcon className="w-4 h-4" />
+                        <span>{plugin.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeTool(pluginId)}
+                          className="hover:bg-purple-200 dark:hover:bg-purple-800 rounded-full p-0.5 transition-colors duration-200"
+                        >
+                          <XMarkIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
               
@@ -1152,6 +1255,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                     )}
                   </button>
                 )}
+
+                {/* MCP服务器控制按钮 */}
+                <MCPServerToggle
+                  activatedServerIds={activatedMCPServerIds}
+                  onServerToggle={handleMCPServerActivate}
+                />
 
                 {/* 发送按钮 */}
                 {isLoading ? (
@@ -1433,8 +1542,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 px-2">
                                 工具
                               </div>
-                              {getAvailableTools().map((tool) => {
-                                const isSelected = selectedTools.some(t => t.id === tool.id)
+                              {getAllAvailableTools().map((tool) => {
+                                const isSelected = isToolSelected(tool.id)
                                 return (
                                   <button
                                     key={tool.id}
@@ -1619,6 +1728,31 @@ const handleSubmit = async (e: React.FormEvent) => {
                       </button>
                     </div>
                   ))}
+
+                  {/* 显示已选择的插件 */}
+                  {selectedPluginIds.map((pluginId, index) => {
+                    const { plugins } = usePluginStore.getState()
+                    const plugin = plugins.find(p => p.id === pluginId)
+                    if (!plugin) return null
+
+                    return (
+                      <div
+                        key={pluginId}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-sm border border-purple-200 dark:border-purple-800 animate-in fade-in-0 duration-200"
+                        style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + selectedTools.length + index) * 50}ms` }}
+                      >
+                        <WrenchScrewdriverIcon className="w-4 h-4" />
+                        <span>{plugin.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeTool(pluginId)}
+                          className="hover:bg-purple-200 dark:hover:bg-purple-800 rounded-full p-0.5 transition-colors duration-200"
+                        >
+                          <XMarkIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
               
@@ -1648,6 +1782,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                     )}
                   </button>
                 )}
+
+                {/* MCP服务器控制按钮 */}
+                <MCPServerToggle
+                  activatedServerIds={activatedMCPServerIds}
+                  onServerToggle={handleMCPServerActivate}
+                />
 
                 {/* 发送按钮 */}
                 {isLoading ? (

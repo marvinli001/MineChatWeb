@@ -23,8 +23,19 @@ class ChatMessage(BaseModel):
 
 class ToolConfig(BaseModel):
     type: str
+    # 原有搜索工具字段
     user_location: Optional[Dict[str, Any]] = None
     search_context_size: Optional[str] = None
+
+    # OpenAI Function Calling 标准字段
+    name: Optional[str] = None
+    description: Optional[str] = None
+    parameters: Optional[Dict[str, Any]] = None
+    strict: Optional[bool] = None
+
+    # MCP 服务器配置字段
+    server_url: Optional[str] = None
+    server_name: Optional[str] = None
 
 class ChatRequest(BaseModel):
     provider: str

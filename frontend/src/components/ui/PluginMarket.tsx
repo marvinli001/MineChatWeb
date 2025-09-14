@@ -3,29 +3,7 @@
 import { useState } from 'react'
 import { XMarkIcon, PlusIcon, TrashIcon, WrenchScrewdriverIcon, ServerIcon } from '@heroicons/react/24/outline'
 import { toast } from 'react-hot-toast'
-
-interface Plugin {
-  id: string
-  name: string
-  description: string
-  type: 'function'
-  parameters: {
-    type: 'object'
-    properties: Record<string, any>
-    required: string[]
-    additionalProperties?: boolean
-  }
-  strict?: boolean
-  created_at: string
-}
-
-interface MCPServer {
-  id: string
-  name: string
-  description: string
-  url: string
-  created_at: string
-}
+import { usePluginStore, type Plugin, type MCPServer } from '@/store/pluginStore'
 
 interface PluginMarketProps {
   isOpen: boolean
@@ -35,9 +13,16 @@ interface PluginMarketProps {
 type TabType = 'plugins' | 'mcp'
 
 export default function PluginMarket({ isOpen, onClose }: PluginMarketProps) {
+  const {
+    plugins,
+    mcpServers,
+    addPlugin,
+    removePlugin,
+    addMCPServer,
+    removeMCPServer
+  } = usePluginStore()
+
   const [activeTab, setActiveTab] = useState<TabType>('plugins')
-  const [plugins, setPlugins] = useState<Plugin[]>([])
-  const [mcpServers, setMcpServers] = useState<MCPServer[]>([])
   const [showAddDialog, setShowAddDialog] = useState(false)
   
   // Plugin form state
@@ -63,18 +48,15 @@ export default function PluginMarket({ isOpen, onClose }: PluginMarketProps) {
 
     try {
       const parameters = JSON.parse(pluginForm.parameters)
-      
-      const newPlugin: Plugin = {
-        id: `plugin_${Date.now()}`,
+
+      addPlugin({
         name: pluginForm.name.trim(),
         description: pluginForm.description.trim() || '自定义插件',
         type: 'function',
         parameters,
-        strict: pluginForm.strict,
-        created_at: new Date().toISOString()
-      }
+        strict: pluginForm.strict
+      })
 
-      setPlugins(prev => [...prev, newPlugin])
       setPluginForm({
         name: '',
         description: '',
@@ -99,15 +81,12 @@ export default function PluginMarket({ isOpen, onClose }: PluginMarketProps) {
       return
     }
 
-    const newServer: MCPServer = {
-      id: `mcp_${Date.now()}`,
+    addMCPServer({
       name: mcpForm.name.trim(),
       description: mcpForm.description.trim() || '外置MCP服务器',
-      url: mcpForm.url.trim(),
-      created_at: new Date().toISOString()
-    }
+      url: mcpForm.url.trim()
+    })
 
-    setMcpServers(prev => [...prev, newServer])
     setMcpForm({
       name: '',
       description: '',
@@ -119,14 +98,14 @@ export default function PluginMarket({ isOpen, onClose }: PluginMarketProps) {
 
   const handleRemovePlugin = (id: string, name: string) => {
     if (confirm(`确定要删除插件 "${name}" 吗？`)) {
-      setPlugins(prev => prev.filter(p => p.id !== id))
+      removePlugin(id)
       toast.success('插件已删除')
     }
   }
 
   const handleRemoveMCPServer = (id: string, name: string) => {
     if (confirm(`确定要删除MCP服务器 "${name}" 吗？`)) {
-      setMcpServers(prev => prev.filter(s => s.id !== id))
+      removeMCPServer(id)
       toast.success('MCP服务器已删除')
     }
   }

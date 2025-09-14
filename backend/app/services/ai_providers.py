@@ -152,7 +152,7 @@ class AIProviderService:
                 "vector_store_ids": list(vector_stores)
             })
         
-        # 添加前端传来的工具配置（包括 Web Search 和 Image Generation）
+        # 添加前端传来的工具配置（包括 Web Search, Image Generation 和 Function Calling）
         if tools:
             for tool_config in tools:
                 if tool_config.get("type") in ["web_search", "web_search_preview"]:
@@ -163,6 +163,14 @@ class AIProviderService:
                     # 构建 image generation 工具配置
                     image_gen_tool = self._build_image_generation_tool_config(tool_config)
                     tools_config["tools"].append(image_gen_tool)
+                elif tool_config.get("type") == "function":
+                    # 构建 Function Calling 工具配置
+                    function_tool = self._build_function_calling_tool_config(tool_config)
+                    tools_config["tools"].append(function_tool)
+                elif tool_config.get("type") == "mcp_server":
+                    # 构建 MCP 服务器工具配置
+                    mcp_tool = self._build_mcp_server_tool_config(tool_config)
+                    tools_config["tools"].append(mcp_tool)
         
         return tools_config
     
@@ -204,7 +212,35 @@ class AIProviderService:
         config["moderation"] = tool_config.get("moderation", "low")
         
         return config
-    
+
+    def _build_function_calling_tool_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
+        """构建 Function Calling 工具配置"""
+        config = {
+            "type": "function",
+            "function": {
+                "name": tool_config.get("name"),
+                "description": tool_config.get("description", ""),
+                "parameters": tool_config.get("parameters", {})
+            }
+        }
+
+        # 添加严格模式支持
+        if tool_config.get("strict"):
+            config["function"]["strict"] = True
+
+        return config
+
+    def _build_mcp_server_tool_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
+        """构建 MCP 服务器工具配置"""
+        config = {
+            "type": "mcp_server",
+            "server_name": tool_config.get("server_name"),
+            "server_url": tool_config.get("server_url"),
+            "description": tool_config.get("description", "")
+        }
+
+        return config
+
     def _find_previous_image_generation(self, messages: List[Union[Dict[str, Any], Any]]) -> str:
         """查找之前的图片生成结果的ID，用于多轮图像生成"""
         # 从最近的消息开始向后查找
