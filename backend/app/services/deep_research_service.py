@@ -386,7 +386,7 @@ class DeepResearchService:
         等待OpenAI深度研究响应完成并处理结果
         """
         response = initial_response
-        max_retries = 60  # 最大重试次数，每次间隔5秒，总共5分钟
+        max_retries = 120  # 增加最大重试次数，每次间隔5秒，总共10分钟
         retry_count = 0
 
         while retry_count < max_retries:
@@ -394,19 +394,27 @@ class DeepResearchService:
                 # 检查响应状态
                 if hasattr(response, 'status'):
                     status = response.status
-                    logger.info(f"响应状态: {status}")
+                    logger.info(f"任务 {task.id} 响应状态: {status}, 重试次数: {retry_count}")
 
                     if status == 'completed':
                         # 响应已完成，提取结果
                         result_text = self._extract_research_result(response)
 
-                        if self._needs_clarification(response):
-                            # 更新任务状态为警告，表示需要用户澄清
-                            task.status = DeepResearchStatus.WARNING
-                            task.warning_message = "研究需要更多信息才能提供准确结果，建议提供更详细的查询或使用澄清功能。"
+                        # 检查结果是否有效（不是错误消息）
+                        if result_text and not result_text.startswith("深度研究任务已完成，但OpenAI返回的响应格式异常"):
+                            if self._needs_clarification(response):
+                                # 更新任务状态为警告，表示需要用户澄清
+                                task.status = DeepResearchStatus.WARNING
+                                task.warning_message = "研究需要更多信息才能提供准确结果，建议提供更详细的查询或使用澄清功能。"
+                            else:
+                                # 更新任务状态为完成
+                                task.status = DeepResearchStatus.COMPLETED
+
+                            task.result = result_text
                         else:
-                            # 更新任务状态为完成
-                            task.status = DeepResearchStatus.COMPLETED
+                            # 如果没有有效结果，标记为警告状态
+                            task.status = DeepResearchStatus.WARNING
+                            task.warning_message = "研究完成但结果格式异常，可能需要重新尝试或使用更具体的查询。"
                             task.result = result_text
 
                         self._tasks_storage[task.id] = task
@@ -430,14 +438,22 @@ class DeepResearchService:
                         if hasattr(response, 'id'):
                             try:
                                 response = await client.responses.retrieve(response.id)
+                                logger.info(f"任务 {task.id} 更新响应状态: {getattr(response, 'status', 'unknown')}")
                             except Exception as e:
                                 logger.error(f"获取响应状态时出错: {str(e)}")
                                 # 继续使用原响应
                         continue
 
+                    else:
+                        # 未知状态，记录并继续等待
+                        logger.warning(f"任务 {task.id} 未知响应状态: {status}")
+                        await asyncio.sleep(5)
+                        retry_count += 1
+                        continue
+
                 # 如果没有状态属性，尝试直接提取结果
                 result_text = self._extract_research_result(response)
-                if result_text and result_text != str(response):
+                if result_text and not result_text.startswith("未能从响应中提取到研究结果"):
                     task.status = DeepResearchStatus.COMPLETED
                     task.result = result_text
                     self._tasks_storage[task.id] = task
@@ -454,8 +470,25 @@ class DeepResearchService:
                 retry_count += 1
 
         # 超时处理
-        task.status = DeepResearchStatus.FAILED
-        task.result = "研究任务超时，未能在规定时间内完成"
+        logger.warning(f"任务 {task.id} 等待超时，最后尝试提取结果")
+        try:
+            # 最后一次尝试提取结果
+            if hasattr(response, 'id'):
+                response = await client.responses.retrieve(response.id)
+
+            result_text = self._extract_research_result(response)
+            if result_text:
+                task.status = DeepResearchStatus.WARNING
+                task.warning_message = "任务处理时间较长，可能部分完成。"
+                task.result = result_text
+            else:
+                task.status = DeepResearchStatus.FAILED
+                task.result = "研究任务超时，未能在规定时间内完成。请尝试使用更简洁的查询或稍后重试。"
+        except Exception as e:
+            logger.error(f"超时后提取结果失败: {str(e)}")
+            task.status = DeepResearchStatus.FAILED
+            task.result = "研究任务超时，未能在规定时间内完成。请尝试使用更简洁的查询或稍后重试。"
+
         self._tasks_storage[task.id] = task
         await self.notify_task_update(task.id, task)
 
@@ -518,6 +551,25 @@ class DeepResearchService:
             if hasattr(response, 'output') and isinstance(response.output, list):
                 logger.info(f"响应包含output列表，长度: {len(response.output)}")
 
+                # 如果output为空，但状态为completed，说明任务完成但结果可能在其他地方
+                if len(response.output) == 0:
+                    logger.warning("output列表为空，尝试从其他属性获取结果")
+
+                    # 检查是否有text属性在响应的其他地方
+                    if hasattr(response, 'text') and response.text:
+                        return response.text
+
+                    # 检查是否有完整的响应文本表示
+                    response_str = str(response)
+                    if len(response_str) > 100 and 'output=[]' not in response_str and 'Response(' not in response_str:
+                        return response_str
+
+                    # 如果任务状态为completed但没有结果，可能是OpenAI的响应格式问题
+                    if hasattr(response, 'status') and response.status == 'completed':
+                        return "深度研究任务已完成，但OpenAI返回的响应格式异常。这可能是由于模型输出为空或响应结构发生变化。请尝试重新提交研究请求，或检查查询内容是否过于简单。"
+
+                    return "研究任务完成，但未获得有效输出。请尝试更具体的查询内容。"
+
                 text_parts = []
                 for i, item in enumerate(response.output):
                     logger.info(f"Output item {i}: {type(item)} - {item if isinstance(item, dict) else str(item)[:100]}")
@@ -563,7 +615,7 @@ class DeepResearchService:
             # 如果响应有效但没有找到文本内容
             if hasattr(response, 'status') and response.status == 'completed':
                 logger.warning("响应状态为completed但未找到文本内容")
-                return "研究已完成，但未能提取到文本结果。"
+                return "深度研究任务已完成，但OpenAI返回的响应格式异常。这可能是由于模型输出为空或响应结构发生变化。请尝试重新提交研究请求，或使用更详细的查询内容。"
 
             # 如果无法提取，记录完整响应用于调试
             response_str = str(response)
@@ -573,7 +625,7 @@ class DeepResearchService:
             if len(response_str) > 100 and 'Response(' not in response_str:
                 return response_str
 
-            return "未能从响应中提取到研究结果，请检查后端日志。"
+            return "未能从响应中提取到研究结果。这可能是OpenAI API响应格式发生变化，或查询内容过于简单导致无输出。请尝试使用更具体、更详细的研究问题。"
 
         except Exception as e:
             logger.error(f"提取研究结果时出错: {str(e)}", exc_info=True)

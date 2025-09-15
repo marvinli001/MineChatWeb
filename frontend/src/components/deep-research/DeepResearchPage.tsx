@@ -60,12 +60,16 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
       try {
         // 连接WebSocket
         await deepResearchService.connectWebSocket()
-        
+
         // 加载现有任务
         await loadTasks()
       } catch (error) {
         console.error('初始化深度研究服务时出错:', error)
-        setError('连接服务失败，请检查网络连接')
+        // 只在WebSocket连接失败时显示错误，任务加载失败可以忽略
+        const errorMessage = error instanceof Error ? error.message : '连接服务失败'
+        if (errorMessage.includes('WebSocket') || errorMessage.includes('连接')) {
+          setError('WebSocket连接失败，但功能仍可正常使用')
+        }
       }
     }
 
@@ -315,9 +319,25 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
                     <span className="text-blue-900 dark:text-blue-100 font-medium text-lg">深度研究中...</span>
                   </div>
                 ) : currentTask.status === 'warning' ? (
-                  <div className="flex items-center gap-3 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800">
-                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-600 border-t-transparent" />
-                    <span className="text-yellow-900 dark:text-yellow-100 font-medium text-lg">深度研究中...</span>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800">
+                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-600 border-t-transparent" />
+                      <span className="text-yellow-900 dark:text-yellow-100 font-medium text-lg">深度研究中（警告状态）</span>
+                    </div>
+                    {currentTask.warning_message && (
+                      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                        <h4 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">提示信息</h4>
+                        <p className="text-yellow-700 dark:text-yellow-300 text-sm">{currentTask.warning_message}</p>
+                      </div>
+                    )}
+                    {currentTask.result && (
+                      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6">
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">研究结果（可能不完整）</h3>
+                        <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                          {currentTask.result}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : currentTask.status === 'completed' ? (
                   <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6">
@@ -375,9 +395,25 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
                   <span className="text-blue-900 dark:text-blue-100 font-medium text-lg">深度研究中...</span>
                 </div>
               ) : currentTask.status === 'warning' ? (
-                <div className="flex items-center gap-3 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800">
-                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-600 border-t-transparent" />
-                  <span className="text-yellow-900 dark:text-yellow-100 font-medium text-lg">深度研究中...</span>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-800">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-yellow-600 border-t-transparent" />
+                    <span className="text-yellow-900 dark:text-yellow-100 font-medium text-lg">深度研究中（警告状态）</span>
+                  </div>
+                  {currentTask.warning_message && (
+                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
+                      <h4 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">提示信息</h4>
+                      <p className="text-yellow-700 dark:text-yellow-300 text-sm">{currentTask.warning_message}</p>
+                    </div>
+                  )}
+                  {currentTask.result && (
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6">
+                      <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">研究结果（可能不完整）</h3>
+                      <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
+                        {currentTask.result}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : currentTask.status === 'completed' ? (
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6">
