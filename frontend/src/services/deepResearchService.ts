@@ -81,9 +81,7 @@ class DeepResearchService {
 
   constructor() {
     this.baseUrl = '/api/v1/deep-research'
-    this.wsUrl = typeof window !== 'undefined'
-      ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/deep-research/ws`
-      : ''
+    this.wsUrl = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/api/v1/deep-research/ws`
   }
 
   // WebSocket连接管理
