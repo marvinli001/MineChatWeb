@@ -28,6 +28,7 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
   const [error, setError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const pollIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
   
   // 从设置存储中获取API密钥
   const { settings } = useSettingsStore()
@@ -73,6 +74,12 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
     // 清理函数
     return () => {
       deepResearchService.disconnect()
+
+      // 清理所有轮询间隔
+      pollIntervalsRef.current.forEach((interval) => {
+        clearInterval(interval)
+      })
+      pollIntervalsRef.current.clear()
     }
   }, [])
 
@@ -91,11 +98,11 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
   const subscribeToTaskUpdates = (taskId: string) => {
     deepResearchService.subscribeToTask(taskId, (data) => {
       if (data.type === 'task_update' && data.task_id === taskId) {
-        setTasks(prev => prev.map(task => 
-          task.id === taskId 
-            ? { 
-                ...task, 
-                status: data.status, 
+        setTasks(prev => prev.map(task =>
+          task.id === taskId
+            ? {
+                ...task,
+                status: data.status,
                 result: data.result || task.result,
                 warning_message: data.warning_message || task.warning_message
               }
@@ -103,6 +110,28 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
         ))
       }
     })
+
+    // 定期轮询任务状态以防WebSocket更新丢失
+    const pollInterval = setInterval(async () => {
+      try {
+        const updatedTask = await deepResearchService.getTask(taskId)
+        if (updatedTask) {
+          setTasks(prev => prev.map(task =>
+            task.id === taskId ? updatedTask : task
+          ))
+
+          // 如果任务已完成或失败，停止轮询
+          if (updatedTask.status === 'completed' || updatedTask.status === 'failed') {
+            clearInterval(pollInterval)
+          }
+        }
+      } catch (error) {
+        console.error('轮询任务状态失败:', error)
+      }
+    }, 2000) // 每2秒轮询一次
+
+    // 存储轮询间隔ID以便后续清理
+    return pollInterval
   }
 
   // 自动调整文本框高度
@@ -165,7 +194,8 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
       setAttachedFiles([])
 
       // 订阅任务状态更新
-      subscribeToTaskUpdates(response.task.id)
+      const pollInterval = subscribeToTaskUpdates(response.task.id)
+      pollIntervalsRef.current.set(response.task.id, pollInterval)
 
     } catch (error) {
       console.error('创建深度研究任务失败:', error)

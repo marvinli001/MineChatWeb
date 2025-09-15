@@ -37,16 +37,16 @@ class DeepResearchService:
         """通过WebSocket通知任务状态更新"""
         if self.ws_manager:
             try:
-                import json
                 message = json.dumps({
                     "type": "task_update",
                     "task_id": task_id,
-                    "status": task.status,
+                    "status": task.status.value if hasattr(task.status, 'value') else task.status,
                     "result": task.result,
                     "warning_message": task.warning_message,
                     "updated_at": datetime.now().isoformat()
                 })
                 await self.ws_manager.send_task_update(task_id, message)
+                logger.info(f"WebSocket任务状态更新已发送: {task_id} -> {task.status}")
             except Exception as e:
                 logger.error(f"发送WebSocket通知时出错: {str(e)}")
 
@@ -296,10 +296,13 @@ class DeepResearchService:
         
         # 存储任务
         self._tasks_storage[task_id] = task
-        
+
+        # 发送初始状态更新
+        await self.notify_task_update(task_id, task)
+
         # 异步启动深度研究处理
         asyncio.create_task(self._process_deep_research_task(task, request))
-        
+
         return task
 
     async def _process_deep_research_task(self, task: DeepResearchTask, request: DeepResearchRequest):

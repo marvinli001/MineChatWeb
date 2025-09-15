@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile, File, WebSocket
 from typing import List, Optional, Dict
 import logging
 import time
+import json
 from app.models.deep_research import (
     DeepResearchRequest,
     DeepResearchResponse,

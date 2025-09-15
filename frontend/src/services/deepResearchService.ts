@@ -138,8 +138,22 @@ class DeepResearchService {
         type: 'subscribe_task',
         task_id: taskId
       }))
-      
+
       this.wsCallbacks.set('task_update', callback)
+    } else {
+      // 如果WebSocket未连接，尝试重新连接后再订阅
+      this.connectWebSocket().then(() => {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          this.ws.send(JSON.stringify({
+            type: 'subscribe_task',
+            task_id: taskId
+          }))
+
+          this.wsCallbacks.set('task_update', callback)
+        }
+      }).catch(error => {
+        console.error('重新连接WebSocket失败:', error)
+      })
     }
   }
 
