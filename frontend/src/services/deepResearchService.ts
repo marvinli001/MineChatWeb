@@ -75,20 +75,25 @@ interface EnhanceResponse {
 
 class DeepResearchService {
   private baseUrl: string
-  private wsUrl: string
   private ws: WebSocket | null = null
   private wsCallbacks: Map<string, Function> = new Map()
 
   constructor() {
     this.baseUrl = '/api/v1/deep-research'
-    this.wsUrl = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/api/v1/deep-research/ws`
+  }
+
+  private getWebSocketUrl(): string {
+    if (typeof window === 'undefined') {
+      return '/api/v1/deep-research/ws'
+    }
+    return `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/api/v1/deep-research/ws`
   }
 
   // WebSocket连接管理
   connectWebSocket(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        this.ws = new WebSocket(this.wsUrl)
+        this.ws = new WebSocket(this.getWebSocketUrl())
         
         this.ws.onopen = () => {
           console.log('深度研究WebSocket连接已建立')
