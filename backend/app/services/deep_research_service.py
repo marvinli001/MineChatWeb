@@ -361,31 +361,16 @@ class DeepResearchService:
             
             # 调用OpenAI深度研究API
             response = await client.responses.create(**research_params)
-            
+
             # 存储OpenAI响应ID用于后续状态查询
             if hasattr(response, 'id'):
                 task.openai_response_id = response.id
                 self._tasks_storage[task.id] = task
-            
-            # 检查是否需要澄清
-            if self._needs_clarification(response):
-                # 更新任务状态为警告，表示需要用户澄清
-                task.status = DeepResearchStatus.WARNING
-                task.warning_message = "研究需要更多信息才能提供准确结果，建议提供更详细的查询或使用澄清功能。"
-                self._tasks_storage[task.id] = task
-                await self.notify_task_update(task.id, task)
-                logger.info(f"深度研究任务 {task.id} 需要用户澄清")
-                return
-            
-            # 提取研究结果
-            result_text = self._extract_research_result(response)
-            
-            # 更新任务状态为完成
-            task.status = DeepResearchStatus.COMPLETED
-            task.result = result_text
-            self._tasks_storage[task.id] = task
-            await self.notify_task_update(task.id, task)
-            
+                logger.info(f"OpenAI响应已创建: {response.id}, 状态: {getattr(response, 'status', 'unknown')}")
+
+            # 检查响应状态并等待完成
+            await self._wait_for_response_completion(task, client, response)
+
             logger.info(f"深度研究任务 {task.id} 完成")
             
         except Exception as e:
@@ -395,6 +380,84 @@ class DeepResearchService:
             task.result = f"研究过程中发生错误: {str(e)}"
             self._tasks_storage[task.id] = task
             await self.notify_task_update(task.id, task)
+
+    async def _wait_for_response_completion(self, task: DeepResearchTask, client, initial_response):
+        """
+        等待OpenAI深度研究响应完成并处理结果
+        """
+        response = initial_response
+        max_retries = 60  # 最大重试次数，每次间隔5秒，总共5分钟
+        retry_count = 0
+
+        while retry_count < max_retries:
+            try:
+                # 检查响应状态
+                if hasattr(response, 'status'):
+                    status = response.status
+                    logger.info(f"响应状态: {status}")
+
+                    if status == 'completed':
+                        # 响应已完成，提取结果
+                        result_text = self._extract_research_result(response)
+
+                        if self._needs_clarification(response):
+                            # 更新任务状态为警告，表示需要用户澄清
+                            task.status = DeepResearchStatus.WARNING
+                            task.warning_message = "研究需要更多信息才能提供准确结果，建议提供更详细的查询或使用澄清功能。"
+                        else:
+                            # 更新任务状态为完成
+                            task.status = DeepResearchStatus.COMPLETED
+                            task.result = result_text
+
+                        self._tasks_storage[task.id] = task
+                        await self.notify_task_update(task.id, task)
+                        return
+
+                    elif status in ['failed', 'cancelled']:
+                        # 响应失败
+                        task.status = DeepResearchStatus.FAILED
+                        task.result = f"研究任务失败，OpenAI响应状态: {status}"
+                        self._tasks_storage[task.id] = task
+                        await self.notify_task_update(task.id, task)
+                        return
+
+                    elif status in ['queued', 'in_progress']:
+                        # 仍在处理中，等待并重试
+                        await asyncio.sleep(5)
+                        retry_count += 1
+
+                        # 获取更新的响应状态
+                        if hasattr(response, 'id'):
+                            try:
+                                response = await client.responses.retrieve(response.id)
+                            except Exception as e:
+                                logger.error(f"获取响应状态时出错: {str(e)}")
+                                # 继续使用原响应
+                        continue
+
+                # 如果没有状态属性，尝试直接提取结果
+                result_text = self._extract_research_result(response)
+                if result_text and result_text != str(response):
+                    task.status = DeepResearchStatus.COMPLETED
+                    task.result = result_text
+                    self._tasks_storage[task.id] = task
+                    await self.notify_task_update(task.id, task)
+                    return
+
+                # 继续等待
+                await asyncio.sleep(5)
+                retry_count += 1
+
+            except Exception as e:
+                logger.error(f"等待响应完成时出错: {str(e)}")
+                await asyncio.sleep(5)
+                retry_count += 1
+
+        # 超时处理
+        task.status = DeepResearchStatus.FAILED
+        task.result = "研究任务超时，未能在规定时间内完成"
+        self._tasks_storage[task.id] = task
+        await self.notify_task_update(task.id, task)
 
     def _needs_clarification(self, response) -> bool:
         """
@@ -438,28 +501,83 @@ class DeepResearchService:
         从OpenAI响应中提取研究结果
         """
         try:
-            if hasattr(response, 'output_text') and response.output_text:
-                return response.output_text
-            elif hasattr(response, 'output') and isinstance(response.output, list):
-                # 查找message类型的输出
-                for item in response.output:
-                    if item.get('type') == 'message' and 'content' in item:
-                        content = item['content']
-                        if isinstance(content, list):
-                            # 提取文本内容
-                            text_parts = []
-                            for part in content:
-                                if part.get('type') == 'output_text':
-                                    text_parts.append(part.get('text', ''))
-                            return '\n'.join(text_parts)
-                        elif isinstance(content, str):
-                            return content
-            
-            # 如果无法提取，返回原始响应的字符串表示
-            return str(response)
+            # 记录响应结构以供调试
+            logger.info(f"尝试提取结果，响应类型: {type(response)}")
+            logger.info(f"响应属性: {dir(response)}")
+
+            # 检查常见的文本输出属性
+            text_attrs = ['output_text', 'text', 'content']
+            for attr in text_attrs:
+                if hasattr(response, attr):
+                    value = getattr(response, attr)
+                    if value and isinstance(value, str) and value.strip():
+                        logger.info(f"从属性 {attr} 提取到结果: {len(value)} 字符")
+                        return value
+
+            # 检查output列表
+            if hasattr(response, 'output') and isinstance(response.output, list):
+                logger.info(f"响应包含output列表，长度: {len(response.output)}")
+
+                text_parts = []
+                for i, item in enumerate(response.output):
+                    logger.info(f"Output item {i}: {type(item)} - {item if isinstance(item, dict) else str(item)[:100]}")
+
+                    if isinstance(item, dict):
+                        # 查找message类型的输出
+                        if item.get('type') == 'message' and 'content' in item:
+                            content = item['content']
+                            if isinstance(content, list):
+                                # 提取文本内容
+                                for part in content:
+                                    if isinstance(part, dict):
+                                        if part.get('type') == 'text' and 'text' in part:
+                                            text_parts.append(part['text'])
+                                        elif part.get('type') == 'output_text' and 'text' in part:
+                                            text_parts.append(part['text'])
+                            elif isinstance(content, str):
+                                text_parts.append(content)
+
+                        # 直接查找文本内容
+                        elif 'text' in item:
+                            text_parts.append(item['text'])
+                        elif 'content' in item:
+                            if isinstance(item['content'], str):
+                                text_parts.append(item['content'])
+
+                    elif isinstance(item, str):
+                        text_parts.append(item)
+
+                if text_parts:
+                    result = '\n'.join(text_parts).strip()
+                    logger.info(f"从output列表提取到结果: {len(result)} 字符")
+                    return result
+
+            # 检查choices（ChatCompletion风格）
+            if hasattr(response, 'choices') and response.choices:
+                for choice in response.choices:
+                    if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
+                        if choice.message.content:
+                            logger.info(f"从choices提取到结果: {len(choice.message.content)} 字符")
+                            return choice.message.content
+
+            # 如果响应有效但没有找到文本内容
+            if hasattr(response, 'status') and response.status == 'completed':
+                logger.warning("响应状态为completed但未找到文本内容")
+                return "研究已完成，但未能提取到文本结果。"
+
+            # 如果无法提取，记录完整响应用于调试
+            response_str = str(response)
+            logger.warning(f"无法提取结果，原始响应: {response_str[:500]}...")
+
+            # 对于某些情况，直接返回响应的字符串表示
+            if len(response_str) > 100 and 'Response(' not in response_str:
+                return response_str
+
+            return "未能从响应中提取到研究结果，请检查后端日志。"
+
         except Exception as e:
-            logger.error(f"提取研究结果时出错: {str(e)}")
-            return "研究已完成，但结果提取时出现问题。请查看原始响应数据。"
+            logger.error(f"提取研究结果时出错: {str(e)}", exc_info=True)
+            return f"结果提取时出现错误: {str(e)}"
 
     async def get_task(self, task_id: str) -> Optional[DeepResearchTask]:
         """获取单个研究任务"""
