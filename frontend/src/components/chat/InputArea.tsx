@@ -211,7 +211,7 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
       // Anthropic（Claude）不支持图片生成，只显示搜索工具
       return availableTools.filter(tool => tool.id !== 'image_generation')
     }
-    // 其他提供商显示所有工具
+    // OpenAI和Google提供商都支持图片生成，显示所有工具
     return availableTools
   }
 
@@ -887,7 +887,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                 {/* 使用说明 */}
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    💡 提示：使用在线图片生成功能需要 gpt-image-1 模型支持。上传图片可用作输入进行图像编辑。
+                    💡 提示：{settings.chatProvider === 'google'
+                      ? '使用Google Gemini图片生成功能（如 gemini-2.5-flash-image 模型）。上传图片可用作输入进行图像编辑。'
+                      : '使用在线图片生成功能需要相应模型支持（如 gpt-image-1、gemini-2.5-flash-image 等）。上传图片可用作输入进行图像编辑。'
+                    }
                   </p>
                 </div>
               </div>
@@ -1383,7 +1386,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                 {/* 使用说明 */}
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    💡 提示：使用在线图片生成功能需要 gpt-image-1 模型支持。上传图片可用作输入进行图像编辑。
+                    💡 提示：{settings.chatProvider === 'google'
+                      ? '使用Google Gemini图片生成功能（如 gemini-2.5-flash-image 模型）。上传图片可用作输入进行图像编辑。'
+                      : '使用在线图片生成功能需要相应模型支持（如 gpt-image-1、gemini-2.5-flash-image 等）。上传图片可用作输入进行图像编辑。'
+                    }
                   </p>
                 </div>
               </div>
@@ -1910,7 +1916,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                 {/* 使用说明 */}
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    💡 提示：使用在线图片生成功能需要 gpt-image-1 模型支持。上传图片可用作输入进行图像编辑。
+                    💡 提示：{settings.chatProvider === 'google'
+                      ? '使用Google Gemini图片生成功能（如 gemini-2.5-flash-image 模型）。上传图片可用作输入进行图像编辑。'
+                      : '使用在线图片生成功能需要相应模型支持（如 gpt-image-1、gemini-2.5-flash-image 等）。上传图片可用作输入进行图像编辑。'
+                    }
                   </p>
                 </div>
               </div>

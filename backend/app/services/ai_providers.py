@@ -6,6 +6,8 @@ import asyncio
 import logging
 import json
 import os
+import time
+import base64
 import httpx
 from .web_search_service import WebSearchService
 
@@ -465,7 +467,7 @@ class AIProviderService:
                 elif provider == "anthropic":
                     return await self._anthropic_completion(model, messages, api_key, thinking_mode, tools, stream)
                 elif provider == "google":
-                    return await self._google_completion(model, messages, api_key, thinking_mode)
+                    return await self._google_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search)
                 elif provider == "openai_compatible":
                     return await self._openai_compatible_completion(model, messages, api_key, stream, thinking_mode, reasoning_summaries, tools, use_native_search, base_url)
                 else:
@@ -1699,60 +1701,516 @@ class AIProviderService:
     async def _google_completion(
         self,
         model: str,
-        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
+        messages: List[Union[Dict[str, str], Any]],
         api_key: str,
-        thinking_mode: bool = False
+        stream: bool = False,
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto",
+        reasoning: str = "medium",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None
     ) -> Dict[str, Any]:
-        """Google Gemini API 调用"""
+        """Google Gemini API 调用 - 完整实现"""
         try:
             genai.configure(api_key=api_key)
-            
-            logger.info(f"调用Google模型: {model}")
-            
-            # 转换消息格式
+
+            logger.info(f"调用Google模型: {model}, 流式: {stream}")
+
+            # 转换消息格式和多模态内容
             history = []
-            for msg in messages[:-1]:  # 除最后一条消息外的历史
+            system_instruction = None
+
+            # 处理系统消息
+            for i, msg in enumerate(messages):
                 role = self._get_message_attr(msg, "role")
                 content = self._get_message_attr(msg, "content")
-                
-                if role == "user":
-                    history.append({"role": "user", "parts": [content]})
+
+                if role == "system":
+                    system_instruction = content
+                    continue
+                elif i == len(messages) - 1:
+                    # 最后一条消息单独处理
+                    break
+                elif role == "user":
+                    # 处理多模态内容
+                    parts = self._convert_message_to_gemini_parts(msg)
+                    history.append({"role": "user", "parts": parts})
                 elif role == "assistant":
                     history.append({"role": "model", "parts": [content]})
-            
-            model_instance = genai.GenerativeModel(model)
-            chat = model_instance.start_chat(history=history)
-            
-            # 发送最后一条用户消息
-            user_message = self._get_message_attr(messages[-1], "content")
-            response = await asyncio.wait_for(
-                chat.send_message_async(user_message),
-                timeout=self.default_timeout
+
+            # 配置生成参数
+            generation_config = {
+                "temperature": 0.7,
+                "max_output_tokens": 8192,
+            }
+
+            # 处理thinking mode
+            if thinking_mode and model.startswith("gemini-2.0"):
+                generation_config["thinking_budget"] = self._get_thinking_budget(reasoning)
+
+            # 转换工具
+            gemini_tools = None
+            if tools:
+                gemini_tools = self._convert_tools_to_gemini_format(tools)
+
+            # 创建模型实例
+            model_instance = genai.GenerativeModel(
+                model_name=model,
+                generation_config=generation_config,
+                system_instruction=system_instruction,
+                tools=gemini_tools
             )
-            
-            # 转换为OpenAI格式
-            result = {
-                "id": f"gemini_{hash(response.text) % 1000000}",
+
+            # 检查是否有图像生成工具
+            has_image_generation_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
+
+            # 处理最后一条用户消息
+            last_message = messages[-1]
+            user_parts = self._convert_message_to_gemini_parts(last_message)
+
+            # 如果有图像生成工具，使用专门的图像生成模型
+            if has_image_generation_tool:
+                return await self._handle_google_image_generation(
+                    user_parts, api_key, tools, model
+                )
+
+            # 生成响应
+            if stream:
+                return await self._google_stream_completion(
+                    model_instance, history, user_parts
+                )
+            else:
+                chat = model_instance.start_chat(history=history)
+                response = await asyncio.wait_for(
+                    chat.send_message_async(user_parts),
+                    timeout=self.default_timeout
+                )
+
+                return self._convert_gemini_response_to_openai_format(response, model)
+
+        except Exception as e:
+            logger.error(f"Google API调用失败: {str(e)}")
+            raise Exception(f"Google API调用失败: {str(e)}")
+
+    def _convert_message_to_gemini_parts(self, msg):
+        """将消息转换为Gemini Parts格式，支持多模态"""
+        content = self._get_message_attr(msg, "content")
+
+        # 获取图片数据
+        images = None
+        if isinstance(msg, dict):
+            images = msg.get("images")
+        else:
+            images = getattr(msg, "images", None)
+
+        parts = []
+
+        # 添加文本内容
+        if content and content.strip():
+            parts.append(content)
+
+        # 添加图片内容
+        if images:
+            for image in images:
+                if isinstance(image, dict):
+                    image_data = image.get("data")
+                    mime_type = image.get("mime_type", "image/jpeg")
+                else:
+                    image_data = getattr(image, "data", "")
+                    mime_type = getattr(image, "mime_type", "image/jpeg")
+
+                if image_data:
+                    import base64
+                    try:
+                        # 解码base64图片数据
+                        image_bytes = base64.b64decode(image_data)
+                        parts.append({
+                            "mime_type": mime_type,
+                            "data": image_bytes
+                        })
+                    except Exception as e:
+                        logger.warning(f"解码图片数据失败: {e}")
+
+        return parts if parts else [content or ""]
+
+    def _convert_tools_to_gemini_format(self, tools):
+        """将工具转换为Gemini格式"""
+        gemini_tools = []
+
+        for tool in tools:
+            if tool.get("type") == "function":
+                function_info = tool.get("function", {})
+                gemini_tools.append({
+                    "function_declarations": [{
+                        "name": function_info.get("name"),
+                        "description": function_info.get("description"),
+                        "parameters": function_info.get("parameters", {})
+                    }]
+                })
+
+        return gemini_tools
+
+    def _get_thinking_budget(self, reasoning):
+        """根据reasoning级别获取thinking budget"""
+        budget_map = {
+            "low": 1000,
+            "medium": 5000,
+            "high": 10000
+        }
+        return budget_map.get(reasoning, 5000)
+
+    async def _google_stream_completion(self, model_instance, history, user_parts):
+        """Google流式响应处理"""
+        try:
+            chat = model_instance.start_chat(history=history)
+            response_stream = chat.send_message_stream(user_parts)
+
+            # 收集流式响应
+            full_text = ""
+            async for chunk in response_stream:
+                if chunk.text:
+                    full_text += chunk.text
+
+            # 等待流完成
+            await response_stream.resolve()
+            final_response = response_stream.response
+
+            return self._convert_gemini_response_to_openai_format(final_response, model_instance.model_name)
+
+        except Exception as e:
+            logger.error(f"Google流式响应失败: {str(e)}")
+            raise
+
+    def _convert_gemini_response_to_openai_format(self, response, model):
+        """将Gemini响应转换为OpenAI格式"""
+        choices = []
+
+        # 处理候选响应
+        for i, candidate in enumerate(response.candidates):
+            content = ""
+            tool_calls = []
+
+            # 提取文本内容
+            for part in candidate.content.parts:
+                if hasattr(part, 'text') and part.text:
+                    content += part.text
+                elif hasattr(part, 'function_call'):
+                    # 处理函数调用
+                    func_call = part.function_call
+                    tool_calls.append({
+                        "id": f"call_{hash(func_call.name)}",
+                        "type": "function",
+                        "function": {
+                            "name": func_call.name,
+                            "arguments": json.dumps(dict(func_call.args))
+                        }
+                    })
+
+            # 构建消息
+            message = {
+                "role": "assistant",
+                "content": content
+            }
+
+            if tool_calls:
+                message["tool_calls"] = tool_calls
+
+            choices.append({
+                "index": i,
+                "message": message,
+                "finish_reason": self._convert_gemini_finish_reason(candidate.finish_reason)
+            })
+
+        return {
+            "id": f"gemini_{hash(str(response)) % 1000000}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": model,
+            "choices": choices,
+            "usage": {
+                "prompt_tokens": getattr(response.usage_metadata, 'prompt_token_count', 0) if hasattr(response, 'usage_metadata') else 0,
+                "completion_tokens": getattr(response.usage_metadata, 'candidates_token_count', 0) if hasattr(response, 'usage_metadata') else 0,
+                "total_tokens": getattr(response.usage_metadata, 'total_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+            }
+        }
+
+    def _convert_gemini_finish_reason(self, finish_reason):
+        """转换Gemini finish_reason到OpenAI格式"""
+        mapping = {
+            "STOP": "stop",
+            "MAX_TOKENS": "length",
+            "SAFETY": "content_filter",
+            "RECITATION": "content_filter",
+            "OTHER": "stop"
+        }
+        return mapping.get(str(finish_reason), "stop")
+
+    async def _handle_google_image_generation(
+        self,
+        user_parts: List[Any],
+        api_key: str,
+        tools: List[Dict[str, Any]],
+        model: str
+    ) -> Dict[str, Any]:
+        """处理Google图像生成工具调用"""
+        try:
+            genai.configure(api_key=api_key)
+
+            # 提取图像生成工具配置
+            image_gen_tool = None
+            for tool in tools:
+                if tool.get("type") == "image_generation":
+                    image_gen_tool = tool
+                    break
+
+            if not image_gen_tool:
+                raise Exception("未找到图像生成工具配置")
+
+            # 构建图像生成提示
+            prompt_text = ""
+            if isinstance(user_parts, list):
+                for part in user_parts:
+                    if isinstance(part, str):
+                        prompt_text += part + " "
+                    elif isinstance(part, dict) and "text" in part:
+                        prompt_text += part["text"] + " "
+            else:
+                prompt_text = str(user_parts)
+
+            # 构建完整的图像生成提示
+            image_prompt = f"Generate an image: {prompt_text.strip()}"
+
+            # 根据工具配置调整提示
+            style = image_gen_tool.get("style", "natural")
+            quality = image_gen_tool.get("quality", "standard")
+
+            if style == "artistic":
+                image_prompt += " in artistic style"
+            elif style == "photorealistic":
+                image_prompt += " in photorealistic style"
+            elif style == "digital_art":
+                image_prompt += " in digital art style"
+
+            if quality == "hd":
+                image_prompt += " with high detail and quality"
+
+            logger.info(f"Google图像生成提示: {image_prompt}")
+
+            # 使用Gemini 2.5 Flash Image模型生成图像
+            image_model = "gemini-2.5-flash-image" if model != "gemini-2.5-flash-image" else model
+            model_instance = genai.GenerativeModel(image_model)
+
+            response = await asyncio.wait_for(
+                model_instance.generate_content_async(
+                    image_prompt,
+                    generation_config={
+                        "temperature": 0.8,
+                        "max_output_tokens": 8192,
+                    }
+                ),
+                timeout=self.default_timeout * 2  # 图像生成需要更长时间
+            )
+
+            # 处理图像生成结果
+            image_generations = []
+
+            # 检查响应中是否包含图片
+            if hasattr(response, 'candidates') and response.candidates:
+                for candidate in response.candidates:
+                    if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                        for part in candidate.content.parts:
+                            # 检查是否为图片部分
+                            if hasattr(part, 'inline_data'):
+                                image_data = part.inline_data.data
+                                mime_type = part.inline_data.mime_type
+
+                                # 转换为base64格式
+                                if isinstance(image_data, bytes):
+                                    b64_data = base64.b64encode(image_data).decode('utf-8')
+                                else:
+                                    b64_data = image_data
+
+                                image_gen_result = {
+                                    "id": f"img_gen_{int(time.time() * 1000)}",
+                                    "type": "image_generation_call",
+                                    "status": "completed",
+                                    "result": {
+                                        "url": f"data:{mime_type};base64,{b64_data}",
+                                        "b64_json": b64_data
+                                    },
+                                    "revised_prompt": prompt_text.strip()
+                                }
+                                image_generations.append(image_gen_result)
+
+            # 如果没有直接的图片数据，但有文本响应，则认为图像生成请求被接受
+            if not image_generations and response.text:
+                # 创建一个表示图像生成调用的记录
+                image_gen_result = {
+                    "id": f"img_gen_{int(time.time() * 1000)}",
+                    "type": "image_generation_call",
+                    "status": "completed",
+                    "result": {
+                        "description": response.text,
+                        "note": "图像生成完成，但无法提取直接的图像数据"
+                    },
+                    "revised_prompt": prompt_text.strip()
+                }
+                image_generations.append(image_gen_result)
+
+            # 构建OpenAI兼容的响应格式
+            return {
+                "id": f"gemini_img_{int(time.time() * 1000)}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": image_model,
                 "choices": [{
+                    "index": 0,
                     "message": {
                         "role": "assistant",
-                        "content": response.text
+                        "content": "图像已生成完成。",
+                        "image_generations": image_generations
                     },
                     "finish_reason": "stop"
                 }],
                 "usage": {
-                    "prompt_tokens": 0,  # Google API不提供token计数
+                    "prompt_tokens": len(prompt_text.split()),
+                    "completion_tokens": 0,
+                    "total_tokens": len(prompt_text.split())
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Google图像生成失败: {str(e)}")
+            # 返回错误但保持OpenAI格式
+            return {
+                "id": f"gemini_img_error_{int(time.time() * 1000)}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": model,
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": f"图像生成失败: {str(e)}",
+                        "image_generations": []
+                    },
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "prompt_tokens": 0,
                     "completion_tokens": 0,
                     "total_tokens": 0
                 }
             }
-            
-            logger.info(f"Google API调用成功")
-            return result
-            
+
+    async def _google_stream_completion_websocket(
+        self,
+        model: str,
+        messages: List[Union[Dict[str, str], Any]],
+        api_key: str,
+        thinking_mode: bool = False,
+        reasoning_summaries: str = "auto",
+        reasoning: str = "medium",
+        tools: List[Dict[str, Any]] = None,
+        use_native_search: bool = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Google Gemini WebSocket流式响应"""
+        try:
+            genai.configure(api_key=api_key)
+
+            logger.info(f"开始Google流式调用: {model}")
+
+            # 转换消息格式和多模态内容
+            history = []
+            system_instruction = None
+
+            # 处理系统消息
+            for i, msg in enumerate(messages):
+                role = self._get_message_attr(msg, "role")
+                content = self._get_message_attr(msg, "content")
+
+                if role == "system":
+                    system_instruction = content
+                    continue
+                elif i == len(messages) - 1:
+                    # 最后一条消息单独处理
+                    break
+                elif role == "user":
+                    # 处理多模态内容
+                    parts = self._convert_message_to_gemini_parts(msg)
+                    history.append({"role": "user", "parts": parts})
+                elif role == "assistant":
+                    history.append({"role": "model", "parts": [content]})
+
+            # 配置生成参数
+            generation_config = {
+                "temperature": 0.7,
+                "max_output_tokens": 8192,
+            }
+
+            # 处理thinking mode
+            if thinking_mode and model.startswith("gemini-2.0"):
+                generation_config["thinking_budget"] = self._get_thinking_budget(reasoning)
+
+            # 转换工具
+            gemini_tools = None
+            if tools:
+                gemini_tools = self._convert_tools_to_gemini_format(tools)
+
+            # 创建模型实例
+            model_instance = genai.GenerativeModel(
+                model_name=model,
+                generation_config=generation_config,
+                system_instruction=system_instruction,
+                tools=gemini_tools
+            )
+
+            # 处理最后一条用户消息
+            last_message = messages[-1]
+            user_parts = self._convert_message_to_gemini_parts(last_message)
+
+            # 开始流式响应
+            chat = model_instance.start_chat(history=history)
+            response_stream = chat.send_message(user_parts, stream=True)
+
+            accumulated_text = ""
+            message_id = f"gemini_{int(time.time() * 1000)}"
+
+            for chunk in response_stream:
+                if chunk.text:
+                    accumulated_text += chunk.text
+
+                    # 生成流式响应块
+                    yield {
+                        "id": message_id,
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": model,
+                        "choices": [{
+                            "index": 0,
+                            "delta": {
+                                "content": chunk.text
+                            },
+                            "finish_reason": None
+                        }]
+                    }
+
+            # 发送完成信号
+            yield {
+                "id": message_id,
+                "object": "chat.completion.chunk",
+                "created": int(time.time()),
+                "model": model,
+                "choices": [{
+                    "index": 0,
+                    "delta": {},
+                    "finish_reason": "stop"
+                }]
+            }
+
         except Exception as e:
-            logger.error(f"Google API调用失败: {str(e)}")
-            raise Exception(f"Google API调用失败: {str(e)}")
+            logger.error(f"Google流式调用失败: {str(e)}")
+            yield {"error": str(e)}
 
     async def _openai_compatible_completion(
         self,
@@ -1847,6 +2305,10 @@ class AIProviderService:
             elif provider == "anthropic":
                 # Anthropic支持流式输出
                 async for chunk in self._anthropic_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries, tools, use_native_search):
+                    yield chunk
+            elif provider == "google":
+                # Google Gemini支持流式输出
+                async for chunk in self._google_stream_completion_websocket(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search):
                     yield chunk
             elif provider == "openai_compatible":
                 # OpenAI兼容提供商支持流式

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Request, Form
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import base64
 import logging
+import time
 from PIL import Image
 import io
 import anthropic
@@ -242,9 +243,137 @@ async def upload_images(
         )
 
 @router.post("/generate")
-async def generate_image():
-    """图片生成"""
-    raise HTTPException(status_code=501, detail="图片生成功能待实现")
+async def generate_image(
+    prompt: str = Form(...),
+    provider: str = Form("google"),
+    model: Optional[str] = Form("gemini-2.5-flash-image"),
+    api_key: str = Form(...),
+    size: Optional[str] = Form("1024x1024"),
+    quality: Optional[str] = Form("standard"),
+    style: Optional[str] = Form("natural"),
+    n: Optional[int] = Form(1)
+):
+    """
+    生成图片
+
+    支持的提供商:
+    - google: 使用 Gemini 2.5 Flash Image 模型
+    - openai: 使用 DALL-E 模型 (待实现)
+    """
+    try:
+        logger.info(f"收到图片生成请求: provider={provider}, model={model}")
+
+        if provider.lower() == "google":
+            return await _google_image_generation(prompt, model, api_key, size, quality, style, n)
+        elif provider.lower() == "openai":
+            raise HTTPException(status_code=501, detail="OpenAI图片生成功能待实现")
+        else:
+            raise HTTPException(status_code=400, detail=f"不支持的提供商: {provider}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"图片生成失败: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"图片生成失败: {str(e)}"
+        )
+
+async def _google_image_generation(
+    prompt: str,
+    model: str,
+    api_key: str,
+    size: str,
+    quality: str,
+    style: str,
+    n: int
+) -> Dict[str, Any]:
+    """Google Gemini 图片生成"""
+    try:
+        from google import genai
+        import base64
+        import io
+
+        genai.configure(api_key=api_key)
+
+        # 构建图像生成提示
+        image_prompt = f"Generate an image: {prompt}"
+
+        # 根据样式调整提示
+        if style == "artistic":
+            image_prompt += " in artistic style"
+        elif style == "photorealistic":
+            image_prompt += " in photorealistic style"
+        elif style == "digital_art":
+            image_prompt += " in digital art style"
+
+        # 根据质量调整提示
+        if quality == "hd":
+            image_prompt += " with high detail and quality"
+
+        logger.info(f"使用Google生成图片: {image_prompt}")
+
+        # 使用 Gemini 2.5 Flash Image 模型生成图片
+        model_instance = genai.GenerativeModel(model)
+
+        response = model_instance.generate_content(
+            image_prompt,
+            generation_config={
+                "temperature": 0.8,
+                "max_output_tokens": 8192,
+            }
+        )
+
+        # 检查响应中是否包含图片
+        images_data = []
+
+        # Gemini 2.5 Flash Image 会在响应中包含生成的图片
+        if hasattr(response, 'candidates') and response.candidates:
+            for candidate in response.candidates:
+                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                    for part in candidate.content.parts:
+                        # 检查是否为图片部分
+                        if hasattr(part, 'inline_data'):
+                            image_data = part.inline_data.data
+                            mime_type = part.inline_data.mime_type
+
+                            # 转换为base64格式
+                            if isinstance(image_data, bytes):
+                                b64_data = base64.b64encode(image_data).decode('utf-8')
+                            else:
+                                b64_data = image_data
+
+                            images_data.append({
+                                "url": f"data:{mime_type};base64,{b64_data}",
+                                "b64_json": b64_data,
+                                "revised_prompt": prompt
+                            })
+
+        if not images_data:
+            # 如果没有直接的图片数据，尝试从文本响应中提取
+            if response.text and "generated image" in response.text.lower():
+                # 这是一个fallback，实际情况可能需要更复杂的处理
+                logger.warning("未检测到直接的图片数据，返回文本响应")
+                raise HTTPException(
+                    status_code=500,
+                    detail="图片生成成功但无法提取图片数据"
+                )
+            else:
+                raise HTTPException(
+                    status_code=500,
+                    detail="未能生成图片数据"
+                )
+
+        logger.info(f"成功生成 {len(images_data)} 张图片")
+
+        return {
+            "created": int(time.time()),
+            "data": images_data[:n]  # 限制返回数量
+        }
+
+    except Exception as e:
+        logger.error(f"Google图片生成失败: {str(e)}")
+        raise Exception(f"Google图片生成失败: {str(e)}")
 
 @router.post("/analyze")
 async def analyze_image():

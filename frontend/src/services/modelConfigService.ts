@@ -89,6 +89,68 @@ class ModelConfigService {
               pricing: { input: 15.0, output: 75.0 }
             }
           }
+        },
+        google: {
+          name: "Google",
+          description: "Google Gemini 模型",
+          supports_thinking: true,
+          models: {
+            "gemini-2.5-pro": {
+              name: "Gemini 2.5 Pro",
+              description: "Google最强推理模型，支持复杂任务",
+              api_type: "generate_content",
+              context_length: 2000000,
+              supports_vision: true,
+              supports_function_calling: true,
+              supports_thinking: true,
+              supports_streaming: true,
+              pricing: { input: 3.0, output: 12.0 }
+            },
+            "gemini-2.5-flash": {
+              name: "Gemini 2.5 Flash",
+              description: "最新多模态模型，速度快、功能全",
+              api_type: "generate_content",
+              context_length: 1000000,
+              supports_vision: true,
+              supports_function_calling: true,
+              supports_thinking: false,
+              supports_streaming: true,
+              pricing: { input: 0.075, output: 0.3 }
+            },
+            "gemini-2.5-flash-lite": {
+              name: "Gemini 2.5 Flash Lite",
+              description: "速度最快、成本最低的多模态模型",
+              api_type: "generate_content",
+              context_length: 1000000,
+              supports_vision: true,
+              supports_function_calling: true,
+              supports_thinking: false,
+              supports_streaming: true,
+              pricing: { input: 0.0375, output: 0.15 }
+            },
+            "gemini-2.5-flash-image": {
+              name: "Gemini 2.5 Flash Image",
+              description: "专门的图像生成模型",
+              api_type: "generate_content",
+              context_length: 32000,
+              supports_vision: false,
+              supports_function_calling: false,
+              supports_thinking: false,
+              supports_streaming: false,
+              pricing: { input: 30.0, output: 30.0 }
+            },
+            "gemini-2.0-flash-exp": {
+              name: "Gemini 2.0 Flash (Experimental)",
+              description: "实验性最新模型，支持思考模式",
+              api_type: "generate_content",
+              context_length: 1000000,
+              supports_vision: true,
+              supports_function_calling: true,
+              supports_thinking: true,
+              supports_streaming: true,
+              pricing: { input: 0.075, output: 0.3 }
+            }
+          }
         }
       }
     }
@@ -133,6 +195,20 @@ class ModelConfigService {
 
   async isOpenAIChatCompletionsAPI(modelId: string): Promise<boolean> {
     return !(await this.isOpenAIResponsesAPI(modelId))
+  }
+
+  // Google 模型类型判断
+  async isGoogleImageModel(modelId: string): Promise<boolean> {
+    try {
+      const config = await this.loadConfig()
+      const googleModels = config.providers.google?.models || {}
+      const modelConfig = googleModels[modelId]
+      return modelId.includes('image') || modelConfig?.name?.toLowerCase().includes('image') || false
+    } catch (error) {
+      console.warn('无法检查Google图像模型类型，使用回退逻辑:', error)
+      const imageModels = ['gemini-2.5-flash-image', 'gemini-image', 'imagen-4']
+      return imageModels.some(model => modelId.includes(model))
+    }
   }
 
   // 检查模型是否支持流式输出
