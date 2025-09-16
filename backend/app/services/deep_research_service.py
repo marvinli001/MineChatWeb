@@ -400,26 +400,25 @@ class DeepResearchService:
                         # 响应已完成，提取结果
                         result_text = self._extract_research_result(response)
 
-                        # 检查结果是否有效（不是错误消息）
-                        if result_text and not result_text.startswith("深度研究任务已完成，但OpenAI返回的响应格式异常"):
+                        # 检查结果是否有效
+                        if result_text is not None:
+                            # 检查是否需要澄清
                             if self._needs_clarification(response):
-                                # 更新任务状态为警告，表示需要用户澄清
                                 task.status = DeepResearchStatus.WARNING
                                 task.warning_message = "研究需要更多信息才能提供准确结果，建议提供更详细的查询或使用澄清功能。"
                             else:
-                                # 更新任务状态为完成
                                 task.status = DeepResearchStatus.COMPLETED
 
                             task.result = result_text
+                            self._tasks_storage[task.id] = task
+                            await self.notify_task_update(task.id, task)
+                            return
                         else:
-                            # 如果没有有效结果，标记为警告状态
-                            task.status = DeepResearchStatus.WARNING
-                            task.warning_message = "研究完成但结果格式异常，可能需要重新尝试或使用更具体的查询。"
-                            task.result = result_text
-
-                        self._tasks_storage[task.id] = task
-                        await self.notify_task_update(task.id, task)
-                        return
+                            # result_text为None表示仍在处理中，继续等待
+                            logger.info(f"任务 {task.id} 状态为completed但结果提取返回None，继续等待")
+                            await asyncio.sleep(5)
+                            retry_count += 1
+                            continue
 
                     elif status in ['failed', 'cancelled']:
                         # 响应失败
@@ -453,7 +452,7 @@ class DeepResearchService:
 
                 # 如果没有状态属性，尝试直接提取结果
                 result_text = self._extract_research_result(response)
-                if result_text and not result_text.startswith("未能从响应中提取到研究结果"):
+                if result_text is not None and not result_text.startswith("未能从响应中提取到研究结果"):
                     task.status = DeepResearchStatus.COMPLETED
                     task.result = result_text
                     self._tasks_storage[task.id] = task
@@ -532,79 +531,70 @@ class DeepResearchService:
     def _extract_research_result(self, response) -> str:
         """
         从OpenAI响应中提取研究结果
+        基于官方文档的响应结构：
+        1. 优先检查 response.output_text（官方文档第53行）
+        2. 然后检查 response.output 数组中的 message 类型项目
         """
         try:
             # 记录响应结构以供调试
             logger.info(f"尝试提取结果，响应类型: {type(response)}")
             logger.info(f"响应属性: {dir(response)}")
 
-            # 检查常见的文本输出属性
-            text_attrs = ['output_text', 'text', 'content']
-            for attr in text_attrs:
-                if hasattr(response, attr):
-                    value = getattr(response, attr)
-                    if value and isinstance(value, str) and value.strip():
-                        logger.info(f"从属性 {attr} 提取到结果: {len(value)} 字符")
-                        return value
+            # 1. 首先检查 output_text 属性（根据官方文档）
+            if hasattr(response, 'output_text') and response.output_text:
+                if isinstance(response.output_text, str) and response.output_text.strip():
+                    logger.info(f"从output_text属性提取到结果: {len(response.output_text)} 字符")
+                    return response.output_text.strip()
 
-            # 检查output列表
+            # 2. 检查 output 数组中的 message 类型项目（根据官方文档第143-160行）
             if hasattr(response, 'output') and isinstance(response.output, list):
                 logger.info(f"响应包含output列表，长度: {len(response.output)}")
-
-                # 如果output为空，但状态为completed，说明任务完成但结果可能在其他地方
-                if len(response.output) == 0:
-                    logger.warning("output列表为空，尝试从其他属性获取结果")
-
-                    # 检查是否有text属性在响应的其他地方
-                    if hasattr(response, 'text') and response.text:
-                        return response.text
-
-                    # 检查是否有完整的响应文本表示
-                    response_str = str(response)
-                    if len(response_str) > 100 and 'output=[]' not in response_str and 'Response(' not in response_str:
-                        return response_str
-
-                    # 如果任务状态为completed但没有结果，可能是OpenAI的响应格式问题
-                    if hasattr(response, 'status') and response.status == 'completed':
-                        return "深度研究任务已完成，但OpenAI返回的响应格式异常。这可能是由于模型输出为空或响应结构发生变化。请尝试重新提交研究请求，或检查查询内容是否过于简单。"
-
-                    return "研究任务完成，但未获得有效输出。请尝试更具体的查询内容。"
 
                 text_parts = []
                 for i, item in enumerate(response.output):
                     logger.info(f"Output item {i}: {type(item)} - {item if isinstance(item, dict) else str(item)[:100]}")
 
                     if isinstance(item, dict):
-                        # 查找message类型的输出
+                        # 查找 message 类型的输出（官方文档结构）
                         if item.get('type') == 'message' and 'content' in item:
                             content = item['content']
                             if isinstance(content, list):
-                                # 提取文本内容
+                                # 提取 output_text 类型的内容
                                 for part in content:
-                                    if isinstance(part, dict):
-                                        if part.get('type') == 'text' and 'text' in part:
-                                            text_parts.append(part['text'])
-                                        elif part.get('type') == 'output_text' and 'text' in part:
-                                            text_parts.append(part['text'])
+                                    if isinstance(part, dict) and part.get('type') == 'output_text' and 'text' in part:
+                                        text_parts.append(part['text'])
+                                        logger.info(f"从message content中提取到output_text: {len(part['text'])} 字符")
                             elif isinstance(content, str):
                                 text_parts.append(content)
+                                logger.info(f"从message content中提取到字符串: {len(content)} 字符")
 
-                        # 直接查找文本内容
-                        elif 'text' in item:
+                        # 兼容其他可能的文本格式
+                        elif 'text' in item and isinstance(item['text'], str):
                             text_parts.append(item['text'])
-                        elif 'content' in item:
-                            if isinstance(item['content'], str):
-                                text_parts.append(item['content'])
+                        elif 'content' in item and isinstance(item['content'], str):
+                            text_parts.append(item['content'])
 
                     elif isinstance(item, str):
                         text_parts.append(item)
 
                 if text_parts:
                     result = '\n'.join(text_parts).strip()
-                    logger.info(f"从output列表提取到结果: {len(result)} 字符")
+                    logger.info(f"从output数组提取到结果: {len(result)} 字符")
                     return result
 
-            # 检查choices（ChatCompletion风格）
+                # 如果output数组为空
+                if len(response.output) == 0:
+                    logger.warning("output数组为空，可能任务仍在处理中或输出为空")
+
+            # 3. 检查其他常见属性
+            for attr in ['text', 'content']:
+                if hasattr(response, attr):
+                    value = getattr(response, attr)
+                    if value and isinstance(value, str) and value.strip():
+                        logger.info(f"从属性 {attr} 提取到结果: {len(value)} 字符")
+                        return value
+
+            # 4. 检查choices（ChatCompletion风格，用于兼容性）
             if hasattr(response, 'choices') and response.choices:
                 for choice in response.choices:
                     if hasattr(choice, 'message') and hasattr(choice.message, 'content'):
@@ -612,20 +602,21 @@ class DeepResearchService:
                             logger.info(f"从choices提取到结果: {len(choice.message.content)} 字符")
                             return choice.message.content
 
-            # 如果响应有效但没有找到文本内容
-            if hasattr(response, 'status') and response.status == 'completed':
-                logger.warning("响应状态为completed但未找到文本内容")
-                return "深度研究任务已完成，但OpenAI返回的响应格式异常。这可能是由于模型输出为空或响应结构发生变化。请尝试重新提交研究请求，或使用更详细的查询内容。"
+            # 5. 如果响应状态为completed但没有结果
+            if hasattr(response, 'status'):
+                logger.info(f"响应状态: {response.status}")
+                if response.status == 'completed':
+                    return "深度研究任务已完成，但返回的结果为空。这可能是因为：\n1. 查询内容过于简单或模糊\n2. 没有找到相关信息\n3. OpenAI模型响应格式发生变化\n\n建议：请尝试使用更具体、更详细的研究问题重新提交。"
+                elif response.status in ['queued', 'in_progress']:
+                    return None  # 返回None表示仍在处理中
+                elif response.status in ['failed', 'cancelled']:
+                    return f"深度研究任务失败，状态: {response.status}"
 
-            # 如果无法提取，记录完整响应用于调试
+            # 6. 记录完整响应用于调试
             response_str = str(response)
-            logger.warning(f"无法提取结果，原始响应: {response_str[:500]}...")
+            logger.warning(f"无法提取结果，完整响应: {response_str[:1000]}...")
 
-            # 对于某些情况，直接返回响应的字符串表示
-            if len(response_str) > 100 and 'Response(' not in response_str:
-                return response_str
-
-            return "未能从响应中提取到研究结果。这可能是OpenAI API响应格式发生变化，或查询内容过于简单导致无输出。请尝试使用更具体、更详细的研究问题。"
+            return "未能从响应中提取到研究结果。请检查查询内容是否足够具体，或稍后重试。"
 
         except Exception as e:
             logger.error(f"提取研究结果时出错: {str(e)}", exc_info=True)

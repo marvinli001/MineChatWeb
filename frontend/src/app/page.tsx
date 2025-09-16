@@ -15,7 +15,7 @@ export default function Home() {
   const [showModelMarket, setShowModelMarket] = useState(false)
   const [showPluginMarket, setShowPluginMarket] = useState(false)
   const [currentView, setCurrentView] = useState<'chat' | 'deep-research'>('chat')
-  const { initialized, initializeSettings } = useSettingsStore()
+  const { initialized, initializeSettings, settings } = useSettingsStore()
 
   useEffect(() => {
     if (!initialized) {
@@ -28,7 +28,14 @@ export default function Home() {
   }
 
   const handlePluginMarketClick = () => {
-    setShowPluginMarket(true)
+    // 只有支持插件市场的提供商才能打开
+    const supportedProviders = ['openai', 'anthropic']
+    if (supportedProviders.includes(settings.chatProvider)) {
+      setShowPluginMarket(true)
+    } else {
+      // 可以显示提示信息
+      console.warn(`插件市场暂不支持提供商: ${settings.chatProvider}`)
+    }
   }
 
   const handleDeepResearchClick = () => {
@@ -80,9 +87,10 @@ export default function Home() {
       />
       
       {/* 插件市场弹窗 */}
-      <PluginMarket 
+      <PluginMarket
         isOpen={showPluginMarket}
         onClose={() => setShowPluginMarket(false)}
+        currentProvider={settings.chatProvider}
       />
     </div>
   )

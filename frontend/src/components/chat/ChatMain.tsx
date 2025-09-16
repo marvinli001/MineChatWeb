@@ -9,6 +9,7 @@ import ChatHeader from './ChatHeader'
 import ScrollToBottomButton from './ScrollToBottomButton'
 import MobileDrawer from './MobileDrawer'
 import ChatSidebar from './ChatSidebar'
+import { motion } from 'motion/react'
 
 interface ChatMainProps {
   onModelMarketClick?: () => void
@@ -75,18 +76,38 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
           <ChatHeader onMenuClick={handleMenuClick} onModelMarketClick={onModelMarketClick} />
           
           {/* 主内容区域 - 居中显示欢迎信息和输入框 */}
-          <div className="flex-1 flex flex-col items-center justify-center welcome-container">
-            <div className="text-center max-w-2xl mx-auto px-4 mb-8">
-              <h1 className="text-3xl sm:text-4xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-8 animate-in fade-in-0 slide-in-from-bottom-3 duration-500">
+          <motion.div
+            className="flex-1 flex flex-col items-center justify-center welcome-container"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+          >
+            <motion.div
+              className="text-center max-w-2xl mx-auto px-4 mb-8"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+            >
+              <motion.h1
+                className="text-3xl sm:text-4xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-8"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
+              >
                 {welcomeTitle}
-              </h1>
-            </div>
-            
+              </motion.h1>
+            </motion.div>
+
             {/* 居中的输入区域 */}
-            <div className="w-full max-w-3xl px-4 input-container">
+            <motion.div
+              className="w-full max-w-3xl px-4 input-container"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6, ease: "easeOut" }}
+            >
               <InputArea isWelcomeMode={true} onModelMarketClick={onModelMarketClick} />
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
         
         {/* 移动端抽屉侧边栏 */}
@@ -109,28 +130,48 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
         <ChatHeader onMenuClick={handleMenuClick} onModelMarketClick={onModelMarketClick} />
         
         {/* 消息列表 */}
-        <div 
+        <div
           ref={messagesContainerRef}
           className="flex-1 overflow-y-auto scrollbar-thin messages-container"
         >
-          <div className="max-w-3xl mx-auto px-4 py-6 messages-content">
+          <motion.div
+            className="max-w-3xl mx-auto px-4 py-6 messages-content"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+          >
             {currentConversation.messages.map((message, index) => (
-              <MessageItem
+              <motion.div
                 key={index}
-                message={message}
-                isLast={index === currentConversation.messages.length - 1}
-              />
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.4,
+                  delay: index * 0.05,
+                  ease: "easeOut"
+                }}
+              >
+                <MessageItem
+                  message={message}
+                  isLast={index === currentConversation.messages.length - 1}
+                />
+              </motion.div>
             ))}
             <div ref={messagesEndRef} />
             {/* 移动端底部填充 */}
             <div className="h-20 lg:hidden" />
-          </div>
+          </motion.div>
         </div>
 
         {/* 输入区域 */}
-        <div className="flex-shrink-0 input-area">
+        <motion.div
+          className="flex-shrink-0 input-area"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2, ease: "easeOut" }}
+        >
           <InputArea isWelcomeMode={false} onModelMarketClick={onModelMarketClick} />
-        </div>
+        </motion.div>
       </div>
       
       {/* 回到底部按钮 */}

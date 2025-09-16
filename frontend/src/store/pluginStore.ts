@@ -22,7 +22,11 @@ export interface MCPServer {
   id: string
   name: string
   description: string
-  url: string
+  url?: string
+  connector_id?: string // 内置连接器ID
+  authorization?: string // OAuth授权令牌
+  require_approval?: string // 审批要求配置
+  allowed_tools?: string[] // 允许的工具列表
   created_at: string
 }
 
@@ -145,12 +149,35 @@ export const usePluginStore = create<PluginState>()(
         return serverIds
           .map(id => mcpServers.find(s => s.id === id))
           .filter(Boolean)
-          .map(server => ({
-            type: 'mcp_server',
-            server_name: server!.name,
-            server_url: server!.url,
-            description: server!.description
-          }))
+          .map(server => {
+            const tool: any = {
+              type: 'mcp',
+              server_label: server!.name,
+              server_description: server!.description
+            }
+
+            // 添加远程MCP服务器URL或内置连接器ID
+            if (server!.connector_id) {
+              tool.connector_id = server!.connector_id
+            } else if (server!.url) {
+              tool.server_url = server!.url
+            }
+
+            // 添加可选配置
+            if (server!.authorization) {
+              tool.authorization = server!.authorization
+            }
+
+            if (server!.require_approval !== undefined) {
+              tool.require_approval = server!.require_approval
+            }
+
+            if (server!.allowed_tools && server!.allowed_tools.length > 0) {
+              tool.allowed_tools = server!.allowed_tools
+            }
+
+            return tool
+          })
       }
     }),
     {

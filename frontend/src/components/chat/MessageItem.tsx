@@ -15,6 +15,7 @@ import TypewriterEffect from './TypewriterEffect'
 import SearchSources from './SearchSources'
 import CitationText from './CitationText'
 import toast from 'react-hot-toast'
+import { motion } from 'motion/react'
 
 interface MessageItemProps {
   message: ChatMessage
@@ -133,10 +134,20 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
   const contentParts = hasThinking ? renderThinkingContent(message.content) : [{ type: 'content', text: message.content }]
 
   return (
-    <div className="mb-6 px-4">
+    <motion.div
+      className="mb-6 px-4"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+    >
       {isUser ? (
         // 用户消息 - 右侧对齐，暗灰色气泡，默认markdown渲染
-        <div className="flex justify-end">
+        <motion.div
+          className="flex justify-end"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
           <div className="max-w-[70%] lg:max-w-[70%] message-bubble user sm:max-w-[92%]">
             {/* 图片缩略图 - 显示在消息上方 */}
             {message.images && message.images.length > 0 && (
@@ -185,7 +196,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                     <img
                       src={`data:${image.mime_type};base64,${image.data}`}
                       alt={image.filename}
-                      className="w-12 h-12 object-cover rounded-lg border-2 border-white shadow-lg group-hover:scale-110 transition-transform duration-200"
+                      className="w-12 h-12 object-cover rounded-lg border-2 border-white shadow-lg"
                     />
                     {/* 文件名提示 */}
                     <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
@@ -266,10 +277,15 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       ) : (
         // AI消息 - 左侧对齐，OpenAI风格
-        <div className="flex gap-3 group">
+        <motion.div
+          className="flex gap-3 group"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+        >
           {/* AI头像 - 使用模型的icon */}
           <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden lg:w-8 lg:h-8">
             {currentModelIcon ? (
@@ -402,44 +418,81 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
             })}
 
             {/* 操作按钮 - 只在AI消息上显示，hover时出现 */}
-            <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-              <button
+            <motion.div
+              className="flex items-center gap-2 mt-2"
+              initial={{ opacity: 0 }}
+              whileHover={{ opacity: 1 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              <motion.button
                 onClick={() => copyToClipboard(message.content)}
-                className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-1 rounded"
                 title="复制"
+                whileHover={{
+                  backgroundColor: "rgba(0, 0, 0, 0.05)",
+                  scale: 1.1,
+                  transition: { duration: 0.15 }
+                }}
+                whileTap={{ scale: 0.95 }}
               >
                 {copied ? (
-                  <CheckIcon className="w-4 h-4 text-green-600" />
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                  >
+                    <CheckIcon className="w-4 h-4 text-green-600" />
+                  </motion.div>
                 ) : (
                   <ClipboardIcon className="w-4 h-4 text-gray-500" />
                 )}
-              </button>
-              <button
+              </motion.button>
+              <motion.button
                 onClick={() => speakText(message.content)}
-                className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                className={`p-1 rounded ${
                   isSpeaking ? 'text-blue-600' : 'text-gray-500'
                 }`}
                 title="朗读"
+                whileHover={{
+                  backgroundColor: "rgba(0, 0, 0, 0.05)",
+                  scale: 1.1,
+                  transition: { duration: 0.15 }
+                }}
+                whileTap={{ scale: 0.95 }}
+                animate={isSpeaking ? {
+                  scale: [1, 1.1, 1],
+                  transition: { duration: 0.5, repeat: Infinity }
+                } : {}}
               >
                 <SpeakerWaveIcon className="w-4 h-4" />
-              </button>
+              </motion.button>
               {/* 重新生成按钮 - 只在最后一条AI消息上显示 */}
               {isLast && (
-                <button
+                <motion.button
                   onClick={handleRegenerate}
                   disabled={isLoading || isRegenerating}
-                  className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-                    isRegenerating ? 'text-blue-600 animate-spin' : 'text-gray-500'
+                  className={`p-1 rounded ${
+                    isRegenerating ? 'text-blue-600' : 'text-gray-500'
                   } ${(isLoading || isRegenerating) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   title="重新生成"
+                  whileHover={!isLoading && !isRegenerating ? {
+                    backgroundColor: "rgba(0, 0, 0, 0.05)",
+                    scale: 1.1,
+                    transition: { duration: 0.15 }
+                  } : {}}
+                  whileTap={!isLoading && !isRegenerating ? { scale: 0.95 } : {}}
+                  animate={isRegenerating ? {
+                    rotate: 360,
+                    transition: { duration: 1, repeat: Infinity, ease: "linear" }
+                  } : {}}
                 >
                   <ArrowPathIcon className="w-4 h-4" />
-                </button>
+                </motion.button>
               )}
-            </div>
+            </motion.div>
           </div>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   )
 }

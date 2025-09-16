@@ -5,6 +5,7 @@ import logging
 import time
 from app.models.chat import ChatMessage, ChatRequest, ChatResponse
 from app.services.ai_providers import AIProviderService
+from app.services.plugin_executor import PluginExecutor
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +29,141 @@ class ConnectionManager:
         await websocket.send_text(message)
 
 manager = ConnectionManager()
+
+async def _handle_function_calling(
+    request_id: str,
+    ai_service: AIProviderService,
+    plugin_executor: PluginExecutor,
+    request: ChatRequest,
+    initial_response: Dict[str, Any]
+) -> Dict[str, Any]:
+    """处理function calling的完整流程"""
+    max_iterations = 10  # 防止无限循环
+    current_messages = list(request.messages)
+    current_response = initial_response
+
+    for iteration in range(max_iterations):
+        choice = current_response["choices"][0]
+        message = choice.get("message", {})
+        tool_calls = message.get("tool_calls", [])
+
+        if not tool_calls:
+            # 没有tool calls，返回当前响应
+            break
+
+        logger.info(f"[{request_id}] 第 {iteration + 1} 轮function calling，执行 {len(tool_calls)} 个function calls")
+
+        # 将assistant的消息（包含tool_calls）添加到消息历史
+        assistant_message = {
+            "role": "assistant",
+            "content": message.get("content", ""),
+            "tool_calls": tool_calls
+        }
+        current_messages.append(assistant_message)
+
+        # 执行function calls
+        function_results = []
+        for tool_call in tool_calls:
+            try:
+                if tool_call.get("type") == "function":
+                    function_info = tool_call.get("function", {})
+                    function_name = function_info.get("name")
+                    function_arguments = json.loads(function_info.get("arguments", "{}"))
+
+                    logger.info(f"[{request_id}] 执行function: {function_name}")
+
+                    # 执行function
+                    result = await plugin_executor.execute_function_call(
+                        function_name=function_name,
+                        function_arguments=function_arguments
+                    )
+
+                    # 格式化结果
+                    result_text = plugin_executor.format_tool_result_for_ai(result)
+
+                    # 对于Responses API，需要使用特殊格式
+                    if request.provider == "openai" and hasattr(ai_service, '_is_responses_api_model'):
+                        # 检查是否为支持Responses API的模型
+                        function_results.append({
+                            "type": "function_call_output",
+                            "call_id": tool_call.get("id"),
+                            "output": result_text
+                        })
+                    else:
+                        # 标准Chat Completions格式
+                        function_results.append({
+                            "role": "tool",
+                            "content": result_text,
+                            "tool_call_id": tool_call.get("id")
+                        })
+
+                else:
+                    # 处理其他类型的tool calls（如MCP）
+                    logger.warning(f"[{request_id}] 暂不支持的tool call类型: {tool_call.get('type')}")
+                    error_msg = f"Error: Unsupported tool call type: {tool_call.get('type')}"
+
+                    if request.provider == "openai" and hasattr(ai_service, '_is_responses_api_model'):
+                        function_results.append({
+                            "type": "function_call_output",
+                            "call_id": tool_call.get("id"),
+                            "output": error_msg
+                        })
+                    else:
+                        function_results.append({
+                            "role": "tool",
+                            "content": error_msg,
+                            "tool_call_id": tool_call.get("id")
+                        })
+
+            except Exception as e:
+                logger.error(f"[{request_id}] 执行function call失败: {str(e)}")
+                error_msg = f"Error executing function: {str(e)}"
+
+                if request.provider == "openai" and hasattr(ai_service, '_is_responses_api_model'):
+                    function_results.append({
+                        "type": "function_call_output",
+                        "call_id": tool_call.get("id", "unknown"),
+                        "output": error_msg
+                    })
+                else:
+                    function_results.append({
+                        "role": "tool",
+                        "content": error_msg,
+                        "tool_call_id": tool_call.get("id", "unknown")
+                    })
+
+        # 将function结果添加到消息历史
+        current_messages.extend(function_results)
+
+        # 调用AI获取下一个响应
+        try:
+            current_response = await ai_service.get_completion(
+                provider=request.provider,
+                model=request.model,
+                messages=current_messages,
+                api_key=request.api_key,
+                stream=False,  # Function calling不支持流模式
+                thinking_mode=request.thinking_mode,
+                reasoning_summaries=request.reasoning_summaries,
+                reasoning=request.reasoning,
+                tools=[tool.dict() for tool in request.tools] if request.tools else None,
+                use_native_search=request.use_native_search,
+                base_url=request.base_url
+            )
+
+            # 检查新响应是否还有tool_calls
+            new_choice = current_response["choices"][0]
+            new_message = new_choice.get("message", {})
+            if not new_message.get("tool_calls") and new_choice.get("finish_reason") != "tool_calls":
+                # 没有更多tool calls，结束循环
+                break
+
+        except Exception as e:
+            logger.error(f"[{request_id}] Function calling后续调用失败: {str(e)}")
+            break
+
+    logger.info(f"[{request_id}] Function calling完成，共执行 {iteration + 1} 轮")
+    return current_response
 
 @router.post("/completion")
 async def chat_completion(request: ChatRequest):
@@ -57,7 +193,9 @@ async def chat_completion(request: ChatRequest):
     try:
         logger.info(f"[{request_id}] 开始调用AI服务...")
         ai_service = AIProviderService()
-        
+        plugin_executor = PluginExecutor()
+
+        # 获取初始响应
         response = await ai_service.get_completion(
             provider=request.provider,
             model=request.model,
@@ -71,6 +209,18 @@ async def chat_completion(request: ChatRequest):
             use_native_search=request.use_native_search,
             base_url=request.base_url
         )
+
+        # 处理function calling（如果有）
+        if request.tools and response.get("choices"):
+            choice = response["choices"][0]
+            message = choice.get("message", {})
+
+            # 检查是否有tool_calls需要执行
+            if message.get("tool_calls") or choice.get("finish_reason") == "tool_calls":
+                logger.info(f"[{request_id}] 检测到function calls，开始处理...")
+                response = await _handle_function_calling(
+                    request_id, ai_service, plugin_executor, request, response
+                )
         
         logger.info(f"[{request_id}] AI服务调用成功，耗时: {time.time() - start_time:.2f}秒")
         

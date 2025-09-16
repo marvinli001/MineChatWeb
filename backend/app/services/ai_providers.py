@@ -107,15 +107,22 @@ class AIProviderService:
             "content": content_parts
         }
     
-    def _prepare_tools_config(self, messages: List[Union[Dict[str, Any], Any]], tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """准备工具配置，基于消息中的文件类型"""
+    def _prepare_tools_config(self, messages: List[Union[Dict[str, Any], Any]], tools: List[Dict[str, Any]] = None, provider: str = "openai") -> Dict[str, Any]:
+        """准备工具配置，基于消息中的文件类型和提供商"""
+        if provider == "anthropic":
+            return self._prepare_anthropic_tools_config(messages, tools)
+        else:
+            return self._prepare_openai_tools_config(messages, tools)
+
+    def _prepare_openai_tools_config(self, messages: List[Union[Dict[str, Any], Any]], tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """准备OpenAI工具配置"""
         tools_config = {"tools": []}
-        
+
         # 收集所有需要的工具
         need_code_interpreter = False
         need_file_search = False
         vector_stores = set()
-        
+
         for msg in messages:
             # 获取文件数据
             files = None
@@ -123,7 +130,7 @@ class AIProviderService:
                 files = msg.get("files")
             else:
                 files = getattr(msg, "files", None)
-            
+
             if files:
                 for file in files:
                     if isinstance(file, dict):
@@ -132,46 +139,65 @@ class AIProviderService:
                     else:
                         process_mode = getattr(file, "process_mode", "direct")
                         vector_store_id = getattr(file, "vector_store_id", None)
-                    
+
                     if process_mode == "code_interpreter":
                         need_code_interpreter = True
                     elif process_mode == "file_search" and vector_store_id:
                         need_file_search = True
                         vector_stores.add(vector_store_id)
-        
+
         # 添加需要的工具
         if need_code_interpreter:
             tools_config["tools"].append({
                 "type": "code_interpreter",
                 "container": {"type": "auto"}
             })
-        
+
         if need_file_search and vector_stores:
             tools_config["tools"].append({
                 "type": "file_search",
                 "vector_store_ids": list(vector_stores)
             })
-        
-        # 添加前端传来的工具配置（包括 Web Search, Image Generation 和 Function Calling）
+
+        # 添加前端传来的工具配置
         if tools:
             for tool_config in tools:
                 if tool_config.get("type") in ["web_search", "web_search_preview"]:
-                    # 构建 web search 工具配置
                     web_search_tool = self.web_search_service.build_web_search_tool_config(tool_config)
                     tools_config["tools"].append(web_search_tool)
                 elif tool_config.get("type") == "image_generation":
-                    # 构建 image generation 工具配置
                     image_gen_tool = self._build_image_generation_tool_config(tool_config)
                     tools_config["tools"].append(image_gen_tool)
                 elif tool_config.get("type") == "function":
-                    # 构建 Function Calling 工具配置
                     function_tool = self._build_function_calling_tool_config(tool_config)
                     tools_config["tools"].append(function_tool)
-                elif tool_config.get("type") == "mcp_server":
-                    # 构建 MCP 服务器工具配置
-                    mcp_tool = self._build_mcp_server_tool_config(tool_config)
+                elif tool_config.get("type") in ["mcp_server", "mcp"]:
+                    # OpenAI使用Responses API的MCP格式
+                    mcp_tool = self._build_openai_mcp_tool_config(tool_config)
                     tools_config["tools"].append(mcp_tool)
-        
+
+        return tools_config
+
+    def _prepare_anthropic_tools_config(self, messages: List[Union[Dict[str, Any], Any]], tools: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """准备Anthropic工具配置"""
+        tools_config = {"tools": [], "mcp_servers": []}
+
+        # Anthropic目前主要支持function calling和MCP
+        if tools:
+            for tool_config in tools:
+                if tool_config.get("type") == "function":
+                    # Anthropic的function calling格式
+                    function_tool = {
+                        "name": tool_config.get("name"),
+                        "description": tool_config.get("description", ""),
+                        "input_schema": tool_config.get("parameters", {})
+                    }
+                    tools_config["tools"].append(function_tool)
+                elif tool_config.get("type") in ["mcp_server", "mcp"]:
+                    # Anthropic使用专门的mcp_servers参数
+                    mcp_server = self._build_anthropic_mcp_server_config(tool_config)
+                    tools_config["mcp_servers"].append(mcp_server)
+
         return tools_config
     
     def _build_image_generation_tool_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -230,14 +256,128 @@ class AIProviderService:
 
         return config
 
-    def _build_mcp_server_tool_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
-        """构建 MCP 服务器工具配置"""
+    def _build_openai_mcp_tool_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
+        """构建OpenAI MCP工具配置（符合Responses API格式）"""
+        server_url = tool_config.get("server_url")
+
+        # 验证服务器URL（如果提供了URL）
+        if server_url and not self._validate_mcp_server_url(server_url, "openai"):
+            logger.error(f"OpenAI MCP服务器URL验证失败: {server_url}")
+
         config = {
-            "type": "mcp_server",
-            "server_name": tool_config.get("server_name"),
-            "server_url": tool_config.get("server_url"),
-            "description": tool_config.get("description", "")
+            "type": "mcp",
+            "server_label": tool_config.get("server_name", tool_config.get("server_label")),
+            "server_url": server_url,
         }
+
+        # 添加可选字段
+        if "server_description" in tool_config:
+            config["server_description"] = tool_config["server_description"]
+        elif "description" in tool_config:
+            config["server_description"] = tool_config["description"]
+
+        # 支持内置连接器
+        if "connector_id" in tool_config:
+            config["connector_id"] = tool_config["connector_id"]
+            # 连接器不需要server_url
+            if "server_url" in config:
+                del config["server_url"]
+
+        # 授权配置
+        if "authorization" in tool_config:
+            config["authorization"] = tool_config["authorization"]
+
+        # 审批要求配置（支持细粒度控制）
+        if "require_approval" in tool_config:
+            require_approval = tool_config["require_approval"]
+            if isinstance(require_approval, dict):
+                # 支持对象格式: {"never": {"tool_names": ["safe_tool"]}}
+                config["require_approval"] = require_approval
+            else:
+                # 支持字符串格式: "always", "never"
+                config["require_approval"] = require_approval
+        else:
+            # 默认总是需要审批（安全考虑）
+            config["require_approval"] = "always"
+
+        # 允许的工具列表
+        if "allowed_tools" in tool_config:
+            config["allowed_tools"] = tool_config["allowed_tools"]
+
+        return config
+
+    def _handle_mcp_approval_message(self, msg: Union[Dict[str, Any], Any]) -> Dict[str, Any]:
+        """处理MCP审批响应消息（OpenAI格式）"""
+        if isinstance(msg, dict):
+            approval_data = {
+                "type": "mcp_approval_response",
+                "approve": msg.get("approve", True),
+                "approval_request_id": msg.get("approval_request_id")
+            }
+        else:
+            approval_data = {
+                "type": "mcp_approval_response",
+                "approve": getattr(msg, "approve", True),
+                "approval_request_id": getattr(msg, "approval_request_id", "")
+            }
+
+        return {
+            "role": "user",
+            "content": [{"type": "mcp_approval_response", **approval_data}]
+        }
+
+    def _validate_mcp_server_url(self, url: str, provider: str = "openai") -> bool:
+        """验证MCP服务器URL是否符合安全要求"""
+        if not url:
+            return False
+
+        # Anthropic要求使用HTTPS
+        if provider == "anthropic" and not url.startswith("https://"):
+            logger.warning(f"Anthropic MCP服务器URL必须使用HTTPS: {url}")
+            return False
+
+        # OpenAI推荐使用HTTPS
+        if provider == "openai" and not url.startswith(("https://", "http://localhost", "http://127.0.0.1")):
+            logger.warning(f"OpenAI MCP服务器URL建议使用HTTPS（除非是本地测试）: {url}")
+            return False
+
+        return True
+
+    def _build_anthropic_mcp_server_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
+        """构建Anthropic MCP服务器配置（符合Messages API格式）"""
+        server_url = tool_config.get("server_url", tool_config.get("url"))
+
+        # 验证服务器URL（Anthropic要求HTTPS）
+        if server_url and not self._validate_mcp_server_url(server_url, "anthropic"):
+            logger.error(f"Anthropic MCP服务器URL验证失败: {server_url}")
+
+        config = {
+            "type": "url",
+            "name": tool_config.get("server_name", tool_config.get("name")),
+            "url": server_url
+        }
+
+        # 授权令牌
+        if "authorization" in tool_config:
+            config["authorization_token"] = tool_config["authorization"]
+        elif "authorization_token" in tool_config:
+            config["authorization_token"] = tool_config["authorization_token"]
+
+        # 工具配置
+        tool_configuration = {}
+
+        # 启用状态
+        if "enabled" in tool_config:
+            tool_configuration["enabled"] = tool_config["enabled"]
+        else:
+            tool_configuration["enabled"] = True
+
+        # 允许的工具列表
+        if "allowed_tools" in tool_config and tool_config["allowed_tools"]:
+            tool_configuration["allowed_tools"] = tool_config["allowed_tools"]
+
+        if tool_configuration:
+            config["tool_configuration"] = tool_configuration
 
         return config
 
@@ -417,17 +557,26 @@ class AIProviderService:
         if "choices" in responses_result:
             # 已经是标准格式，直接返回
             return responses_result
-        
+
         if "output" not in responses_result:
             # 不是 Responses API 格式，直接返回
             return responses_result
-        
+
         # 转换 Responses API 格式
         output = responses_result.get("output", [])
         choices = []
         reasoning_content = ""
         image_generations = []
-        
+        function_calls = []
+        custom_tool_calls = []
+        mcp_list_tools = []
+        mcp_calls = []
+        mcp_approval_requests = []
+
+        # 提取不同类型的输出内容
+        assistant_content = ""
+        finish_reason = "stop"
+
         for item in output:
             # 提取推理内容
             if item.get("type") == "reasoning":
@@ -436,50 +585,140 @@ class AIProviderService:
                     if summary_item.get("type") == "summary_text":
                         reasoning_content = summary_item.get("text", "")
                         break
-            
+
             # 提取图片生成结果
             elif item.get("type") == "image_generation_call":
                 image_gen = {
                     "id": item.get("id"),
                     "type": "image_generation_call",
                     "status": item.get("status"),
-                    "result": item.get("result"),  # base64编码的图片数据
+                    "result": item.get("result"),
                     "revised_prompt": item.get("revised_prompt")
                 }
                 image_generations.append(image_gen)
-            
+
+            # 提取function calling结果（根据官方文档格式）
+            elif item.get("type") == "function_call":
+                function_call = {
+                    "id": item.get("call_id", item.get("id")),  # 使用call_id作为主ID
+                    "type": "function",
+                    "function": {
+                        "name": item.get("name"),
+                        "arguments": item.get("arguments", "{}")
+                    }
+                }
+                function_calls.append(function_call)
+                finish_reason = "tool_calls"
+
+            # 提取custom tool calling结果
+            elif item.get("type") == "custom_tool_call":
+                custom_tool_call = {
+                    "id": item.get("id"),
+                    "type": "custom_tool_call",
+                    "name": item.get("name"),
+                    "input": item.get("input", ""),
+                    "call_id": item.get("call_id")
+                }
+                custom_tool_calls.append(custom_tool_call)
+                finish_reason = "tool_calls"
+
+            # 提取MCP工具列表（根据官方文档）
+            elif item.get("type") == "mcp_list_tools":
+                mcp_list_tool = {
+                    "id": item.get("id"),
+                    "type": "mcp_list_tools",
+                    "server_label": item.get("server_label"),
+                    "tools": item.get("tools", [])
+                }
+                mcp_list_tools.append(mcp_list_tool)
+
+            # 提取MCP调用结果
+            elif item.get("type") == "mcp_call":
+                mcp_call = {
+                    "id": item.get("id"),
+                    "type": "mcp_call",
+                    "server_label": item.get("server_label"),
+                    "name": item.get("name"),
+                    "arguments": item.get("arguments"),
+                    "output": item.get("output"),
+                    "error": item.get("error"),
+                    "approval_request_id": item.get("approval_request_id"),
+                    "status": item.get("status", "completed"),
+                    "execution_time": item.get("execution_time")
+                }
+                mcp_calls.append(mcp_call)
+
+                # 根据MCP调用状态设置finish_reason
+                if item.get("error"):
+                    finish_reason = "mcp_error"
+                elif item.get("approval_request_id"):
+                    finish_reason = "approval_required"
+                else:
+                    finish_reason = "mcp_tool_calls"
+
+            # 提取MCP审批请求
+            elif item.get("type") == "mcp_approval_request":
+                mcp_approval_request = {
+                    "id": item.get("id"),
+                    "type": "mcp_approval_request",
+                    "server_label": item.get("server_label"),
+                    "name": item.get("name"),
+                    "arguments": item.get("arguments")
+                }
+                mcp_approval_requests.append(mcp_approval_request)
+                finish_reason = "approval_required"
+
             # 提取助手消息内容
             elif item.get("type") == "message" and item.get("role") == "assistant":
-                content = ""
                 message_content = item.get("content", [])
-                
+
                 # 提取文本内容
                 for content_item in message_content:
                     if content_item.get("type") == "output_text":
-                        content = content_item.get("text", "")
+                        assistant_content = content_item.get("text", "")
                         break
-                
-                # 构造选择对象
-                choice = {
-                    "message": {
-                        "role": "assistant",
-                        "content": content
-                    },
-                    "finish_reason": "stop",
-                    "index": 0
-                }
-                
-                # 如果有推理内容，添加到消息中
-                if reasoning_content:
-                    choice["message"]["reasoning"] = reasoning_content
-                
-                # 如果有图片生成结果，添加到消息中
-                if image_generations:
-                    choice["message"]["image_generations"] = image_generations
-                
-                choices.append(choice)
-        
-        # 如果没有助手消息但有图片生成结果，创建一个空消息来承载图片
+
+        # 构造选择对象
+        choice = {
+            "message": {
+                "role": "assistant",
+                "content": assistant_content
+            },
+            "finish_reason": finish_reason,
+            "index": 0
+        }
+
+        # 添加tool_calls如果有function calling
+        if function_calls:
+            choice["message"]["tool_calls"] = function_calls
+
+        # 添加custom tool calls如果有
+        if custom_tool_calls:
+            choice["message"]["custom_tool_calls"] = custom_tool_calls
+
+        # 如果有推理内容，添加到消息中
+        if reasoning_content:
+            choice["message"]["reasoning"] = reasoning_content
+
+        # 如果有图片生成结果，添加到消息中
+        if image_generations:
+            choice["message"]["image_generations"] = image_generations
+
+        # 如果有MCP工具列表，添加到消息中
+        if mcp_list_tools:
+            choice["message"]["mcp_list_tools"] = mcp_list_tools
+
+        # 如果有MCP调用结果，添加到消息中
+        if mcp_calls:
+            choice["message"]["mcp_calls"] = mcp_calls
+
+        # 如果有MCP审批请求，添加到消息中
+        if mcp_approval_requests:
+            choice["message"]["mcp_approval_requests"] = mcp_approval_requests
+
+        choices.append(choice)
+
+        # 如果没有任何内容但有图片生成结果，创建一个空消息来承载图片
         if not choices and image_generations:
             choice = {
                 "message": {
@@ -491,7 +730,7 @@ class AIProviderService:
                 "index": 0
             }
             choices.append(choice)
-        
+
         # 构造标准格式响应
         converted_result = {
             "id": responses_result.get("id", f"resp_{hash(str(output)) % 1000000}"),
@@ -502,7 +741,7 @@ class AIProviderService:
                 "total_tokens": 0
             })
         }
-        
+
         return converted_result
 
     async def _openai_chat_completion(
@@ -529,7 +768,7 @@ class AIProviderService:
             converted_messages = [self._convert_message_to_openai_format(msg) for msg in messages]
             
             # 准备工具配置
-            tools_config = self._prepare_tools_config(messages, tools)
+            tools_config = self._prepare_tools_config(messages, tools, "openai")
             
             # 思考模型特殊处理
             if self._is_thinking_model(model):
@@ -646,9 +885,24 @@ class AIProviderService:
                     for msg in messages:
                         role = self._get_message_attr(msg, "role")
                         content = self._get_message_attr(msg, "content")
-                        
+
                         if role == "system":
                             instructions_text = content
+                        elif role == "mcp_approval_response":
+                            # 处理MCP审批响应（特殊消息类型）
+                            if isinstance(msg, dict):
+                                input_messages.append({
+                                    "type": "mcp_approval_response",
+                                    "approve": msg.get("approve", True),
+                                    "approval_request_id": msg.get("approval_request_id")
+                                })
+                            else:
+                                # 对于Pydantic对象
+                                input_messages.append({
+                                    "type": "mcp_approval_response",
+                                    "approve": getattr(msg, "approve", True),
+                                    "approval_request_id": getattr(msg, "approval_request_id", "")
+                                })
                         else:
                             # 获取图片和文件数据
                             images = None
@@ -896,7 +1150,7 @@ class AIProviderService:
                 completion_params["max_output_tokens"] = 4000
                 
                 # 准备工具配置并添加到请求中
-                tools_config = self._prepare_tools_config(messages, tools)
+                tools_config = self._prepare_tools_config(messages, tools, "openai")
                 if tools_config["tools"]:
                     completion_params.update(tools_config)
                 
@@ -1233,10 +1487,27 @@ class AIProviderService:
             
             # 工具配置（如果有）
             if tools:
-                # 转换工具配置为Anthropic格式
-                anthropic_tools = self._convert_tools_to_anthropic_format(tools)
-                if anthropic_tools:
-                    kwargs["tools"] = anthropic_tools
+                # 使用Anthropic专用的工具配置
+                tools_config = self._prepare_tools_config(messages, tools, "anthropic")
+
+                # 添加function calling工具
+                if tools_config["tools"]:
+                    kwargs["tools"] = tools_config["tools"]
+
+                # 添加MCP服务器
+                if tools_config["mcp_servers"]:
+                    kwargs["mcp_servers"] = tools_config["mcp_servers"]
+                    # 始终添加MCP beta头部（如果MCP服务器存在）
+                    kwargs["betas"] = kwargs.get("betas", [])
+                    if "mcp-client-2025-04-04" not in kwargs["betas"]:
+                        kwargs["betas"].append("mcp-client-2025-04-04")
+
+                # 处理web search工具（使用原有逻辑）
+                web_search_tools = self._convert_tools_to_anthropic_format(tools)
+                if web_search_tools:
+                    if "tools" not in kwargs:
+                        kwargs["tools"] = []
+                    kwargs["tools"].extend(web_search_tools)
             
             # 检查是否使用了Files API，如果是则添加betas参数
             uses_files_api = self._check_uses_files_api(user_messages)
@@ -1310,7 +1581,10 @@ class AIProviderService:
         content_text = ""
         thinking_content = ""
         citations = []
-        
+        tool_calls = []
+        mcp_tool_uses = []
+        mcp_tool_results = []
+
         # 处理响应内容
         if hasattr(response, 'content') and response.content:
             for content_block in response.content:
@@ -1318,7 +1592,7 @@ class AIProviderService:
                     if content_block.type == "text":
                         # 文本内容
                         content_text += getattr(content_block, 'text', '')
-                        
+
                         # 提取citations（如果有）
                         if hasattr(content_block, 'citations') and content_block.citations:
                             for citation in content_block.citations:
@@ -1331,10 +1605,45 @@ class AIProviderService:
                                     "start_char_index": getattr(citation, 'start_char_index', 0),
                                     "end_char_index": getattr(citation, 'end_char_index', 0)
                                 })
-                    
+
                     elif content_block.type == "thinking" and thinking_mode:
                         # 扩展思考内容
                         thinking_content = getattr(content_block, 'content', '') or getattr(content_block, 'thinking', '')
+
+                    elif content_block.type == "tool_use":
+                        # 标准function calling工具使用
+                        tool_call = {
+                            "id": getattr(content_block, 'id', ''),
+                            "type": "function",
+                            "function": {
+                                "name": getattr(content_block, 'name', ''),
+                                "arguments": json.dumps(getattr(content_block, 'input', {}))
+                            }
+                        }
+                        tool_calls.append(tool_call)
+
+                    elif content_block.type == "mcp_tool_use":
+                        # MCP工具使用
+                        mcp_tool_use = {
+                            "id": getattr(content_block, 'id', ''),
+                            "type": "mcp_tool_use",
+                            "name": getattr(content_block, 'name', ''),
+                            "server_name": getattr(content_block, 'server_name', ''),
+                            "input": getattr(content_block, 'input', {})
+                        }
+                        mcp_tool_uses.append(mcp_tool_use)
+
+                    elif content_block.type == "mcp_tool_result":
+                        # MCP工具结果
+                        mcp_tool_result = {
+                            "tool_use_id": getattr(content_block, 'tool_use_id', ''),
+                            "type": "mcp_tool_result",
+                            "is_error": getattr(content_block, 'is_error', False),
+                            "content": getattr(content_block, 'content', []),
+                            "server_name": getattr(content_block, 'server_name', ''),
+                            "execution_time": getattr(content_block, 'execution_time', None)
+                        }
+                        mcp_tool_results.append(mcp_tool_result)
         
         # 构建消息对象
         message = {
@@ -1349,7 +1658,18 @@ class AIProviderService:
         # 添加citations（如果有）
         if citations:
             message["citations"] = citations
-        
+
+        # 添加标准function calling工具调用（如果有）
+        if tool_calls:
+            message["tool_calls"] = tool_calls
+
+        # 添加MCP工具使用和结果（如果有）
+        if mcp_tool_uses:
+            message["mcp_tool_uses"] = mcp_tool_uses
+
+        if mcp_tool_results:
+            message["mcp_tool_results"] = mcp_tool_results
+
         # 构建完整响应
         result = {
             "id": f"msg_{getattr(response, 'id', 'unknown')}",
@@ -1371,7 +1691,8 @@ class AIProviderService:
         mapping = {
             "end_turn": "stop",
             "max_tokens": "length",
-            "tool_use": "tool_calls"
+            "tool_use": "tool_calls",
+            "mcp_tool_use": "mcp_tool_calls"
         }
         return mapping.get(stop_reason, "stop")
 
@@ -1561,7 +1882,7 @@ class AIProviderService:
             converted_messages = [self._convert_message_to_openai_format(msg) for msg in messages]
             
             # 准备工具配置
-            tools_config = self._prepare_tools_config(messages, tools)
+            tools_config = self._prepare_tools_config(messages, tools, "openai")
             
             # 根据模型类型选择合适的参数
             stream_params = {

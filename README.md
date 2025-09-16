@@ -37,13 +37,13 @@ MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合�
 
 ## 模型市场与配置
 
-前端内置模型市场，配置来自 `models-config.json`，也可在线刷新。当前支持的提供商包括：
+前端内置模型市场，配置来自 `models-config.json`，也可在线刷新。当前全功能完美支持的提供商包括：
 
 1. **OpenAI**：https://platform.openai.com/
 2. **Anthropic**：https://console.anthropic.com/
-3. **Google Gemini**：https://aistudio.google.com/
-4. **DeepSeek**：https://platform.deepseek.com/
-5. **Moonshot（Kimi）**：https://platform.moonshot.cn/
+3. **Google Gemini**：https://aistudio.google.com/ （适配中）
+4. **DeepSeek**：https://platform.deepseek.com/ （适配中）
+5. **Moonshot（Kimi）**：https://platform.moonshot.cn/ （适配中）
 
 ## API 文档
 
@@ -52,19 +52,6 @@ MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合�
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
-## 环境变量示例
-
-`backend/.env`:
-
-```env
-DATABASE_URL=sqlite:///./data/chat.db
-REDIS_URL=redis://localhost:6379
-SECRET_KEY=change-me
-ALGORITHM=HS256
-```
-
 ## 未来开发计划
 
 - 实现完整且兼容性的云同步（包括聊天记录、设置偏好、额外对话工具的配置信息，自动检测对比浏览器端消息和云端备份并按聊天 ID 进行整合同步，所有 Key 的备份）
-- 实现上传图片和上传文件后进行 embedding 作为文件附件功能
-- 推进附加工具的具体实现：搜索、图片生成等，未来将拓展更多生产力工具

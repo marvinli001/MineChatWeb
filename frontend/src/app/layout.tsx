@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -72,13 +72,27 @@ export default function RootLayout({
                 }, { passive: false });
               }
               
+              // 主题初始化
+              function initTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                const theme = savedTheme || (prefersDark ? 'dark' : 'light');
+
+                if (theme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              }
+
               // 初始化
+              initTheme();
               setVH();
               if (window.innerWidth <= 768) {
                 handleKeyboard();
                 preventPullToRefresh();
               }
-              
+
               window.addEventListener('resize', setVH);
               window.addEventListener('orientationchange', () => {
                 setTimeout(setVH, 100);

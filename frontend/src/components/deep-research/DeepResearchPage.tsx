@@ -64,7 +64,7 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
         // 加载现有任务
         await loadTasks()
       } catch (error) {
-        console.error('初始化深度研究服务时出错:', error)
+        console.error('初始化深度研究服务时出错:', error?.message || error)
         // 只在WebSocket连接失败时显示错误，任务加载失败可以忽略
         const errorMessage = error instanceof Error ? error.message : '连接服务失败'
         if (errorMessage.includes('WebSocket') || errorMessage.includes('连接')) {
