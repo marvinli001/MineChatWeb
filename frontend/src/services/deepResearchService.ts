@@ -113,8 +113,8 @@ class DeepResearchService {
         }
         
         this.ws.onerror = (error) => {
-          console.error('深度研究WebSocket错误:', error?.message || error)
-          reject(new Error(`WebSocket连接失败: ${error?.message || '未知错误'}`))
+          console.error('深度研究WebSocket错误:', error)
+          reject(new Error(`WebSocket连接失败: 未知错误`))
         }
         
         this.ws.onclose = () => {
