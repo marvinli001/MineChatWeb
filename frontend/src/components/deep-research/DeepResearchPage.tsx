@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { PaperAirplaneIcon, PaperClipIcon, StopIcon } from '@heroicons/react/24/outline'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import DeepResearchModelSelector from './DeepResearchModelSelector'
 import DeepResearchTaskList from './DeepResearchTaskList'
 import DeepResearchHeader from './DeepResearchHeader'
@@ -333,8 +335,10 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
                     {currentTask.result && (
                       <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6">
                         <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">研究结果（可能不完整）</h3>
-                        <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                          {currentTask.result}
+                        <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {currentTask.result}
+                          </ReactMarkdown>
                         </div>
                       </div>
                     )}
@@ -342,8 +346,10 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
                 ) : currentTask.status === 'completed' ? (
                   <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6">
                     <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">研究结果</h3>
-                    <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                      {currentTask.result}
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {currentTask.result}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 ) : (
@@ -409,8 +415,10 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
                   {currentTask.result && (
                     <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6">
                       <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">研究结果（可能不完整）</h3>
-                      <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                        {currentTask.result}
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {currentTask.result}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   )}
@@ -418,8 +426,10 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
               ) : currentTask.status === 'completed' ? (
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-6">
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-4 text-lg">研究结果</h3>
-                  <div className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed">
-                    {currentTask.result}
+                  <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {currentTask.result}
+                    </ReactMarkdown>
                   </div>
                 </div>
               ) : (
