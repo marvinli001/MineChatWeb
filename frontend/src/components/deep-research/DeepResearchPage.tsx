@@ -58,18 +58,18 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
   useEffect(() => {
     const initializeService = async () => {
       try {
-        // 连接WebSocket
-        await deepResearchService.connectWebSocket()
+        // 连接WebSocket（静默失败，不影响功能使用）
+        await deepResearchService.connectWebSocket().catch((wsError) => {
+          // WebSocket连接失败不影响主要功能，因为有轮询机制兜底
+          console.log('WebSocket连接失败，将使用轮询方式获取任务状态:', wsError.message)
+        })
 
         // 加载现有任务
         await loadTasks()
       } catch (error) {
-        console.error('初始化深度研究服务时出错:', error?.message || error)
-        // 只在WebSocket连接失败时显示错误，任务加载失败可以忽略
-        const errorMessage = error instanceof Error ? error.message : '连接服务失败'
-        if (errorMessage.includes('WebSocket') || errorMessage.includes('连接')) {
-          setError('WebSocket连接失败，但功能仍可正常使用')
-        }
+        console.error('初始化深度研究服务时出错:', error)
+        // 只有在加载任务列表失败时才显示错误
+        // WebSocket连接失败不影响使用，因为有轮询机制
       }
     }
 

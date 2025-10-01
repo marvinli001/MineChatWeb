@@ -94,12 +94,15 @@ class DeepResearchService {
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(this.getWebSocketUrl())
-        
+
+        let resolved = false
+
         this.ws.onopen = () => {
           console.log('深度研究WebSocket连接已建立')
+          resolved = true
           resolve()
         }
-        
+
         this.ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data)
@@ -111,18 +114,24 @@ class DeepResearchService {
             console.error('解析WebSocket消息时出错:', error)
           }
         }
-        
+
         this.ws.onerror = (error) => {
           console.error('深度研究WebSocket错误:', error)
-          reject(new Error(`WebSocket连接失败: 未知错误`))
+          // 只在连接建立前reject，避免在运行中断开时报错
+          if (!resolved) {
+            reject(new Error(`WebSocket连接失败`))
+          }
         }
-        
+
         this.ws.onclose = () => {
           console.log('深度研究WebSocket连接已关闭')
           this.ws = null
-          // 自动重连
+          // 自动重连（静默重连，不打扰用户）
           setTimeout(() => {
-            this.connectWebSocket()
+            this.connectWebSocket().catch(() => {
+              // 静默处理重连失败
+              console.log('WebSocket自动重连失败，将在5秒后再次尝试')
+            })
           }, 5000)
         }
       } catch (error) {
