@@ -5,6 +5,17 @@ import { XMarkIcon, PlusIcon, TrashIcon, WrenchScrewdriverIcon, ServerIcon, CogI
 import { toast } from 'react-hot-toast'
 import { usePluginStore, type Plugin, type MCPServer } from '@/store/pluginStore'
 import { motion } from 'motion/react'
+import {
+  SiGithub,
+  SiStripe,
+  SiAsana,
+  SiAtlassian,
+  SiIntercom,
+  SiLinear,
+  SiPaypal,
+  SiSquare,
+  SiZapier
+} from 'react-icons/si'
 
 interface PluginMarketProps {
   isOpen: boolean
@@ -20,7 +31,7 @@ const OPENAI_MCP_SERVERS = [
     id: 'mcp_github',
     name: 'GitHub',
     description: '访问GitHub仓库、Issues和Pull Requests',
-    icon: '🐙',
+    icon: SiGithub,
     url: 'https://api.githubcopilot.com/mcp/',
     requiresAuth: true,
     authType: 'GitHub Token'
@@ -29,7 +40,7 @@ const OPENAI_MCP_SERVERS = [
     id: 'mcp_stripe',
     name: 'Stripe',
     description: '创建支付链接、查询交易记录',
-    icon: '💳',
+    icon: SiStripe,
     url: 'https://mcp.stripe.com',
     requiresAuth: true,
     authType: 'Stripe API Key'
@@ -38,7 +49,7 @@ const OPENAI_MCP_SERVERS = [
     id: 'mcp_deepwiki',
     name: 'DeepWiki',
     description: '搜索和阅读技术文档（如MCP规范）',
-    icon: '📚',
+    icon: '📚', // 保留emoji，因为没有对应的品牌图标
     url: 'https://mcp.deepwiki.com/mcp',
     requiresAuth: false
   },
@@ -46,7 +57,7 @@ const OPENAI_MCP_SERVERS = [
     id: 'mcp_dmcp',
     name: 'DMCP Dice Roller',
     description: 'D&D骰子投掷工具（示例MCP服务器）',
-    icon: '🎲',
+    icon: '🎲', // 保留emoji，因为是示例项目
     url: 'https://dmcp-server.deno.dev/sse',
     requiresAuth: false
   }
@@ -58,7 +69,7 @@ const ANTHROPIC_MCP_SERVERS = [
     id: 'mcp_asana',
     name: 'Asana',
     description: '通过AI工具与您的Asana工作区交互，保持项目正常进行',
-    icon: '🎯',
+    icon: SiAsana,
     url: 'https://mcp.asana.com/sse',
     requiresAuth: true,
     authType: 'Asana Token'
@@ -67,7 +78,7 @@ const ANTHROPIC_MCP_SERVERS = [
     id: 'mcp_atlassian',
     name: 'Atlassian',
     description: '访问Atlassian的协作和生产力工具',
-    icon: '🔧',
+    icon: SiAtlassian,
     url: 'https://mcp.atlassian.com/v1/sse',
     requiresAuth: true,
     authType: 'Atlassian API Key'
@@ -76,7 +87,7 @@ const ANTHROPIC_MCP_SERVERS = [
     id: 'mcp_intercom',
     name: 'Intercom',
     description: '访问来自Intercom的实时客户对话、工单和用户数据',
-    icon: '💬',
+    icon: SiIntercom,
     url: 'https://mcp.intercom.com/sse',
     requiresAuth: true,
     authType: 'Intercom Token'
@@ -85,7 +96,7 @@ const ANTHROPIC_MCP_SERVERS = [
     id: 'mcp_invideo',
     name: 'invideo',
     description: '在您的应用程序中构建视频创建功能',
-    icon: '🎥',
+    icon: '🎥', // 保留emoji，Simple Icons中没有InVideo
     url: 'https://mcp.invideo.io/sse',
     requiresAuth: true,
     authType: 'InVideo API Key'
@@ -94,7 +105,7 @@ const ANTHROPIC_MCP_SERVERS = [
     id: 'mcp_linear',
     name: 'Linear',
     description: '与Linear的问题跟踪和项目管理系统集成',
-    icon: '📊',
+    icon: SiLinear,
     url: 'https://mcp.linear.app/sse',
     requiresAuth: true,
     authType: 'Linear API Key'
@@ -103,7 +114,7 @@ const ANTHROPIC_MCP_SERVERS = [
     id: 'mcp_paypal',
     name: 'PayPal',
     description: '集成PayPal商务功能',
-    icon: '💳',
+    icon: SiPaypal,
     url: 'https://mcp.paypal.com/sse',
     requiresAuth: true,
     authType: 'PayPal Token'
@@ -112,7 +123,7 @@ const ANTHROPIC_MCP_SERVERS = [
     id: 'mcp_plaid',
     name: 'Plaid',
     description: '分析、排除故障并优化Plaid集成',
-    icon: '🏦',
+    icon: '🏦', // Plaid图标在react-icons中不可用，使用emoji
     url: 'https://api.dashboard.plaid.com/mcp/sse',
     requiresAuth: true,
     authType: 'Plaid API Key'
@@ -121,7 +132,7 @@ const ANTHROPIC_MCP_SERVERS = [
     id: 'mcp_square',
     name: 'Square',
     description: '使用代理在Square API上构建。支付、库存、订单等',
-    icon: '💰',
+    icon: SiSquare,
     url: 'https://mcp.squareup.com/sse',
     requiresAuth: true,
     authType: 'Square Token'
@@ -130,7 +141,7 @@ const ANTHROPIC_MCP_SERVERS = [
     id: 'mcp_zapier',
     name: 'Zapier',
     description: '通过Zapier的自动化平台连接到近8,000个应用程序',
-    icon: '⚡',
+    icon: SiZapier,
     url: 'https://mcp.zapier.com/',
     requiresAuth: true,
     authType: 'Zapier API Key'
@@ -482,7 +493,17 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl">{service.icon}</span>
+                        {/* 支持React组件图标或emoji字符串 */}
+                        {typeof service.icon === 'string' ? (
+                          <span className="text-2xl">{service.icon}</span>
+                        ) : (
+                          <div className="w-8 h-8 flex items-center justify-center">
+                            {(() => {
+                              const IconComponent = service.icon
+                              return <IconComponent className="w-6 h-6" />
+                            })()}
+                          </div>
+                        )}
                         <div>
                           <h4 className="font-medium text-gray-900 dark:text-white">
                             {service.name}
