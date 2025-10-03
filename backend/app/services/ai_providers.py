@@ -260,7 +260,8 @@ class AIProviderService:
 
     def _build_openai_mcp_tool_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
         """构建OpenAI MCP工具配置（符合Responses API格式）"""
-        server_url = tool_config.get("server_url")
+        # 支持url或server_url字段
+        server_url = tool_config.get("server_url") or tool_config.get("url")
 
         # 验证服务器URL（如果提供了URL）
         if server_url and not self._validate_mcp_server_url(server_url, "openai"):
@@ -268,7 +269,7 @@ class AIProviderService:
 
         config = {
             "type": "mcp",
-            "server_label": tool_config.get("server_name", tool_config.get("server_label")),
+            "server_label": tool_config.get("server_name", tool_config.get("server_label", tool_config.get("name"))),
             "server_url": server_url,
         }
 
@@ -278,7 +279,7 @@ class AIProviderService:
         elif "description" in tool_config:
             config["server_description"] = tool_config["description"]
 
-        # 支持内置连接器
+        # 支持内置连接器（已废弃，保留兼容性）
         if "connector_id" in tool_config:
             config["connector_id"] = tool_config["connector_id"]
             # 连接器不需要server_url

@@ -14,63 +14,41 @@ interface PluginMarketProps {
 
 type TabType = 'mcp' | 'function'
 
-// OpenAI内置连接器 (MCP Connectors)
-const OPENAI_CONNECTORS = [
+// OpenAI推荐的公开MCP服务器 (无需OAuth认证或使用简单API密钥)
+const OPENAI_MCP_SERVERS = [
   {
-    id: 'connector_dropbox',
-    name: 'Dropbox',
-    description: '访问和管理您的Dropbox文件',
-    icon: '📁',
-    scopes: ['files.metadata.read', 'files.content.read', 'account_info.read']
+    id: 'mcp_github',
+    name: 'GitHub',
+    description: '访问GitHub仓库、Issues和Pull Requests',
+    icon: '🐙',
+    url: 'https://api.githubcopilot.com/mcp/',
+    requiresAuth: true,
+    authType: 'GitHub Token'
   },
   {
-    id: 'connector_gmail',
-    name: 'Gmail',
-    description: '搜索和阅读Gmail邮件',
-    icon: '📧',
-    scopes: ['gmail.modify', 'userinfo.email', 'userinfo.profile']
+    id: 'mcp_stripe',
+    name: 'Stripe',
+    description: '创建支付链接、查询交易记录',
+    icon: '💳',
+    url: 'https://mcp.stripe.com',
+    requiresAuth: true,
+    authType: 'Stripe API Key'
   },
   {
-    id: 'connector_googlecalendar',
-    name: 'Google Calendar',
-    description: '查看和管理Google日历事件',
-    icon: '📅',
-    scopes: ['calendar.events', 'userinfo.email', 'userinfo.profile']
-  },
-  {
-    id: 'connector_googledrive',
-    name: 'Google Drive',
-    description: '搜索和访问Google Drive文件',
-    icon: '☁️',
-    scopes: ['drive.readonly', 'userinfo.email', 'userinfo.profile']
-  },
-  {
-    id: 'connector_microsoftteams',
-    name: 'Microsoft Teams',
-    description: '搜索Teams聊天和频道消息',
-    icon: '💬',
-    scopes: ['Chat.Read', 'ChannelMessage.Read.All', 'User.Read']
-  },
-  {
-    id: 'connector_outlookcalendar',
-    name: 'Outlook Calendar',
-    description: '查看Outlook日历事件',
-    icon: '📆',
-    scopes: ['Calendars.Read', 'User.Read']
-  },
-  {
-    id: 'connector_outlookemail',
-    name: 'Outlook Email',
-    description: '搜索和阅读Outlook邮件',
-    icon: '📨',
-    scopes: ['Mail.Read', 'User.Read']
-  },
-  {
-    id: 'connector_sharepoint',
-    name: 'SharePoint',
-    description: '搜索SharePoint/OneDrive文档',
+    id: 'mcp_deepwiki',
+    name: 'DeepWiki',
+    description: '搜索和阅读技术文档（如MCP规范）',
     icon: '📚',
-    scopes: ['Sites.Read.All', 'Files.Read.All', 'User.Read']
+    url: 'https://mcp.deepwiki.com/mcp',
+    requiresAuth: false
+  },
+  {
+    id: 'mcp_dmcp',
+    name: 'DMCP Dice Roller',
+    description: 'D&D骰子投掷工具（示例MCP服务器）',
+    icon: '🎲',
+    url: 'https://dmcp-server.deno.dev/sse',
+    requiresAuth: false
   }
 ]
 
@@ -203,7 +181,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
 
   const getServiceById = (serviceId: string) => {
     if (currentProvider === 'openai') {
-      return OPENAI_CONNECTORS.find(c => c.id === serviceId)
+      return OPENAI_MCP_SERVERS.find(c => c.id === serviceId)
     } else {
       return ANTHROPIC_MCP_SERVERS.find(s => s.id === serviceId)
     }
@@ -228,15 +206,16 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
   const handleSaveConfig = () => {
     if (!selectedService) return
 
+    // 如果需要认证但未提供token，给出提示
+    if (selectedService.requiresAuth && !configForm.authorization.trim()) {
+      toast.error(`${selectedService.name} 需要提供 ${selectedService.authType || 'API密钥'}`)
+      return
+    }
+
     const serverConfig: any = {
       name: selectedService.name,
       description: selectedService.description,
-    }
-
-    if (currentProvider === 'openai') {
-      serverConfig.connector_id = selectedService.id
-    } else {
-      serverConfig.url = selectedService.url
+      url: selectedService.url, // OpenAI也使用url字段表示MCP服务器地址
     }
 
     if (configForm.authorization.trim()) {
@@ -253,9 +232,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
     }
 
     // 检查是否已存在，如果存在则更新
-    const existingServer = mcpServers.find(s =>
-      s.connector_id === selectedService.id || s.url === selectedService.url
-    )
+    const existingServer = mcpServers.find(s => s.url === selectedService.url)
 
     if (existingServer) {
       // 更新现有服务器（这里需要添加更新方法到store）
@@ -311,20 +288,15 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
       return
     }
 
-    if (!mcpForm.connector_id.trim() && !mcpForm.url.trim()) {
-      toast.error('请输入连接器ID或服务器URL')
+    if (!mcpForm.url.trim()) {
+      toast.error('请输入服务器URL')
       return
     }
 
     const serverConfig: any = {
       name: mcpForm.name.trim(),
-      description: mcpForm.description.trim() || (mcpForm.connector_id ? '内置连接器' : '外置MCP服务器'),
-    }
-
-    if (mcpForm.connector_id.trim()) {
-      serverConfig.connector_id = mcpForm.connector_id.trim()
-    } else {
-      serverConfig.url = mcpForm.url.trim()
+      description: mcpForm.description.trim() || '自定义MCP服务器',
+      url: mcpForm.url.trim(),
     }
 
     if (mcpForm.authorization.trim()) {
@@ -378,8 +350,8 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
 
   if (!isOpen) return null
 
-  // 根据当前提供商获取内置服务
-  const builtInServices = currentProvider === 'openai' ? OPENAI_CONNECTORS : ANTHROPIC_MCP_SERVERS
+  // 根据当前提供商获取MCP服务器列表
+  const builtInServices = currentProvider === 'openai' ? OPENAI_MCP_SERVERS : ANTHROPIC_MCP_SERVERS
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -531,21 +503,22 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                       {service.description}
                     </p>
 
-                    {currentProvider === 'openai' && service.scopes && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        <div className="font-medium mb-1">所需权限:</div>
-                        <div className="flex flex-wrap gap-1">
-                          {service.scopes.map((scope, idx) => (
-                            <span
-                              key={idx}
-                              className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs"
-                            >
-                              {scope}
-                            </span>
-                          ))}
-                        </div>
+                    {/* 显示认证要求 */}
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <div className="flex items-center gap-1">
+                        {service.requiresAuth ? (
+                          <>
+                            <span className="text-yellow-600 dark:text-yellow-400">🔑</span>
+                            <span>需要 {service.authType || 'API密钥'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-green-600 dark:text-green-400">✓</span>
+                            <span>无需认证</span>
+                          </>
+                        )}
                       </div>
-                    )}
+                    </div>
 
                     {hasConfig && (
                       <div className="mt-2 text-xs text-green-600 dark:text-green-400">
@@ -639,18 +612,34 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  授权令牌 {currentProvider === 'openai' ? '(OAuth Access Token)' : '(API Token)'}
-                </label>
-                <input
-                  type="password"
-                  value={configForm.authorization}
-                  onChange={(e) => setConfigForm(prev => ({ ...prev, authorization: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder={currentProvider === 'openai' ? '从OAuth提供商获取的访问令牌' : '服务API密钥或令牌'}
-                />
-              </div>
+              {selectedService.requiresAuth && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    {selectedService.authType || 'API密钥'}
+                    {selectedService.requiresAuth && <span className="text-red-500 ml-1">*</span>}
+                  </label>
+                  <input
+                    type="password"
+                    value={configForm.authorization}
+                    onChange={(e) => setConfigForm(prev => ({ ...prev, authorization: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder={`输入您的 ${selectedService.authType || 'API密钥'}`}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {selectedService.authType === 'GitHub Token' && '从 GitHub Settings > Developer settings > Personal access tokens 获取'}
+                    {selectedService.authType === 'Stripe API Key' && '从 Stripe Dashboard > Developers > API keys 获取'}
+                    {!selectedService.authType && '从服务提供商处获取API密钥'}
+                  </p>
+                </div>
+              )}
+
+              {!selectedService.requiresAuth && (
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    ✓ 此MCP服务器无需认证，可直接使用
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -809,42 +798,36 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      {currentProvider === 'openai' ? '连接器ID' : '服务器URL'}
-                    </label>
-                    {currentProvider === 'openai' ? (
-                      <input
-                        type="text"
-                        value={mcpForm.connector_id}
-                        onChange={(e) => setMcpForm(prev => ({ ...prev, connector_id: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="connector_custom"
-                      />
-                    ) : (
-                      <input
-                        type="url"
-                        value={mcpForm.url}
-                        onChange={(e) => setMcpForm(prev => ({ ...prev, url: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="https://example.com/mcp"
-                      />
-                    )}
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    服务器URL *
+                  </label>
+                  <input
+                    type="url"
+                    value={mcpForm.url}
+                    onChange={(e) => setMcpForm(prev => ({ ...prev, url: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="https://example.com/mcp"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    输入MCP服务器的完整URL地址
+                  </p>
+                </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      授权令牌
-                    </label>
-                    <input
-                      type="password"
-                      value={mcpForm.authorization}
-                      onChange={(e) => setMcpForm(prev => ({ ...prev, authorization: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="OAuth访问令牌"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    授权令牌 (可选)
+                  </label>
+                  <input
+                    type="password"
+                    value={mcpForm.authorization}
+                    onChange={(e) => setMcpForm(prev => ({ ...prev, authorization: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="如服务器需要认证，请输入API密钥或令牌"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    仅在MCP服务器需要认证时填写
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -890,7 +873,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                 disabled={
                   activeTab === 'function'
                     ? !pluginForm.name.trim()
-                    : !mcpForm.name.trim() || (currentProvider === 'openai' ? !mcpForm.connector_id.trim() && !mcpForm.url.trim() : !mcpForm.url.trim())
+                    : !mcpForm.name.trim() || !mcpForm.url.trim()
                 }
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
