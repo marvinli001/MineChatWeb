@@ -148,13 +148,14 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
   
-  const { 
-    sendMessage, 
-    isLoading, 
-    createNewConversation 
+  const {
+    sendMessage,
+    createNewConversation
   } = useChatStore()
-  
+
   const currentConversation = useCurrentConversation()
+  // 使用当前对话的loading状态，而不是全局状态
+  const isLoading = currentConversation?.isLoading || false
   const { settings, updateSettings } = useSettingsStore()
   const { convertPluginsToTools, convertMCPServersToTools } = usePluginStore()
 

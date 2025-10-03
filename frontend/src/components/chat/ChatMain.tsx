@@ -31,8 +31,9 @@ const welcomeTitles = [
 ]
 
 export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginClick, onDeepResearchClick }: ChatMainProps) {
-  const { isLoading } = useChatStore()
   const currentConversation = useCurrentConversation()
+  // 使用当前对话的loading状态
+  const isLoading = currentConversation?.isLoading || false
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const [welcomeTitle, setWelcomeTitle] = useState("")

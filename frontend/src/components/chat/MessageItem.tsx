@@ -8,7 +8,7 @@ import { ClipboardIcon, CheckIcon, SpeakerWaveIcon, ArrowPathIcon } from '@heroi
 import { ChatMessage, ImageAttachment, FileAttachment } from '@/lib/types'
 import { getFileIcon, formatFileSize, downloadFile } from '@/lib/fileUtils'
 import { useSettingsStore } from '@/store/settingsStore'
-import { useChatStore } from '@/store/chatStore'
+import { useChatStore, useCurrentConversation } from '@/store/chatStore'
 import { modelConfigService } from '@/services/modelConfigService'
 import ThinkingChain from './ThinkingChain'
 import TypewriterEffect from './TypewriterEffect'
@@ -29,7 +29,10 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
   const [currentModelIcon, setCurrentModelIcon] = useState<string | null>(null)
   const [isReasoningModel, setIsReasoningModel] = useState(false)
   const { settings } = useSettingsStore()
-  const { regenerateLastMessage, isLoading } = useChatStore()
+  const { regenerateLastMessage } = useChatStore()
+  const currentConversation = useCurrentConversation()
+  // 使用当前对话的loading状态
+  const isLoading = currentConversation?.isLoading || false
 
   // 获取当前模型的icon和推理模型状态
   useEffect(() => {

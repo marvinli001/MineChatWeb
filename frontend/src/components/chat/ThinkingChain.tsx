@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
-import { useChatStore } from '@/store/chatStore'
 
 interface ThinkingChainProps {
   reasoning: string
@@ -19,7 +18,6 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
   const [isStreaming, setIsStreaming] = useState(false)
   const [finalThinkingTime, setFinalThinkingTime] = useState(0)
   const [currentThinkingTime, setCurrentThinkingTime] = useState(0)
-  const { isLoading } = useChatStore()
   const reasoningRef = useRef<string>('')
   const storageKeyRef = useRef<string | null>(null)
 
