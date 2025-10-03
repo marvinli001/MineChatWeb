@@ -332,13 +332,27 @@ export const useChatStore = create<ChatState>()(
                 request.base_url = settings.openaiCompatibleConfig.baseUrl
               }
 
-              // 如果用户选择了搜索工具，添加工具配置
-              if (tools && tools.length > 0 && tools.some(tool => tool.id === 'search')) {
-                const useNativeSearch = supportsNativeWebSearch(settings.chatProvider, settings.chatModel)
-                const webSearchTool = buildWebSearchToolConfig(useNativeSearch, settings.chatProvider)
-                
-                request.tools = [webSearchTool]
-                request.use_native_search = useNativeSearch
+              // 处理所有工具(搜索、MCP服务器、函数调用)
+              if (tools && tools.length > 0) {
+                const requestTools: any[] = []
+
+                // 检查是否有搜索工具
+                if (tools.some(tool => tool.id === 'search')) {
+                  const useNativeSearch = supportsNativeWebSearch(settings.chatProvider, settings.chatModel)
+                  const webSearchTool = buildWebSearchToolConfig(useNativeSearch, settings.chatProvider)
+                  requestTools.push(webSearchTool)
+                  request.use_native_search = useNativeSearch
+                }
+
+                // 添加MCP服务器和函数调用工具
+                const mcpAndFunctionTools = tools.filter(tool =>
+                  tool.id !== 'search' && tool.id !== 'image-generation'
+                )
+                requestTools.push(...mcpAndFunctionTools)
+
+                if (requestTools.length > 0) {
+                  request.tools = requestTools
+                }
               }
 
               ws.onmessage = (event) => {
@@ -535,13 +549,27 @@ export const useChatStore = create<ChatState>()(
             requestBody.base_url = settings.openaiCompatibleConfig.baseUrl
           }
 
-          // 如果用户选择了搜索工具，添加工具配置
-          if (tools && tools.length > 0 && tools.some(tool => tool.id === 'search')) {
-            const useNativeSearch = supportsNativeWebSearch(settings.chatProvider, settings.chatModel)
-            const webSearchTool = buildWebSearchToolConfig(useNativeSearch, settings.chatProvider)
-            
-            requestBody.tools = [webSearchTool]
-            requestBody.use_native_search = useNativeSearch
+          // 处理所有工具(搜索、MCP服务器、函数调用)
+          if (tools && tools.length > 0) {
+            const requestTools: any[] = []
+
+            // 检查是否有搜索工具
+            if (tools.some(tool => tool.id === 'search')) {
+              const useNativeSearch = supportsNativeWebSearch(settings.chatProvider, settings.chatModel)
+              const webSearchTool = buildWebSearchToolConfig(useNativeSearch, settings.chatProvider)
+              requestTools.push(webSearchTool)
+              requestBody.use_native_search = useNativeSearch
+            }
+
+            // 添加MCP服务器和函数调用工具
+            const mcpAndFunctionTools = tools.filter(tool =>
+              tool.id !== 'search' && tool.id !== 'image-generation'
+            )
+            requestTools.push(...mcpAndFunctionTools)
+
+            if (requestTools.length > 0) {
+              requestBody.tools = requestTools
+            }
           }
 
           const response = await fetch('/api/v1/chat/completion', {
