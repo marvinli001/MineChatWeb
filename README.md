@@ -1,20 +1,20 @@
 # MineChatWeb
 
-MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合了多个主流大语言模型，为用户提供现代化的聊天体验。项目采用 Python FastAPI 作为后端，Next.js + Tailwind CSS 作为前端。
+MineChatWeb 是一个开源 AI 聊天平台，整合多个主流大语言模型，提供现代化的对话体验。项目采用 Python FastAPI 后端和 Next.js + TypeScript 前端架构。
 
-> ⚠️ 项目目前处于早期阶段，接口和 UI 仍在不断迭代中，欢迎反馈问题或贡献代码。
+## 核心功能
 
-## 功能亮点
-
-- **多模型支持**：OpenAI、Anthropic、Google Gemini、DeepSeek 等主流提供商
-- **流式对话**：WebSocket 连接与心跳保活，带来顺滑的实时输出
-- **推理展示**：支持 o 系列、GPT-5 等思考模型的推理过程可视化
-- **云端同步**：试验性 Cloudflare D1 同步聊天记录与设置
-- **模型市场**：可视化选择模型，支持在线刷新配置
-- **插件扩展**：预留插件市场入口，便于未来拓展
-- **语音与图片接口（开发中）**：后端提供占位 API，功能持续完善
-- **现代界面**：仿 ChatGPT 的响应式 UI，支持深色模式
-- **本地配置**：所有密钥信息仅存储在浏览器
+- **多模型支持**：OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot 等主流 AI 提供商
+- **流式对话**：WebSocket 实时通信，支持心跳保活机制
+- **推理可视化**：支持 GPT-5、o 系列等思考模型的推理过程展示
+- **文件处理**：支持文档、代码、数据文件的上传与分析，提供直读、Code Interpreter、File Search 三种处理模式
+- **图像识别**：支持多图上传，兼容 OpenAI 和 Anthropic 视觉模型
+- **语音转录**：基于 Whisper 和 GPT-4o 的语音转文字功能
+- **深度研究**：集成 Web 搜索和工具调用的深度研究任务系统
+- **模型市场**：可视化模型选择界面，支持在线刷新配置
+- **插件系统**：Function Calling 和 MCP 服务器支持
+- **现代界面**：响应式 UI，支持深色模式，适配移动端
+- **本地存储**：所有密钥和配置仅保存在浏览器本地
 
 ## 技术栈
 
@@ -35,23 +35,45 @@ MineChatWeb 是一个正在积极开发中的开源 AI 聊天平台。它整合�
 └── README.md
 ```
 
-## 模型市场与配置
+## 支持的 AI 提供商
 
-前端内置模型市场，配置来自 `models-config.json`，也可在线刷新。当前全功能完美支持的提供商包括：
+前端内置模型市场，配置基于 `models-config.json`，支持在线刷新。已集成以下提供商：
 
-1. **OpenAI**：https://platform.openai.com/
-2. **Anthropic**：https://console.anthropic.com/
-3. **Google Gemini**：https://aistudio.google.com/ （适配中）
-4. **DeepSeek**：https://platform.deepseek.com/ （适配中）
-5. **Moonshot（Kimi）**：https://platform.moonshot.cn/ （适配中）
+- **OpenAI**：GPT-4、GPT-5、o 系列等模型
+- **Anthropic**：Claude 3.5 Sonnet、Claude 3 Opus 等
+- **Google Gemini**：Gemini 2.0 Flash、Gemini Pro 等
+- **DeepSeek**：DeepSeek V3 等
+- **Moonshot（Kimi）**：Moonshot 系列模型
+
+## 主要技术实现
+
+### 文件处理系统
+支持 PDF、Word、Excel、代码文件、压缩包等多种格式，提供三种处理模式：
+- 直读模式：适用于文档阅读、内容总结
+- Code Interpreter：适用于数据分析、代码执行
+- File Search：适用于多文档检索、知识库查询
+
+### 深度研究功能
+集成 OpenAI Responses API，支持：
+- Web 搜索工具调用
+- 文件上传与向量库检索
+- 多轮工具调用与推理
+- 任务状态实时更新
+
+### 图像与语音
+- 图像：支持 JPG、PNG、WebP、GIF 格式，兼容 OpenAI base64 和 Anthropic Files API
+- 语音：支持 Whisper-1、GPT-4o Transcribe 等转录模型
 
 ## API 文档
 
-后端启动后访问：
+后端启动后访问以下地址查看完整 API 文档：
 
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
 
-## 未来开发计划
-
-- 实现完整且兼容性的云同步（包括聊天记录、设置偏好、额外对话工具的配置信息，自动检测对比浏览器端消息和云端备份并按聊天 ID 进行整合同步，所有 Key 的备份）
+主要 API 端点：
+- `/api/v1/chat` - 聊天对话（REST 和 WebSocket）
+- `/api/v1/file` - 文件处理
+- `/api/v1/image` - 图像上传
+- `/api/v1/voice` - 语音转录
+- `/api/v1/deep_research` - 深度研究任务
