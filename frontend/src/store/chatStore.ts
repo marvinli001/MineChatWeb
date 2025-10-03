@@ -56,6 +56,9 @@ export const useChatStore = create<ChatState>()(
       wsLastHeartbeat: 0,
 
       createNewConversation: () => {
+        // 停止当前正在进行的生成
+        get().stopGeneration()
+
         const newConversation: Conversation = {
           id: Date.now().toString(),
           title: '新对话',
@@ -66,12 +69,21 @@ export const useChatStore = create<ChatState>()(
 
         set(state => ({
           conversations: [newConversation, ...state.conversations],
-          currentConversationId: newConversation.id
+          currentConversationId: newConversation.id,
+          isLoading: false,
+          abortController: null
         }))
       },
 
       setCurrentConversation: (id: string) => {
-        set({ currentConversationId: id })
+        // 切换对话时停止当前正在进行的生成
+        get().stopGeneration()
+
+        set({
+          currentConversationId: id,
+          isLoading: false,
+          abortController: null
+        })
       },
 
       deleteConversation: (id: string) => {
@@ -92,10 +104,11 @@ export const useChatStore = create<ChatState>()(
         const { abortController } = get()
         if (abortController) {
           abortController.abort()
-          set({ isLoading: false, abortController: null })
         }
-        // Also cleanup WebSocket if active
+        // Cleanup WebSocket if active
         get()._cleanupWebSocket()
+        // Always reset loading state
+        set({ isLoading: false, abortController: null })
       },
 
       _createWebSocketConnection: async (url: string): Promise<WebSocket> => {
