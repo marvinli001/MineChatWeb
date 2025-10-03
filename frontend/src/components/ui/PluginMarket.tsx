@@ -59,63 +59,81 @@ const ANTHROPIC_MCP_SERVERS = [
     name: 'Asana',
     description: '通过AI工具与您的Asana工作区交互，保持项目正常进行',
     icon: '🎯',
-    url: 'https://mcp.asana.com/sse'
+    url: 'https://mcp.asana.com/sse',
+    requiresAuth: true,
+    authType: 'Asana Token'
   },
   {
     id: 'mcp_atlassian',
     name: 'Atlassian',
     description: '访问Atlassian的协作和生产力工具',
     icon: '🔧',
-    url: 'https://mcp.atlassian.com/v1/sse'
+    url: 'https://mcp.atlassian.com/v1/sse',
+    requiresAuth: true,
+    authType: 'Atlassian API Key'
   },
   {
     id: 'mcp_intercom',
     name: 'Intercom',
     description: '访问来自Intercom的实时客户对话、工单和用户数据',
     icon: '💬',
-    url: 'https://mcp.intercom.com/sse'
+    url: 'https://mcp.intercom.com/sse',
+    requiresAuth: true,
+    authType: 'Intercom Token'
   },
   {
     id: 'mcp_invideo',
     name: 'invideo',
     description: '在您的应用程序中构建视频创建功能',
     icon: '🎥',
-    url: 'https://mcp.invideo.io/sse'
+    url: 'https://mcp.invideo.io/sse',
+    requiresAuth: true,
+    authType: 'InVideo API Key'
   },
   {
     id: 'mcp_linear',
     name: 'Linear',
     description: '与Linear的问题跟踪和项目管理系统集成',
     icon: '📊',
-    url: 'https://mcp.linear.app/sse'
+    url: 'https://mcp.linear.app/sse',
+    requiresAuth: true,
+    authType: 'Linear API Key'
   },
   {
     id: 'mcp_paypal',
     name: 'PayPal',
     description: '集成PayPal商务功能',
     icon: '💳',
-    url: 'https://mcp.paypal.com/sse'
+    url: 'https://mcp.paypal.com/sse',
+    requiresAuth: true,
+    authType: 'PayPal Token'
   },
   {
     id: 'mcp_plaid',
     name: 'Plaid',
     description: '分析、排除故障并优化Plaid集成',
     icon: '🏦',
-    url: 'https://api.dashboard.plaid.com/mcp/sse'
+    url: 'https://api.dashboard.plaid.com/mcp/sse',
+    requiresAuth: true,
+    authType: 'Plaid API Key'
   },
   {
     id: 'mcp_square',
     name: 'Square',
     description: '使用代理在Square API上构建。支付、库存、订单等',
     icon: '💰',
-    url: 'https://mcp.squareup.com/sse'
+    url: 'https://mcp.squareup.com/sse',
+    requiresAuth: true,
+    authType: 'Square Token'
   },
   {
     id: 'mcp_zapier',
     name: 'Zapier',
     description: '通过Zapier的自动化平台连接到近8,000个应用程序',
     icon: '⚡',
-    url: 'https://mcp.zapier.com/'
+    url: 'https://mcp.zapier.com/',
+    requiresAuth: true,
+    authType: 'Zapier API Key'
   }
 ]
 
