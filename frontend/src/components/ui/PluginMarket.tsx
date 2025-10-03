@@ -12,9 +12,9 @@ interface PluginMarketProps {
   currentProvider: string
 }
 
-type TabType = 'built-in' | 'custom'
+type TabType = 'mcp' | 'function'
 
-// OpenAI内置连接器
+// OpenAI内置连接器 (MCP Connectors)
 const OPENAI_CONNECTORS = [
   {
     id: 'connector_dropbox',
@@ -151,7 +151,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
     removeMCPServer
   } = usePluginStore()
 
-  const [activeTab, setActiveTab] = useState<TabType>('built-in')
+  const [activeTab, setActiveTab] = useState<TabType>('mcp')
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showConfigDialog, setShowConfigDialog] = useState(false)
   const [selectedService, setSelectedService] = useState<any>(null)
@@ -389,10 +389,12 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              插件市场 - {currentProvider === 'openai' ? 'OpenAI连接器' : 'Anthropic MCP服务器'}
+              插件市场 - {currentProvider === 'openai' ? 'OpenAI' : 'Anthropic MCP服务器'}
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              管理您的{currentProvider === 'openai' ? '内置连接器' : 'MCP服务器'}和自定义插件
+              {currentProvider === 'openai'
+                ? '管理您的MCP服务器和函数调用'
+                : '管理您的MCP服务器和自定义插件'}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -412,7 +414,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
               >
                 <PlusIcon className="w-4 h-4" />
               </motion.div>
-              添加自定义{activeTab === 'built-in' ? '服务' : '插件'}
+              添加自定义{activeTab === 'mcp' ? 'MCP服务器' : '函数'}
             </motion.button>
             <motion.button
               onClick={onClose}
@@ -432,43 +434,46 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
         {/* Tab切换 */}
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           <motion.button
-            onClick={() => setActiveTab('built-in')}
+            onClick={() => setActiveTab('mcp')}
             className={`flex items-center gap-2 px-6 py-3 text-sm font-medium ${
-              activeTab === 'built-in'
+              activeTab === 'mcp'
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-500 dark:text-gray-400'
             }`}
             whileHover={{
-              color: activeTab !== 'built-in' ? "#3b82f6" : undefined,
+              color: activeTab !== 'mcp' ? "#3b82f6" : undefined,
               transition: { duration: 0.2 }
             }}
             whileTap={{ scale: 0.98 }}
           >
             <ServerIcon className="w-4 h-4" />
-            内置服务 ({builtInServices.length})
+            MCP服务器 ({builtInServices.length})
           </motion.button>
-          <motion.button
-            onClick={() => setActiveTab('custom')}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium ${
-              activeTab === 'custom'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 dark:text-gray-400'
-            }`}
-            whileHover={{
-              color: activeTab !== 'custom' ? "#3b82f6" : undefined,
-              transition: { duration: 0.2 }
-            }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <WrenchScrewdriverIcon className="w-4 h-4" />
-            自定义插件 ({plugins.length})
-          </motion.button>
+          {/* 只有OpenAI提供商才显示函数调用tab */}
+          {currentProvider === 'openai' && (
+            <motion.button
+              onClick={() => setActiveTab('function')}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium ${
+                activeTab === 'function'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}
+              whileHover={{
+                color: activeTab !== 'function' ? "#3b82f6" : undefined,
+                transition: { duration: 0.2 }
+              }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <WrenchScrewdriverIcon className="w-4 h-4" />
+              函数调用 ({plugins.length})
+            </motion.button>
+          )}
         </div>
 
         {/* 内容区域 */}
         <div className="p-6 h-[60vh] overflow-y-auto">
-          {activeTab === 'built-in' ? (
-            // 内置服务卡片网格
+          {activeTab === 'mcp' ? (
+            // MCP服务器卡片网格
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {builtInServices.map((service) => {
                 const isEnabled = enabledServices.has(service.id)
@@ -493,7 +498,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                             {service.name}
                           </h4>
                           <span className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300 px-2 py-1 rounded-full">
-                            {currentProvider === 'openai' ? '连接器' : 'MCP'}
+                            MCP
                           </span>
                         </div>
                       </div>
@@ -552,13 +557,13 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
               })}
             </div>
           ) : (
-            // 自定义插件列表（保持原有逻辑）
+            // 函数调用列表（仅OpenAI）
             <div>
               {plugins.length === 0 ? (
                 <div className="text-center py-12 text-gray-500 dark:text-gray-400">
                   <WrenchScrewdriverIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>暂无自定义插件</p>
-                  <p className="text-sm mt-2">点击右上角按钮添加您的第一个插件</p>
+                  <p>暂无函数调用</p>
+                  <p className="text-sm mt-2">点击右上角按钮添加您的第一个函数</p>
                 </div>
               ) : (
                 <div className="grid gap-4">
@@ -710,7 +715,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                添加自定义{activeTab === 'built-in' ? 'MCP服务器' : '插件'}
+                添加自定义{activeTab === 'mcp' ? 'MCP服务器' : '函数'}
               </h3>
               <button
                 onClick={() => setShowAddDialog(false)}
@@ -720,12 +725,12 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
               </button>
             </div>
 
-            {activeTab === 'custom' ? (
-              // 插件添加表单（保持原有逻辑）
+            {activeTab === 'function' ? (
+              // 函数添加表单（OpenAI Function Calling）
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    插件名称 *
+                    函数名称 *
                   </label>
                   <input
                     type="text"
@@ -738,13 +743,13 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    插件描述
+                    函数描述
                   </label>
                   <textarea
                     value={pluginForm.description}
                     onChange={(e) => setPluginForm(prev => ({ ...prev, description: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="描述插件的功能..."
+                    placeholder="描述函数的功能和使用场景..."
                     rows={2}
                   />
                 </div>
@@ -881,15 +886,15 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                 取消
               </button>
               <button
-                onClick={activeTab === 'custom' ? handleAddPlugin : handleAddMCPServer}
+                onClick={activeTab === 'function' ? handleAddPlugin : handleAddMCPServer}
                 disabled={
-                  activeTab === 'custom'
+                  activeTab === 'function'
                     ? !pluginForm.name.trim()
-                    : !mcpForm.name.trim() || (currentProvider === 'openai' ? !mcpForm.connector_id.trim() : !mcpForm.url.trim())
+                    : !mcpForm.name.trim() || (currentProvider === 'openai' ? !mcpForm.connector_id.trim() && !mcpForm.url.trim() : !mcpForm.url.trim())
                 }
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                添加{activeTab === 'custom' ? '插件' : '服务器'}
+                添加{activeTab === 'function' ? '函数' : 'MCP服务器'}
               </button>
             </div>
           </div>

@@ -9,13 +9,15 @@ interface PluginSelectorProps {
   selectedMCPServerIds: string[]
   onPluginToggle: (pluginId: string) => void
   onMCPServerToggle: (serverId: string) => void
+  currentProvider?: string // 当前AI提供商
 }
 
 export default function PluginSelector({
   selectedPluginIds,
   selectedMCPServerIds,
   onPluginToggle,
-  onMCPServerToggle
+  onMCPServerToggle,
+  currentProvider = 'openai'
 }: PluginSelectorProps) {
   const { plugins, mcpServers } = usePluginStore()
   const [isOpen, setIsOpen] = useState(false)
@@ -36,7 +38,10 @@ export default function PluginSelector({
   }, [])
 
   const totalSelected = selectedPluginIds.length + selectedMCPServerIds.length
-  const hasItems = plugins.length > 0 || mcpServers.length > 0
+  // Anthropic不支持function calling,所以只计算MCP服务器
+  const hasItems = currentProvider === 'anthropic'
+    ? mcpServers.length > 0
+    : (plugins.length > 0 || mcpServers.length > 0)
 
   if (!hasItems) {
     return (
@@ -71,12 +76,12 @@ export default function PluginSelector({
 
       {isOpen && (
         <div className="absolute top-full left-0 mt-1 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto">
-          {/* 插件列表 */}
-          {plugins.length > 0 && (
+          {/* 函数调用列表 (仅OpenAI) */}
+          {currentProvider === 'openai' && plugins.length > 0 && (
             <div className="p-2">
               <div className="flex items-center gap-2 px-2 py-1 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 mb-2">
                 <WrenchScrewdriverIcon className="w-3 h-3" />
-                自定义插件
+                函数调用
               </div>
               {plugins.map((plugin) => (
                 <label
