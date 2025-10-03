@@ -17,6 +17,7 @@ interface ThinkingBudgetPopoverProps {
   current: ThinkingBudget
   onChange: (budget: ThinkingBudget) => void
   onClose: () => void
+  provider?: string
 }
 
 const budgetOptions: { value: ThinkingBudget; label: string; description: string }[] = [
@@ -25,7 +26,15 @@ const budgetOptions: { value: ThinkingBudget; label: string; description: string
   { value: 'high', label: 'High', description: '深度思考，详细分析' }
 ]
 
-function ThinkingBudgetPopover({ current, onChange, onClose }: ThinkingBudgetPopoverProps) {
+// OpenAI GPT-5 特有的预算选项（包含 Instant）
+const openaiGPT5BudgetOptions: { value: ThinkingBudget; label: string; description: string }[] = [
+  { value: 'instant', label: 'Instant', description: '即刻回答，最快响应' },
+  { value: 'low', label: 'Low', description: '快速响应，轻度思考' },
+  { value: 'medium', label: 'Medium', description: '平衡思考深度与速度' },
+  { value: 'high', label: 'High', description: '深度思考，详细分析' }
+]
+
+function ThinkingBudgetPopover({ current, onChange, onClose, provider = 'openai' }: ThinkingBudgetPopoverProps) {
   const handleSelect = (budget: ThinkingBudget) => {
     onChange(budget)
     onClose()
@@ -40,23 +49,26 @@ function ThinkingBudgetPopover({ current, onChange, onClose }: ThinkingBudgetPop
     }
   }
 
+  // 根据提供商选择预算选项
+  const options = provider === 'openai' ? openaiGPT5BudgetOptions : budgetOptions
+
   return (
     <>
       {/* 背景遮罩 */}
-      <div 
-        className="fixed inset-0 z-10 animate-in fade-in-0 duration-200" 
+      <div
+        className="fixed inset-0 z-10 animate-in fade-in-0 duration-200"
         onClick={onClose}
         aria-hidden="true"
       />
-      
+
       {/* Popover 内容 */}
       <div className="absolute bottom-full left-0 mb-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
         <div className="p-3">
           <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-3 px-2 animate-in fade-in-0 slide-in-from-left-1 duration-300 delay-75">
             思考预算
           </div>
-          
-          {budgetOptions.map((option, index) => (
+
+          {options.map((option, index) => (
             <button
               key={option.value}
               type="button"
@@ -146,6 +158,7 @@ export default function ThinkingBudgetButton({
           current={budget}
           onChange={onChange}
           onClose={() => setShowPopover(false)}
+          provider={provider}
         />
       )}
     </div>

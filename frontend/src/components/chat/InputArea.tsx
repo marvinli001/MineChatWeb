@@ -180,8 +180,9 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
       try {
         // 可以通过modelConfigService来检查，但这里为了避免异步复杂性，先使用硬编码列表
         const anthropicThinkingModels = [
+          'claude-sonnet-4-5',
           'claude-opus-4-1-20250805',
-          'claude-opus-4-20250514', 
+          'claude-opus-4-20250514',
           'claude-sonnet-4-20250514',
           'claude-3-7-sonnet-20250219'
         ]
@@ -941,7 +942,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                         className="fixed inset-0 z-10 animate-in fade-in-0 duration-200" 
                         onClick={() => setShowTools(false)}
                       />
-                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200">
+                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200 max-h-[calc(100vh-200px)] md:max-h-[600px] overflow-y-auto">
                         <div className="p-3">
                           {/* 添加照片和文件部分 - 只对支持高级功能的提供商显示 */}
                           {supportsAdvancedFeatures() && (
@@ -1471,7 +1472,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                         className="fixed inset-0 z-10 animate-in fade-in-0 duration-200" 
                         onClick={() => setShowTools(false)}
                       />
-                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200">
+                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200 max-h-[calc(100vh-200px)] md:max-h-[600px] overflow-y-auto">
                         <div className="p-3">
                           {/* 添加照片和文件部分 - 只对支持高级功能的提供商显示 */}
                           {supportsAdvancedFeatures() && (

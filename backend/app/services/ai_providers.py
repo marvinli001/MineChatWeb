@@ -976,11 +976,13 @@ class AIProviderService:
                         previous_image_gen_id = self._find_previous_image_generation(messages)
                     
                     # 使用 Responses API 的多模态参数结构
+                    # 将前端的 'instant' 映射为 OpenAI API 的 'minimal'
+                    effort_value = "minimal" if reasoning == "instant" else reasoning
                     completion_params = {
                         "model": model,
                         "input": input_messages,
                         "reasoning": {
-                            "effort": reasoning,
+                            "effort": effort_value,
                             "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                         }
                     }
@@ -1088,11 +1090,13 @@ class AIProviderService:
                         previous_image_gen_id = self._find_previous_image_generation(messages)
                     
                     # 使用结构化输入格式
+                    # 将前端的 'instant' 映射为 OpenAI API 的 'minimal'
+                    effort_value = "minimal" if reasoning == "instant" else reasoning
                     completion_params = {
                         "model": model,
                         "input": input_messages,
                         "reasoning": {
-                            "effort": reasoning,
+                            "effort": effort_value,
                             "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                         }
                     }
@@ -1131,11 +1135,13 @@ class AIProviderService:
                     if has_image_gen_tool:
                         previous_image_gen_id = self._find_previous_image_generation(messages)
                     
+                    # 将前端的 'instant' 映射为 OpenAI API 的 'minimal'
+                    effort_value = "minimal" if reasoning == "instant" else reasoning
                     completion_params = {
                         "model": model,
                         "input": input_text.strip(),
                         "reasoning": {
-                            "effort": reasoning,
+                            "effort": effort_value,
                             "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                         }
                     }

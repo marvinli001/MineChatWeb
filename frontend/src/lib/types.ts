@@ -96,7 +96,7 @@ export interface AuthResponse {
 }
 
 // 思考预算类型定义
-export type ThinkingBudget = 'low' | 'medium' | 'high'
+export type ThinkingBudget = 'instant' | 'low' | 'medium' | 'high'
 
 // 工具相关类型
 export interface Tool {

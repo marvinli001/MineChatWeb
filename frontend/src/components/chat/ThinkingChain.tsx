@@ -147,17 +147,7 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
         <div className="thinking-content">
           <span className={`thinking-text ${(isStreaming && !isComplete) ? 'streaming-text' : ''}`}>
             {isComplete ? '已深度思考' : (
-              <span className="streaming-text-inner" aria-label="思考中...">
-                {Array.from('思考中...').map((ch, i) => (
-                  <span
-                    className="wave-char"
-                    style={{ animationDelay: `${i * 0.08}s` }}
-                    key={i}
-                  >
-                    {ch}
-                  </span>
-                ))}
-              </span>
+              <span className="streaming-cursor" aria-label="思考中">▊</span>
             )}
           </span>
           {isComplete && finalThinkingTime > 0 ? (
@@ -165,7 +155,7 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
               (用时 {formatTime(finalThinkingTime)} 秒)
             </span>
           ) : !isComplete && currentThinkingTime > 0 && (
-            <span className="thinking-time thinking-time-live">
+            <span className="thinking-time">
               ({formatTime(currentThinkingTime)} 秒)
             </span>
           )}
@@ -280,20 +270,6 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           color: #6b7280;
         }
         
-        .thinking-time-live {
-          color: #3b82f6;
-          animation: pulse 2s ease-in-out infinite alternate;
-        }
-        
-        @keyframes pulse {
-          from {
-            opacity: 0.7;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        
         .expand-arrow {
           color: #6b7280;
           transition: transform 0.2s ease;
@@ -340,35 +316,17 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           background: rgba(156, 163, 175, 0.5);
         }
         
-        /* 波浪文字效果（替换原蓝色光栅） */
-        .streaming-text {
-          display: inline-flex;
-          align-items: baseline;
-        }
-        .streaming-text-inner {
-          display: inline-flex;
-          gap: 0.02em;
-        }
-        .wave-char {
+        /* 光标闪烁效果 */
+        .streaming-cursor {
           display: inline-block;
-          will-change: transform, opacity, text-shadow;
-          animation: wave 1.6s ease-in-out infinite;
+          animation: blink 1s ease-in-out infinite;
         }
-        @keyframes wave {
-          0% {
-            opacity: 0.65;
-            transform: translateY(0px);
-            text-shadow: none;
-          }
-          50% {
+        @keyframes blink {
+          0%, 49% {
             opacity: 1;
-            transform: translateY(-2px);
-            text-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
           }
-          100% {
-            opacity: 0.65;
-            transform: translateY(0px);
-            text-shadow: none;
+          50%, 100% {
+            opacity: 0;
           }
         }
         
@@ -428,10 +386,6 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           
           .thinking-time {
             color: #9ca3af;
-          }
-          
-          .thinking-time-live {
-            color: #60a5fa;
           }
           
           .expand-arrow {

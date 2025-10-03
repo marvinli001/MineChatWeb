@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Select } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
-import ThinkingModeToggle from '@/components/ui/ThinkingModeToggle'
 import { modelConfigService, ProviderConfig, ModelConfig } from '@/services/modelConfigService'
 
 export default function ModelSettings() {
@@ -43,28 +42,6 @@ export default function ModelSettings() {
       console.error('获取模型列表失败:', error)
     }
   }
-
-  // 检查是否为GPT-5系列模型
-  const isGPT5Model = (model: string): boolean => {
-    const gpt5Models = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest']
-    return gpt5Models.includes(model)
-  }
-
-  // 检查当前选择的模型是否支持thinking mode
-  const currentModelSupportsThinking = (): boolean => {
-    if (!settings.chatModel || !settings.chatProvider) return false
-    
-    // 对于OpenAI，只有GPT-5系列支持thinking mode
-    if (settings.chatProvider === 'openai') {
-      return isGPT5Model(settings.chatModel)
-    }
-    
-    // 对于其他提供商，检查模型配置
-    const currentModel = models[settings.chatModel]
-    return currentModel?.supports_thinking || false
-  }
-
-  const showThinkingToggle = currentModelSupportsThinking()
 
   if (loading) {
     return (
@@ -130,26 +107,6 @@ export default function ModelSettings() {
             </Select>
           </div>
         </div>
-
-        {/* GPT-5 Thinking模式切换 */}
-        {showThinkingToggle && (
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h5 className="font-medium text-gray-900 dark:text-white">
-                  GPT-5 思考模式
-                </h5>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  启用深度推理和思维链，提供更详细的分析过程
-                </p>
-              </div>
-              <ThinkingModeToggle
-                enabled={settings.thinkingMode || false}
-                onChange={(enabled) => updateSettings({ thinkingMode: enabled })}
-              />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 刷新配置按钮 */}
