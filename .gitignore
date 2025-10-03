@@ -437,11 +437,6 @@ local/
 dev/
 sandbox/
 codex-x86_64-pc-windows-msvc.exe
-Backend API provider development documentation/OpenAI/openai-responses-api-reference-all-accomplish.md
-Backend API provider development documentation/OpenAI/openai-web-search.md
-Backend API provider development documentation/OpenAI/openai_image generation guide.md
-Backend API provider development documentation/OpenAI/openai-audio-and-speech.md
-Backend API provider development documentation/OpenAI/openai-text-to-speech.md
-Backend API provider development documentation/*
-Backend API provider development documentation/OpenAI/openai-audio-and-speech.md
-Backend API provider development documentation/OpenAI/openai-audio-and-speech.md
+
+# API Documentation (internal reference only)
+Backend API provider development documentation/
