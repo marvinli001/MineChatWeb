@@ -9,7 +9,11 @@ import os
 import time
 import base64
 import httpx
+import warnings
 from .web_search_service import WebSearchService
+
+# 禁用 Pydantic 序列化警告
+warnings.filterwarnings('ignore', category=UserWarning, module='pydantic')
 
 logger = logging.getLogger(__name__)
 
@@ -747,105 +751,6 @@ class AIProviderService:
 
         return converted_result
 
-    async def _openai_chat_completion(
-        self,
-        model: str,
-        messages: List[Union[Dict[str, str], Any]],  # Support both dict and Pydantic objects
-        api_key: str,
-        stream: bool = False,
-        thinking_mode: bool = False,
-        reasoning_summaries: str = "auto",
-        tools: List[Dict[str, Any]] = None,
-        use_native_search: bool = None
-    ) -> Dict[str, Any]:
-        """OpenAI Chat Completions API 调用"""
-        try:
-            client = openai.AsyncOpenAI(
-                api_key=api_key,
-                timeout=self.default_timeout
-            )
-            
-            logger.info(f"调用OpenAI模型: {model}, 消息数量: {len(messages)}")
-            
-            # 转换消息格式以支持图片和文件
-            converted_messages = [self._convert_message_to_openai_format(msg) for msg in messages]
-            
-            # 准备工具配置
-            tools_config = self._prepare_tools_config(messages, tools, "openai")
-            
-            # 思考模型特殊处理
-            if self._is_thinking_model(model):
-                # 对于思考模型，过滤掉system消息并添加reasoning_summaries参数
-                filtered_messages = [msg for msg in converted_messages if msg.get("role") != "system"]
-                logger.info(f"思考模型 {model} 过滤后消息数量: {len(filtered_messages)}")
-                
-                completion_params = {
-                    "model": model,
-                    "messages": filtered_messages
-                }
-                
-                # 添加工具配置
-                if tools_config["tools"]:
-                    completion_params.update(tools_config)
-                
-                # 注意：reasoning_summaries 参数在当前 OpenAI API 版本中可能不被支持
-                # 如果需要支持该参数，请检查 OpenAI API 文档和库版本
-                # if reasoning_summaries and reasoning_summaries != "hide":
-                #     completion_params["reasoning_summaries"] = reasoning_summaries
-                
-                response = await asyncio.wait_for(
-                    client.chat.completions.create(**completion_params),
-                    timeout=self.default_timeout
-                )
-            else:
-                # 根据模型类型选择合适的参数
-                completion_params = {
-                    "model": model,
-                    "messages": converted_messages,
-                    "stream": stream
-                }
-                
-                # 处理Web Search工具的回退逻辑
-                if tools and use_native_search is False:
-                    # 对于不支持新版web_search的模型，使用旧版回退
-                    completion_params = await self._handle_web_search_fallback(
-                        completion_params, tools, messages
-                    )
-                elif tools_config["tools"]:
-                    completion_params.update(tools_config)
-                
-                # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
-                if not self._is_gpt5_model(model):
-                    completion_params["temperature"] = 0.7
-                
-                # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
-                if self._is_gpt5_model(model):
-                    completion_params["max_completion_tokens"] = 4000
-                else:
-                    completion_params["max_tokens"] = 4000
-                
-                response = await asyncio.wait_for(
-                    client.chat.completions.create(**completion_params),
-                    timeout=self.default_timeout
-                )
-            
-            result = response.model_dump()
-            logger.info(f"OpenAI API调用成功，返回选择数量: {len(result.get('choices', []))}")
-            return result
-            
-        except openai.AuthenticationError as e:
-            logger.error(f"OpenAI认证失败: {str(e)}")
-            raise Exception("OpenAI API密钥无效，请检查您的API密钥")
-        except openai.RateLimitError as e:
-            logger.error(f"OpenAI速率限制: {str(e)}")
-            raise Exception("OpenAI API请求频率过高，请稍后重试")
-        except openai.InternalServerError as e:
-            logger.error(f"OpenAI服务器错误: {str(e)}")
-            raise Exception("OpenAI服务器暂时不可用，请稍后重试")
-        except Exception as e:
-            logger.error(f"OpenAI API调用异常: {str(e)}")
-            raise Exception(f"OpenAI API调用失败: {str(e)}")
-
     async def _openai_responses_completion(
         self,
         model: str,
@@ -1173,45 +1078,52 @@ class AIProviderService:
                         client.responses.create(**completion_params),
                         timeout=timeout
                     )
-                except AttributeError:
-                    # Fallback to chat completions if responses API not available
-                    logger.warning("Responses API 不可用，回退到 Chat Completions API")
-                    # 为 chat completions 重新构造参数
-                    chat_params = {
-                        "model": model,
-                        "messages": messages,
-                        "max_completion_tokens": 4000
-                    }
-                    response = await asyncio.wait_for(
-                        client.chat.completions.create(**chat_params),
-                        timeout=timeout
-                    )
+                except AttributeError as e:
+                    # Responses API 不可用时抛出错误，不再回退
+                    logger.error("Responses API 不可用，请升级 OpenAI SDK 到最新版本")
+                    raise Exception(f"Responses API 不可用: {str(e)}. 请运行: pip install --upgrade openai")
             else:
-                # 标准的 Responses API 调用（对于其他标记为 responses 的模型）
+                # 标准的 Responses API 调用（对于其他非 GPT-5 思考模式的模型）
+                # 转换消息为 Responses API 格式
+                input_messages = []
+                instructions_text = ""
+
+                for msg in messages:
+                    role = self._get_message_attr(msg, "role")
+                    content = self._get_message_attr(msg, "content")
+
+                    if role == "system":
+                        instructions_text = content
+                    else:
+                        input_messages.append({
+                            "role": role,
+                            "content": content
+                        })
+
                 completion_params = {
                     "model": model,
-                    "messages": messages
+                    "input": input_messages
                 }
-                
-                # 思考模型处理
-                if self._is_thinking_model(model):
-                    # 过滤system消息
-                    filtered_messages = [msg for msg in messages if self._get_message_attr(msg, "role") != "system"]
-                    completion_params["messages"] = filtered_messages
-                
+
+                # 添加 instructions
+                if instructions_text:
+                    completion_params["instructions"] = instructions_text
+
+                # 准备工具配置
+                tools_config = self._prepare_tools_config(messages, tools, "openai")
+                if tools_config["tools"]:
+                    completion_params["tools"] = tools_config["tools"]
+
                 # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
                 if not self._is_gpt5_model(model):
                     completion_params["temperature"] = 0.7
-                
-                # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
-                if self._is_gpt5_model(model):
-                    completion_params["max_completion_tokens"] = 4000
-                else:
-                    completion_params["max_tokens"] = 4000
-                
-                # 使用 Chat Completions API
+
+                # 使用 max_output_tokens（Responses API 的参数）
+                completion_params["max_output_tokens"] = 4000
+
+                # 使用 Responses API
                 response = await asyncio.wait_for(
-                    client.chat.completions.create(**completion_params),
+                    client.responses.create(**completion_params),
                     timeout=timeout
                 )
             
@@ -2340,50 +2252,122 @@ class AIProviderService:
         tools: List[Dict[str, Any]] = None,
         use_native_search: bool = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
-        """OpenAI流式完成"""
+        """OpenAI流式完成 - 使用 Responses API"""
         try:
             client = openai.AsyncOpenAI(
                 api_key=api_key,
                 timeout=self.default_timeout
             )
-            
-            # 转换消息格式以支持图片和文件
-            converted_messages = [self._convert_message_to_openai_format(msg) for msg in messages]
-            
+
             # 准备工具配置
             tools_config = self._prepare_tools_config(messages, tools, "openai")
-            
-            # 根据模型类型选择合适的参数
+
+            # 转换消息为 Responses API 格式
+            input_messages = []
+            instructions_text = ""
+
+            for msg in messages:
+                role = self._get_message_attr(msg, "role")
+                content = self._get_message_attr(msg, "content")
+
+                if role == "system":
+                    # system 消息转换为 instructions
+                    instructions_text = content
+                else:
+                    # 其他消息添加到 input
+                    input_messages.append({
+                        "role": role,
+                        "content": content
+                    })
+
+            # 构建 Responses API 参数
             stream_params = {
                 "model": model,
-                "messages": converted_messages,
+                "input": input_messages,
                 "stream": True
             }
-            
-            # 处理Web Search工具的回退逻辑
-            if tools and use_native_search is False:
-                # 对于不支持新版web_search的模型，使用旧版回退
-                stream_params = await self._handle_web_search_fallback(
-                    stream_params, tools, messages
-                )
-            elif tools_config["tools"]:
-                stream_params.update(tools_config)
-            
+
+            # 添加 instructions
+            if instructions_text:
+                stream_params["instructions"] = instructions_text
+
+            # 添加工具配置 (传递原始字典而不是Pydantic模型)
+            if tools_config["tools"]:
+                # 转换工具配置为原始字典格式，避免Pydantic序列化警告
+                stream_params["tools"] = [
+                    tool if isinstance(tool, dict) else tool
+                    for tool in tools_config["tools"]
+                ]
+
             # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
             if not self._is_gpt5_model(model):
                 stream_params["temperature"] = 0.7
-            
-            # GPT-5 系列模型使用 max_completion_tokens，其他模型使用 max_tokens
-            if self._is_gpt5_model(model):
-                stream_params["max_completion_tokens"] = 4000
-            else:
-                stream_params["max_tokens"] = 4000
-            
-            stream = await client.chat.completions.create(**stream_params)
-            
-            async for chunk in stream:
-                yield chunk.model_dump()
-                
+
+            # 使用 max_output_tokens（Responses API 的参数）
+            stream_params["max_output_tokens"] = 4000
+
+            # 使用 Responses API 进行流式调用
+            stream = await client.responses.create(**stream_params)
+
+            async for event in stream:
+                # 转换 Responses API 事件为 Chat Completions 格式
+                event_dict = event.model_dump() if hasattr(event, 'model_dump') else event
+                event_type = event_dict.get('type', '')
+
+                # 处理文本增量事件
+                if event_type == 'response.output_text.delta':
+                    yield {
+                        'choices': [{
+                            'delta': {
+                                'content': event_dict.get('delta', '')
+                            },
+                            'index': 0,
+                            'finish_reason': None
+                        }]
+                    }
+
+                # 处理完成事件
+                elif event_type == 'response.completed':
+                    yield {
+                        'choices': [{
+                            'delta': {},
+                            'index': 0,
+                            'finish_reason': 'stop'
+                        }]
+                    }
+
+                # 处理错误事件
+                elif event_type == 'response.failed':
+                    error_info = event_dict.get('response', {}).get('error', {})
+                    yield {
+                        'error': error_info.get('message', 'Unknown error')
+                    }
+
+                # 忽略但记录的事件（这些事件不需要发送给前端，但表示流仍在进行）
+                elif event_type in [
+                    'response.created',
+                    'response.in_progress',
+                    'response.output_item.added',
+                    'response.output_item.done',
+                    'response.content_part.added',
+                    'response.content_part.done',
+                    'response.output_text.done',
+                    'response.web_search_call.in_progress',
+                    'response.web_search_call.searching',
+                    'response.web_search_call.completed',
+                    'response.file_search_call.in_progress',
+                    'response.file_search_call.searching',
+                    'response.file_search_call.completed',
+                ]:
+                    # 这些事件不需要转换，但我们需要继续循环
+                    # 可以在这里添加日志记录
+                    logger.debug(f"收到 Responses API 事件: {event_type}")
+                    continue
+
+                # 未知事件类型
+                else:
+                    logger.warning(f"未处理的 Responses API 事件类型: {event_type}")
+
         except Exception as e:
             logger.error(f"OpenAI流式调用失败: {str(e)}")
             yield {"error": str(e)}

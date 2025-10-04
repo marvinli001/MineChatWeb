@@ -150,7 +150,8 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   
   const {
     sendMessage,
-    createNewConversation
+    createNewConversation,
+    stopGeneration
   } = useChatStore()
 
   const currentConversation = useCurrentConversation()
@@ -1267,15 +1268,16 @@ const handleSubmit = async (e: React.FormEvent) => {
                   onServerToggle={handleMCPServerActivate}
                 />
 
-                {/* 发送按钮 */}
+                {/* 发送/停止按钮 */}
                 {isLoading ? (
                   <Button
                     type="button"
                     size="sm"
-                    disabled
-                    className="px-4 py-3 bg-gray-300 cursor-not-allowed rounded-full opacity-50"
+                    onClick={stopGeneration}
+                    className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors duration-200"
+                    title="停止生成"
                   >
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <StopIcon className="w-4 h-4" />
                   </Button>
                 ) : (
                   <Button
@@ -1284,7 +1286,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
                     className={`px-4 py-3 rounded-full transition-colors duration-200 ${
                       (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
-                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg' 
+                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
                     }`}
                   >
@@ -1797,15 +1799,16 @@ const handleSubmit = async (e: React.FormEvent) => {
                   onServerToggle={handleMCPServerActivate}
                 />
 
-                {/* 发送按钮 */}
+                {/* 发送/停止按钮 */}
                 {isLoading ? (
                   <Button
                     type="button"
                     size="sm"
-                    disabled
-                    className="px-4 py-3 bg-gray-300 cursor-not-allowed rounded-full opacity-50"
+                    onClick={stopGeneration}
+                    className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors duration-200"
+                    title="停止生成"
                   >
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <StopIcon className="w-4 h-4" />
                   </Button>
                 ) : (
                   <Button
@@ -1814,7 +1817,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
                     className={`px-4 py-3 rounded-full transition-colors duration-200 ${
                       (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
-                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg' 
+                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg'
                         : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
                     }`}
                   >

@@ -18,7 +18,7 @@ export default function ModelSelector({ onModelMarketClick, showDetailedInfo = f
 
   useEffect(() => {
     loadCurrentModelConfig()
-  }, [settings.chatProvider, settings.chatModel])
+  }, [settings.chatProvider, settings.chatModel, settings.openaiCompatibleConfig])
 
   const loadCurrentModelConfig = async () => {
     if (settings.chatProvider && settings.chatModel) {

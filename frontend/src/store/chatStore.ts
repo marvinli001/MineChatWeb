@@ -90,14 +90,22 @@ export const useChatStore = create<ChatState>()(
       },
 
       stopGeneration: () => {
-        const { abortController } = get()
+        const { abortController, currentConversationId, conversations } = get()
         if (abortController) {
           abortController.abort()
         }
         // Cleanup WebSocket if active
         get()._cleanupWebSocket()
-        // Always reset loading state
-        set({ isLoading: false, abortController: null })
+        // Always reset loading state (both global and conversation-level)
+        set({
+          isLoading: false,
+          abortController: null,
+          conversations: conversations.map(conv =>
+            conv.id === currentConversationId
+              ? { ...conv, isLoading: false }
+              : conv
+          )
+        })
       },
 
       _createWebSocketConnection: async (url: string): Promise<WebSocket> => {

@@ -127,10 +127,11 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
       deepResearchService.disconnect()
 
       // 清理所有轮询间隔
-      pollIntervalsRef.current.forEach((interval) => {
+      const intervals = pollIntervalsRef.current
+      intervals.forEach((interval) => {
         clearInterval(interval)
       })
-      pollIntervalsRef.current.clear()
+      intervals.clear()
     }
   }, [])
 
