@@ -2,6 +2,8 @@
 
 MineChatWeb 是一个开源 AI 聊天平台，整合多个主流大语言模型，提供现代化的对话体验。项目采用 Python FastAPI 后端和 Next.js + TypeScript 前端架构。
 
+> ⚠️ 项目目前处于早期阶段，接口和 UI 仍在不断迭代中，欢迎反馈问题或贡献代码。
+
 ## 核心功能
 
 - **多模型支持**：OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot 等主流 AI 提供商
