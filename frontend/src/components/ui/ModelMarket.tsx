@@ -199,7 +199,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                     {!hasApiKey(selectedProvider) && (
                       <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                         <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                          ⚠️ 请先在设置中配置 {config.providers[selectedProvider].name} 的 API 密钥
+                          请先在设置中配置 {config.providers[selectedProvider].name} 的 API 密钥
                         </p>
                       </div>
                     )}
@@ -253,11 +253,11 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                                   </p>
                                   <div className="flex gap-2">
                                     <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
-                                      📝 纯文本对话
+                                      纯文本对话
                                     </span>
                                     {model.supports_reasoning && (
                                       <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
-                                        🧠 支持推理
+                                        支持推理
                                       </span>
                                     )}
                                   </div>
@@ -312,15 +312,6 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                               <h4 className="font-medium text-gray-900 dark:text-white">
                                 {model.name}
                               </h4>
-                              {selectedProvider === 'openai' && (
-                                <span className={`text-xs px-2 py-1 rounded-full ${
-                                  modelConfigService.isOpenAIResponsesAPI(modelId)
-                                    ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
-                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-                                }`}>
-                                  {modelConfigService.isOpenAIResponsesAPI(modelId) ? 'Responses API' : 'Chat Completions'}
-                                </span>
-                              )}
                               {isCurrentModel(selectedProvider, modelId) && (
                                 <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 px-2 py-1 rounded-full">
                                   当前使用
@@ -338,17 +329,17 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                             <div className="flex gap-2 mt-2">
                               {model.supports_vision && (
                                 <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
-                                  🖼️ 图像
+                                  图像
                                 </span>
                               )}
                               {model.supports_function_calling && (
                                 <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
-                                  🔧 函数调用
+                                  函数调用
                                 </span>
                               )}
                               {model.supports_thinking && (
                                 <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
-                                  🧠 思考模式
+                                  思考模式
                                 </span>
                               )}
                             </div>
