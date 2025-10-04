@@ -74,10 +74,10 @@ function ThinkingBudgetPopover({ current, onChange, onClose, provider = 'openai'
               type="button"
               onClick={() => handleSelect(option.value)}
               onKeyDown={(e) => handleKeyDown(e, option.value)}
-              className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 animate-in fade-in-0 slide-in-from-left-1 ${
+              className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 animate-in fade-in-0 slide-in-from-left-1 sm:active:scale-[0.98] ${
                 current === option.value
-                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 scale-[1.02]'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 hover:translate-x-1'
+                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 md:scale-[1.02]'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 md:hover:translate-x-1'
               }`}
               role="menuitem"
               tabIndex={0}

@@ -942,7 +942,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                         className="fixed inset-0 z-10 animate-in fade-in-0 duration-200" 
                         onClick={() => setShowTools(false)}
                       />
-                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200 max-h-[calc(100vh-200px)] md:max-h-[600px] overflow-y-auto">
+                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200 max-h-[calc(100vh-200px)] md:max-h-[600px] overflow-y-auto sm:bottom-full">
                         <div className="p-3">
                           {/* 添加照片和文件部分 - 只对支持高级功能的提供商显示 */}
                           {supportsAdvancedFeatures() && (
@@ -954,7 +954,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <button
                                 type="button"
                                 onClick={triggerImageUpload}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 sm:active:scale-[0.98]"
                               >
                                 <PhotoIcon className="w-5 h-5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
@@ -968,7 +968,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <button
                                 type="button"
                                 onClick={triggerFileUpload}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 sm:active:scale-[0.98]"
                               >
                                 <PaperClipIcon className="w-5 h-5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
@@ -982,7 +982,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <button
                                 type="button"
                                 onClick={connectGoogleDrive}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 sm:active:scale-[0.98]"
                               >
                                 <FolderIcon className="w-5 h-5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
@@ -996,7 +996,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <button
                                 type="button"
                                 onClick={connectOneDrive}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 sm:active:scale-[0.98]"
                               >
                                 <FolderIcon className="w-5 h-5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
@@ -1027,9 +1027,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                                     key={tool.id}
                                     type="button"
                                     onClick={() => toggleTool(tool)}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 ${
-                                      isSelected 
-                                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 scale-[1.02]' 
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 sm:active:scale-[0.98] ${
+                                      isSelected
+                                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 md:scale-[1.02]'
                                         : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                                   >
@@ -1295,12 +1295,12 @@ const handleSubmit = async (e: React.FormEvent) => {
             </div>
           </div>
 
-          {/* 图片生成选项下拉框 */}
+          {/* 图片生成选项下拉框 - 欢迎模式桌面端向下弹出 */}
           {showImageGenOptions && hasImageGenTool && (
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-40 animate-in fade-in-0 duration-200">
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-40 animate-in fade-in-0 duration-200 max-sm:top-auto max-sm:bottom-full max-sm:mt-0 max-sm:mb-2">
               <div className="p-4">
                 <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">自定义图像输出</h3>
-                
+
                 {/* 输入图片提示 */}
                 {attachedImages.length > 0 && (
                   <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
@@ -1309,12 +1309,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                     </p>
                   </div>
                 )}
-                
+
                 {/* 尺寸选择 */}
                 <div className="mb-3">
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">尺寸</label>
-                  <select 
-                    value={imageGenOptions.size} 
+                  <select
+                    value={imageGenOptions.size}
                     onChange={(e) => setImageGenOptions({...imageGenOptions, size: e.target.value})}
                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
@@ -1324,12 +1324,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <option value="1536x1024">1536x1024 (横向)</option>
                   </select>
                 </div>
-                
+
                 {/* 质量选择 */}
                 <div className="mb-3">
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">质量</label>
-                  <select 
-                    value={imageGenOptions.quality} 
+                  <select
+                    value={imageGenOptions.quality}
                     onChange={(e) => setImageGenOptions({...imageGenOptions, quality: e.target.value})}
                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
@@ -1339,12 +1339,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <option value="high">High</option>
                   </select>
                 </div>
-                
+
                 {/* 格式选择 */}
                 <div className="mb-3">
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">格式</label>
-                  <select 
-                    value={imageGenOptions.format} 
+                  <select
+                    value={imageGenOptions.format}
                     onChange={(e) => setImageGenOptions({...imageGenOptions, format: e.target.value})}
                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
@@ -1353,7 +1353,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <option value="webp">WebP</option>
                   </select>
                 </div>
-                
+
                 {/* 压缩级别 - 仅JPEG和WebP */}
                 {(imageGenOptions.format === 'jpeg' || imageGenOptions.format === 'webp') && (
                   <div className="mb-3">
@@ -1370,12 +1370,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                     />
                   </div>
                 )}
-                
+
                 {/* 背景选择 */}
                 <div className="mb-3">
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">背景</label>
-                  <select 
-                    value={imageGenOptions.background} 
+                  <select
+                    value={imageGenOptions.background}
                     onChange={(e) => setImageGenOptions({...imageGenOptions, background: e.target.value})}
                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
@@ -1384,7 +1384,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <option value="opaque">不透明</option>
                   </select>
                 </div>
-                
+
                 {/* 使用说明 */}
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -1397,7 +1397,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             </div>
           )}
-          
+
           {/* 隐藏的文件输入 */}
           <input
             ref={fileInputRef}
@@ -1472,7 +1472,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                         className="fixed inset-0 z-10 animate-in fade-in-0 duration-200" 
                         onClick={() => setShowTools(false)}
                       />
-                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200 max-h-[calc(100vh-200px)] md:max-h-[600px] overflow-y-auto">
+                      <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-30 animate-in fade-in-0 duration-200 max-h-[calc(100vh-200px)] md:max-h-[600px] overflow-y-auto sm:bottom-full">
                         <div className="p-3">
                           {/* 添加照片和文件部分 - 只对支持高级功能的提供商显示 */}
                           {supportsAdvancedFeatures() && (
@@ -1484,7 +1484,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <button
                                 type="button"
                                 onClick={triggerImageUpload}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 sm:active:scale-[0.98]"
                               >
                                 <PhotoIcon className="w-5 h-5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
@@ -1498,7 +1498,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <button
                                 type="button"
                                 onClick={triggerFileUpload}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 sm:active:scale-[0.98]"
                               >
                                 <PaperClipIcon className="w-5 h-5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
@@ -1512,7 +1512,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <button
                                 type="button"
                                 onClick={connectGoogleDrive}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 sm:active:scale-[0.98]"
                               >
                                 <FolderIcon className="w-5 h-5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
@@ -1526,7 +1526,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               <button
                                 type="button"
                                 onClick={connectOneDrive}
-                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 hover:bg-gray-100 dark:hover:bg-gray-700 sm:active:scale-[0.98]"
                               >
                                 <FolderIcon className="w-5 h-5 flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
@@ -1557,9 +1557,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                                     key={tool.id}
                                     type="button"
                                     onClick={() => toggleTool(tool)}
-                                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 ${
-                                      isSelected 
-                                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 scale-[1.02]' 
+                                    className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 sm:active:scale-[0.98] ${
+                                      isSelected
+                                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 md:scale-[1.02]'
                                         : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                                     }`}
                                   >
@@ -1827,7 +1827,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           {/* 图片生成选项下拉框 */}
           {showImageGenOptions && hasImageGenTool && (
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-40 animate-in fade-in-0 duration-200">
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-40 animate-in fade-in-0 duration-200 sm:top-auto sm:bottom-full sm:mt-0 sm:mb-2">
               <div className="p-4">
                 <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">自定义图像输出</h3>
                 

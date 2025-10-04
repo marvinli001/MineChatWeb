@@ -1,10 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import { useSettingsStore } from '@/store/settingsStore'
 import { Input } from '@/components/ui/input'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 
 export default function ApiSettings() {
   const { settings, updateSettings } = useSettingsStore()
+  const [showOpenAIProxy, setShowOpenAIProxy] = useState(false)
 
   const providers = [
     { id: 'openai', name: 'OpenAI', description: 'ChatGPT, GPT-4, o1系列等模型（仅Responses API）' },
@@ -34,6 +37,12 @@ export default function ApiSettings() {
     })
   }
 
+  const handleOpenAIProxyChange = (value: string) => {
+    updateSettings({
+      openaiProxyUrl: value
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -54,7 +63,45 @@ export default function ApiSettings() {
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {provider.description}
             </p>
-            
+
+            {/* OpenAI的自定义代理设置 */}
+            {provider.id === 'openai' && (
+              <div className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOpenAIProxy(!showOpenAIProxy)}
+                  className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+                >
+                  {showOpenAIProxy ? (
+                    <ChevronDown className="w-3 h-3" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3" />
+                  )}
+                  自定义代理
+                </button>
+
+                {showOpenAIProxy && (
+                  <div className="mt-2 space-y-2 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                        代理URL
+                      </label>
+                      <Input
+                        type="url"
+                        placeholder="https://your-proxy.com"
+                        value={settings.openaiProxyUrl || ''}
+                        onChange={(e) => handleOpenAIProxyChange(e.target.value)}
+                        className="text-sm"
+                      />
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        配置后将使用此代理地址替换 api.openai.com，留空则使用官方地址
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* OpenAI兼容提供商的额外设置 */}
             {provider.id === 'openai_compatible' && (
               <div className="space-y-3 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
@@ -75,7 +122,7 @@ export default function ApiSettings() {
                 </div>
               </div>
             )}
-            
+
             <Input
               type="password"
               placeholder={`请输入${provider.name} API Key`}

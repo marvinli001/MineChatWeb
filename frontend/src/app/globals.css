@@ -269,17 +269,66 @@ html, body {
 /* 移动端消息气泡样式 */
 @media (max-width: 768px) {
   .message-bubble {
-    max-width: 92%;
-    font-size: 16px;
-    line-height: 1.6;
+    max-width: 70%; /* 与桌面端保持一致 */
+    font-size: 15px; /* 接近桌面端体验 */
+    line-height: 1.5; /* 优化行高 */
   }
-  
+
   .message-bubble.user {
     margin-left: auto;
   }
-  
+
   .message-bubble.assistant {
     margin-right: auto;
+  }
+
+  /* 移动端触摸高亮终极解决方案 - 禁用默认高亮，使用自定义方案 */
+
+  /* 第一步：完全禁用 Webkit 默认触摸高亮 */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 第二步：确保所有可点击元素有正确的定位上下文 */
+  button,
+  [role="button"],
+  [role="menuitem"] {
+    position: relative;
+    /* 创建新的层叠上下文 */
+    isolation: isolate;
+  }
+
+  /* 第三步：使用伪元素创建精确的触摸高亮层 */
+  button:active::after,
+  [role="button"]:active::after,
+  [role="menuitem"]:active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: rgba(59, 130, 246, 0.1);
+    border-radius: inherit; /* 继承父元素的圆角 */
+    pointer-events: none;
+    /* 使用 z-index 确保覆盖在内容之上 */
+    z-index: 1;
+  }
+
+  /* 第四步：确保按钮内容在高亮层之上 */
+  button > *,
+  [role="button"] > *,
+  [role="menuitem"] > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* 特定元素保留原生高亮（性能更好） */
+  input[type="range"],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="text"],
+  input[type="number"],
+  textarea,
+  select {
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.15);
   }
   
   /* 代码块横向滚动和复制按钮 */
@@ -369,7 +418,7 @@ html, body {
   a, button, input, select, textarea {
     touch-action: manipulation;
   }
-  
+
   /* 滚动优化 */
   .scrollable,
   .messages-container {
@@ -377,13 +426,13 @@ html, body {
     overscroll-behavior-y: bounce;
     overscroll-behavior-x: contain;
   }
-  
+
   /* 上滑隐藏输入附件栏效果 */
   .input-attachments {
     transform: translateY(0);
     transition: transform 0.3s ease-in-out;
   }
-  
+
   .input-attachments.hidden {
     transform: translateY(100%);
   }

@@ -28,11 +28,17 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [currentModelIcon, setCurrentModelIcon] = useState<string | null>(null)
   const [isReasoningModel, setIsReasoningModel] = useState(false)
+  const [hasAnimated, setHasAnimated] = useState(false)
   const { settings } = useSettingsStore()
   const { regenerateLastMessage } = useChatStore()
   const currentConversation = useCurrentConversation()
   // 使用当前对话的loading状态
   const isLoading = currentConversation?.isLoading || false
+
+  // 标记消息已经动画过，防止切换对话时重新动画
+  useEffect(() => {
+    setHasAnimated(true)
+  }, [])
 
   // 获取当前模型的icon和推理模型状态
   useEffect(() => {
@@ -139,7 +145,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
   return (
     <motion.div
       className="mb-6 px-4"
-      initial={{ opacity: 0, y: 20 }}
+      initial={hasAnimated ? false : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
@@ -147,7 +153,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
         // 用户消息 - 右侧对齐，暗灰色气泡，默认markdown渲染
         <motion.div
           className="flex justify-end"
-          initial={{ opacity: 0, x: 20 }}
+          initial={hasAnimated ? false : { opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
         >
@@ -239,8 +245,8 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
               </div>
             )}
             
-            <div className="bg-gray-700 text-white rounded-2xl px-4 py-3">
-              <div className="prose prose-sm prose-invert max-w-none text-sm lg:text-sm">
+            <div className="bg-gray-700 text-white rounded-2xl px-4 py-3 sm:px-4 sm:py-3">
+              <div className="prose prose-sm prose-invert max-w-none text-sm lg:text-sm sm:text-[15px]">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -285,7 +291,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
         // AI消息 - 左侧对齐，OpenAI风格
         <motion.div
           className="flex gap-3 group"
-          initial={{ opacity: 0, x: -20 }}
+          initial={hasAnimated ? false : { opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, ease: "easeOut" }}
         >

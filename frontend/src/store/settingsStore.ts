@@ -44,6 +44,9 @@ export interface Settings {
     baseUrl: string
     customModels: CustomModel[]
   }
+
+  // OpenAI自定义代理设置
+  openaiProxyUrl: string
 }
 
 interface SettingsState {
@@ -85,7 +88,8 @@ const defaultSettings: Settings = {
   openaiCompatibleConfig: {
     baseUrl: 'https://api.openai.com/v1',
     customModels: []
-  }
+  },
+  openaiProxyUrl: ''
 }
 
 export const useSettingsStore = create<SettingsState>()(
