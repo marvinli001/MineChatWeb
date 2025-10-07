@@ -2358,6 +2358,12 @@ class AIProviderService:
                     'response.file_search_call.in_progress',
                     'response.file_search_call.searching',
                     'response.file_search_call.completed',
+                    'response.mcp_list_tools.in_progress',
+                    'response.mcp_list_tools.completed',
+                    'response.mcp_call.in_progress',
+                    'response.mcp_call_arguments.delta',
+                    'response.mcp_call_arguments.done',
+                    'response.mcp_call.completed',
                 ]:
                     # 这些事件不需要转换，但我们需要继续循环
                     # 可以在这里添加日志记录
