@@ -44,16 +44,16 @@ export default function MCPServerToggle({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`p-2 rounded-full transition-colors duration-200 ${
+        className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 ${
           activatedCount > 0
-            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
-            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+            ? 'bg-[#C96342]/10 text-[#C96342] border-[#C96342]/30 dark:bg-[#C96342]/20 dark:border-[#C96342]/40'
+            : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
         }`}
         title={activatedCount > 0 ? `已激活 ${activatedCount} 个MCP服务器` : '点击管理MCP服务器'}
       >
-        <ServerIcon className="w-4 h-4" />
+        <ServerIcon className="w-5 h-5" />
         {activatedCount > 0 && (
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-purple-600 text-white text-xs rounded-full flex items-center justify-center font-medium">
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#C96342] text-white text-xs rounded-full flex items-center justify-center font-medium">
             {activatedCount > 9 ? '9+' : activatedCount}
           </div>
         )}
@@ -84,7 +84,7 @@ export default function MCPServerToggle({
                   >
                     <div className="flex-1 min-w-0 mr-3">
                       <div className="flex items-center gap-2 mb-1">
-                        <ServerIcon className="w-4 h-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                        <ServerIcon className="w-4 h-4 text-[#C96342] dark:text-[#C96342] flex-shrink-0" />
                         <span className="font-medium text-sm text-gray-900 dark:text-white truncate">
                           {server.name}
                         </span>
@@ -101,9 +101,9 @@ export default function MCPServerToggle({
                     <button
                       type="button"
                       onClick={() => onServerToggle(server.id)}
-                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 ${
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#C96342] focus:ring-offset-2 ${
                         isActivated
-                          ? 'bg-purple-600'
+                          ? 'bg-[#C96342]'
                           : 'bg-gray-200 dark:bg-gray-600'
                       }`}
                     >

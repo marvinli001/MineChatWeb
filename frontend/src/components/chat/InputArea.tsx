@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { PaperAirplaneIcon, MicrophoneIcon, PhotoIcon, StopIcon, PlusIcon, WrenchScrewdriverIcon, XMarkIcon, CheckIcon, PaperClipIcon, EyeIcon, SparklesIcon } from '@heroicons/react/24/outline'
+import { ArrowUpIcon, MicrophoneIcon, PhotoIcon, StopIcon, PlusIcon, WrenchScrewdriverIcon, XMarkIcon, CheckIcon, PaperClipIcon, EyeIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { MagnifyingGlassIcon, CubeIcon, FolderIcon } from '@heroicons/react/24/outline'
 import { useChatStore, useCurrentConversation } from '@/store/chatStore'
 import { useSettingsStore } from '@/store/settingsStore'
@@ -900,8 +900,8 @@ const handleSubmit = async (e: React.FormEvent) => {
             </div>
           )}
           
-          {/* 两行一体式容器 - 固定宽度作为默认形态 */}
-          <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
+          {/* 两行一体式容器 - Claude.ai 设计语言 */}
+          <div className="relative bg-[#FFFFFF] dark:bg-gray-800 border border-[#DDDDDD] dark:border-gray-600 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
             
             {/* 第一行：输入框 */}
             <div className="relative">
@@ -926,10 +926,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <button
                     type="button"
                     onClick={() => setShowTools(!showTools)}
-                    className={`p-2 rounded-full transition-colors duration-200 ${
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 ${
                       showTools
-                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        ? 'bg-[#C96342]/10 text-[#C96342] border-[#C96342]/30 dark:bg-[#C96342]/20 dark:border-[#C96342]/40'
+                        : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                     title="添加内容和工具"
                   >
@@ -1176,11 +1176,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                           type="button"
                           onClick={() => removeFile(file.id)}
                           className={`rounded-full p-0.5 transition-colors duration-200 ${
-                            hasError 
-                              ? 'hover:bg-red-200 dark:hover:bg-red-800' 
+                            hasError
+                              ? 'hover:bg-red-200 dark:hover:bg-red-800'
                               : isCompleted
                               ? 'hover:bg-green-200 dark:hover:bg-green-800'
-                              : 'hover:bg-blue-200 dark:hover:bg-blue-800'
+                              : 'hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30'
                           }`}
                         >
                           <XMarkIcon className="w-3 h-3" />
@@ -1193,7 +1193,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   {selectedTools.map((tool, index) => (
                     <div
                       key={tool.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 rounded-full text-sm border border-blue-200 dark:border-blue-800 animate-in fade-in-0 duration-200"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-[#C96342]/10 dark:bg-[#C96342]/20 text-[#C96342] dark:text-[#C96342] rounded-full text-sm border border-[#C96342]/30 dark:border-[#C96342]/40 animate-in fade-in-0 duration-200"
                       style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + index) * 50}ms` }}
                     >
                       <tool.icon className="w-4 h-4" />
@@ -1201,7 +1201,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => removeTool(tool.id)}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors duration-200"
+                        className="hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30 rounded-full p-0.5 transition-colors duration-200"
                       >
                         <XMarkIcon className="w-3 h-3" />
                       </button>
@@ -1243,21 +1243,21 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="button"
                     onClick={isRecording ? stopRecording : startRecording}
                     disabled={isTranscribing}
-                    className={`p-2 rounded-full transition-colors duration-200 relative ${
-                      isRecording 
-                        ? 'bg-red-500 text-white animate-pulse hover:bg-red-600' 
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 relative ${
+                      isRecording
+                        ? 'bg-red-500 text-white border-red-500 animate-pulse hover:bg-red-600'
                         : isTranscribing
-                        ? 'bg-blue-500 text-white'
-                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                     title={isRecording ? '停止录音' : isTranscribing ? '转录中...' : '开始录音'}
                   >
                     {isRecording ? (
-                      <StopIcon className="w-4 h-4" />
+                      <StopIcon className="w-5 h-5" />
                     ) : isTranscribing ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                     ) : (
-                      <MicrophoneIcon className="w-4 h-4" />
+                      <MicrophoneIcon className="w-5 h-5" />
                     )}
                   </button>
                 )}
@@ -1284,13 +1284,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="submit"
                     size="sm"
                     disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
-                    className={`px-4 py-3 rounded-full transition-colors duration-200 ${
+                    className={`w-8 h-8 p-0 flex items-center justify-center rounded-lg transition-colors duration-200 ${
                       (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
-                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
+                        ? 'bg-[#C96342] text-white hover:bg-[#B5583A] hover:shadow-lg dark:bg-[#C96342] dark:hover:bg-[#D97050]'
+                        : 'bg-[#E5B2A1] dark:bg-gray-700 text-white dark:text-gray-500 cursor-not-allowed opacity-60'
                     }`}
                   >
-                    <PaperAirplaneIcon className="w-4 h-4" />
+                    <ArrowUpIcon className="w-5 h-5" />
                   </Button>
                 )}
               </div>
@@ -1427,8 +1427,8 @@ const handleSubmit = async (e: React.FormEvent) => {
     <div className="bg-white dark:bg-gray-900 py-4 input-area">
       <div className="px-4 lg:px-4 sm:px-3">
         <form onSubmit={handleSubmit} className="relative">
-          {/* 两行一体式容器 - 与欢迎页样式保持一致 */}
-          <div className="relative bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
+          {/* 两行一体式容器 - Claude.ai 设计语言 */}
+          <div className="relative bg-[#FFFFFF] dark:bg-gray-800 border border-[#DDDDDD] dark:border-gray-600 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
             {/* 录音覆盖层 */}
             <RecordingOverlay 
               isRecording={isRecording}
@@ -1457,10 +1457,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <button
                     type="button"
                     onClick={() => setShowTools(!showTools)}
-                    className={`p-2 rounded-full transition-colors duration-200 ${
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 ${
                       showTools
-                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' 
-                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                        ? 'bg-[#C96342]/10 text-[#C96342] border-[#C96342]/30 dark:bg-[#C96342]/20 dark:border-[#C96342]/40'
+                        : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                     title="添加内容和工具"
                   >
@@ -1707,11 +1707,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                           type="button"
                           onClick={() => removeFile(file.id)}
                           className={`rounded-full p-0.5 transition-colors duration-200 ${
-                            hasError 
-                              ? 'hover:bg-red-200 dark:hover:bg-red-800' 
+                            hasError
+                              ? 'hover:bg-red-200 dark:hover:bg-red-800'
                               : isCompleted
                               ? 'hover:bg-green-200 dark:hover:bg-green-800'
-                              : 'hover:bg-blue-200 dark:hover:bg-blue-800'
+                              : 'hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30'
                           }`}
                         >
                           <XMarkIcon className="w-3 h-3" />
@@ -1724,7 +1724,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   {selectedTools.map((tool, index) => (
                     <div
                       key={tool.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100 rounded-full text-sm border border-blue-200 dark:border-blue-800 animate-in fade-in-0 duration-200"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-[#C96342]/10 dark:bg-[#C96342]/20 text-[#C96342] dark:text-[#C96342] rounded-full text-sm border border-[#C96342]/30 dark:border-[#C96342]/40 animate-in fade-in-0 duration-200"
                       style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + index) * 50}ms` }}
                     >
                       <tool.icon className="w-4 h-4" />
@@ -1732,7 +1732,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                       <button
                         type="button"
                         onClick={() => removeTool(tool.id)}
-                        className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded-full p-0.5 transition-colors duration-200"
+                        className="hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30 rounded-full p-0.5 transition-colors duration-200"
                       >
                         <XMarkIcon className="w-3 h-3" />
                       </button>
@@ -1774,21 +1774,21 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="button"
                     onClick={isRecording ? stopRecording : startRecording}
                     disabled={isTranscribing}
-                    className={`p-2 rounded-full transition-colors duration-200 relative ${
-                      isRecording 
-                        ? 'bg-red-500 text-white animate-pulse hover:bg-red-600' 
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 relative ${
+                      isRecording
+                        ? 'bg-red-500 text-white border-red-500 animate-pulse hover:bg-red-600'
                         : isTranscribing
-                        ? 'bg-blue-500 text-white'
-                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                     title={isRecording ? '停止录音' : isTranscribing ? '转录中...' : '开始录音'}
                   >
                     {isRecording ? (
-                      <StopIcon className="w-4 h-4" />
+                      <StopIcon className="w-5 h-5" />
                     ) : isTranscribing ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                     ) : (
-                      <MicrophoneIcon className="w-4 h-4" />
+                      <MicrophoneIcon className="w-5 h-5" />
                     )}
                   </button>
                 )}
@@ -1815,13 +1815,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="submit"
                     size="sm"
                     disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
-                    className={`px-4 py-3 rounded-full transition-colors duration-200 ${
+                    className={`w-8 h-8 p-0 flex items-center justify-center rounded-lg transition-colors duration-200 ${
                       (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
-                        ? 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed opacity-50'
+                        ? 'bg-[#C96342] text-white hover:bg-[#B5583A] hover:shadow-lg dark:bg-[#C96342] dark:hover:bg-[#D97050]'
+                        : 'bg-[#E5B2A1] dark:bg-gray-700 text-white dark:text-gray-500 cursor-not-allowed opacity-60'
                     }`}
                   >
-                    <PaperAirplaneIcon className="w-4 h-4" />
+                    <ArrowUpIcon className="w-5 h-5" />
                   </Button>
                 )}
               </div>

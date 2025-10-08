@@ -40,21 +40,25 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
     setHasAnimated(true)
   }, [])
 
-  // 获取当前模型的icon和推理模型状态
+  // 获取当前对话使用的模型的icon和推理模型状态
   useEffect(() => {
     const loadModelIcon = async () => {
-      if (settings.chatProvider && settings.chatModel) {
-        const modelConfig = await modelConfigService.getModelConfig(settings.chatProvider, settings.chatModel)
+      // 优先使用会话的模型信息，如果没有则使用全局设置
+      const provider = currentConversation?.model_provider || settings.chatProvider
+      const model = currentConversation?.model_name || settings.chatModel
+
+      if (provider && model) {
+        const modelConfig = await modelConfigService.getModelConfig(provider, model)
         setCurrentModelIcon((modelConfig as any)?.icon || null)
-        
+
         // 检测是否是推理模型
         const reasoningModels = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini']
-        const isReasoning = reasoningModels.some(model => settings.chatModel.includes(model)) || settings.thinkingMode
+        const isReasoning = reasoningModels.some(m => model.includes(m)) || settings.thinkingMode
         setIsReasoningModel(isReasoning)
       }
     }
     loadModelIcon()
-  }, [settings.chatProvider, settings.chatModel, settings.thinkingMode])
+  }, [currentConversation?.model_provider, currentConversation?.model_name, settings.chatProvider, settings.chatModel, settings.thinkingMode])
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -245,8 +249,8 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
               </div>
             )}
             
-            <div className="bg-gray-700 text-white rounded-2xl px-4 py-3 sm:px-4 sm:py-3">
-              <div className="prose prose-sm prose-invert max-w-none text-sm lg:text-sm sm:text-[15px]">
+            <div className="bg-[#F1EFE8] dark:bg-gray-700 text-black dark:text-white rounded-xl px-4 py-3 sm:px-4 sm:py-3">
+              <div className="prose prose-sm dark:prose-invert max-w-none text-sm lg:text-sm sm:text-[15px]">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -266,7 +270,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                       const { inline, ...restProps } = props as any
                       return inline ? (
                         <code
-                          className="bg-gray-600 px-1 py-0.5 rounded text-xs"
+                          className="bg-[#E5E3DC] dark:bg-gray-600 px-1 py-0.5 rounded text-xs"
                           {...restProps}
                         />
                       ) : (
@@ -275,7 +279,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
                     },
                     pre: ({ node, ...props }) => (
                       <pre
-                        className="bg-gray-600 rounded p-2 overflow-x-auto text-xs mt-2"
+                        className="bg-[#E5E3DC] dark:bg-gray-600 rounded p-2 overflow-x-auto text-xs mt-2"
                         {...props}
                       />
                     ),
@@ -296,14 +300,14 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
           transition={{ duration: 0.3, ease: "easeOut" }}
         >
           {/* AI头像 - 使用模型的icon */}
-          <div className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center flex-shrink-0 overflow-hidden lg:w-8 lg:h-8">
+          <div className="w-8 h-8 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center flex-shrink-0 overflow-hidden lg:w-8 lg:h-8">
             {currentModelIcon ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img 
-                  src={currentModelIcon} 
-                  alt="AI Model" 
-                  className="w-6 h-6 object-contain"
+                <img
+                  src={currentModelIcon}
+                  alt="AI Model"
+                  className="w-full h-full object-cover"
                   onError={(e) => {
                     // 如果图片加载失败，显示默认emoji
                     const target = e.target as HTMLImageElement

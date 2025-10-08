@@ -195,14 +195,16 @@ export const useChatStore = create<ChatState>()(
             title: '新对话',
             messages: [],
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            model_provider: settings.chatProvider,
+            model_name: settings.chatModel
           }
 
           set(state => ({
             conversations: [newConversation, ...state.conversations],
             currentConversationId: newConversation.id
           }))
-          
+
           targetConversationId = newConversation.id
         }
 
@@ -244,7 +246,10 @@ export const useChatStore = create<ChatState>()(
                   messages: [...conv.messages, userMessage, assistantMessage],
                   title: conv.messages.length === 0 ? content.slice(0, 20) + '...' : conv.title,
                   updated_at: new Date().toISOString(),
-                  isLoading: true  // 设置当前对话为加载中
+                  isLoading: true,  // 设置当前对话为加载中
+                  // 如果会话还没有模型信息，保存当前使用的模型
+                  model_provider: conv.model_provider || settings.chatProvider,
+                  model_name: conv.model_name || settings.chatModel
                 }
               : conv
           ),

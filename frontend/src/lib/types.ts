@@ -60,6 +60,8 @@ export interface Conversation {
   updated_at: string
   user_id?: string
   isLoading?: boolean  // 对话级别的加载状态
+  model_provider?: string  // 会话使用的AI提供商
+  model_name?: string  // 会话使用的AI模型名称
 }
 
 export interface ApiProvider {
