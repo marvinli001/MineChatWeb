@@ -1274,10 +1274,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="button"
                     size="sm"
                     onClick={stopGeneration}
-                    className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors duration-200"
+                    className="w-8 h-8 p-0 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200"
                     title="停止生成"
                   >
-                    <StopIcon className="w-4 h-4" />
+                    <StopIcon className="w-5 h-5" />
                   </Button>
                 ) : (
                   <Button
@@ -1805,10 +1805,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="button"
                     size="sm"
                     onClick={stopGeneration}
-                    className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors duration-200"
+                    className="w-8 h-8 p-0 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200"
                     title="停止生成"
                   >
-                    <StopIcon className="w-4 h-4" />
+                    <StopIcon className="w-5 h-5" />
                   </Button>
                 ) : (
                   <Button
