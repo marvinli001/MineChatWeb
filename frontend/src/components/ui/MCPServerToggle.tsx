@@ -44,7 +44,7 @@ export default function MCPServerToggle({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 ${
+        className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 sm:active:scale-[0.98] ${
           activatedCount > 0
             ? 'bg-[#C96342]/10 text-[#C96342] border-[#C96342]/30 dark:bg-[#C96342]/20 dark:border-[#C96342]/40'
             : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'

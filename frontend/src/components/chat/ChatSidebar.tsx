@@ -240,10 +240,10 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
                   }
                 }}
                 className={`
-                  flex items-center gap-2 p-2 rounded-lg cursor-pointer group
+                  flex items-center gap-2 p-2 rounded-lg cursor-pointer group transition-all duration-150
                   ${currentConversationId === conversation.id
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100'
-                    : ''
+                    : 'hover:bg-black/5 dark:hover:bg-white/5 hover:scale-[1.02]'
                   }
                 `}
                 initial={{ opacity: 0, x: 20 }}
@@ -252,11 +252,6 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
                   duration: 0.3,
                   delay: 0.4 + (groupIndex * 0.05) + (convIndex * 0.02),
                   ease: "easeOut"
-                }}
-                whileHover={{
-                  backgroundColor: currentConversationId !== conversation.id ? "rgba(0, 0, 0, 0.05)" : undefined,
-                  x: currentConversationId !== conversation.id ? 4 : 0,
-                  transition: { duration: 0.15 }
                 }}
                 whileTap={{ scale: 0.98 }}
               >

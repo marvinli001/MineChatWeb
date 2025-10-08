@@ -901,7 +901,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           )}
           
           {/* 两行一体式容器 - Claude.ai 设计语言 */}
-          <div className="relative bg-[#FFFFFF] dark:bg-gray-800 border border-[#DDDDDD] dark:border-gray-600 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
+          <div className="relative bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] dark:hover:shadow-[2px_2px_20px_rgba(0,0,0,0.4)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
             
             {/* 第一行：输入框 */}
             <div className="relative">
@@ -926,10 +926,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <button
                     type="button"
                     onClick={() => setShowTools(!showTools)}
-                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 ${
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 sm:active:scale-[0.98] ${
                       showTools
                         ? 'bg-[#C96342]/10 text-[#C96342] border-[#C96342]/30 dark:bg-[#C96342]/20 dark:border-[#C96342]/40'
-                        : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        : 'border-[#DDDDDD] dark:border-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
                     title="添加内容和工具"
                   >
@@ -1243,12 +1243,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="button"
                     onClick={isRecording ? stopRecording : startRecording}
                     disabled={isTranscribing}
-                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 relative ${
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 relative sm:active:scale-[0.98] ${
                       isRecording
                         ? 'bg-red-500 text-white border-red-500 animate-pulse hover:bg-red-600'
                         : isTranscribing
                         ? 'bg-blue-500 text-white border-blue-500'
-                        : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        : 'border-[#DDDDDD] dark:border-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
                     title={isRecording ? '停止录音' : isTranscribing ? '转录中...' : '开始录音'}
                   >
@@ -1274,7 +1274,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="button"
                     size="sm"
                     onClick={stopGeneration}
-                    className="w-8 h-8 p-0 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200"
+                    className="w-8 h-8 p-0 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-200 sm:active:scale-[0.98]"
                     title="停止生成"
                   >
                     <StopIcon className="w-5 h-5" />
@@ -1284,7 +1284,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="submit"
                     size="sm"
                     disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
-                    className={`w-8 h-8 p-0 flex items-center justify-center rounded-lg transition-colors duration-200 ${
+                    className={`w-8 h-8 p-0 flex items-center justify-center rounded-lg transition-all duration-200 sm:active:scale-[0.98] ${
                       (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
                         ? 'bg-[#C96342] text-white hover:bg-[#B5583A] hover:shadow-lg dark:bg-[#C96342] dark:hover:bg-[#D97050]'
                         : 'bg-[#E5B2A1] dark:bg-gray-700 text-white dark:text-gray-500 cursor-not-allowed opacity-60'
@@ -1428,7 +1428,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       <div className="px-4 lg:px-4 sm:px-3">
         <form onSubmit={handleSubmit} className="relative">
           {/* 两行一体式容器 - Claude.ai 设计语言 */}
-          <div className="relative bg-[#FFFFFF] dark:bg-gray-800 border border-[#DDDDDD] dark:border-gray-600 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
+          <div className="relative bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] dark:hover:shadow-[2px_2px_20px_rgba(0,0,0,0.4)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
             {/* 录音覆盖层 */}
             <RecordingOverlay 
               isRecording={isRecording}
@@ -1457,10 +1457,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   <button
                     type="button"
                     onClick={() => setShowTools(!showTools)}
-                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 ${
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 sm:active:scale-[0.98] ${
                       showTools
                         ? 'bg-[#C96342]/10 text-[#C96342] border-[#C96342]/30 dark:bg-[#C96342]/20 dark:border-[#C96342]/40'
-                        : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        : 'border-[#DDDDDD] dark:border-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
                     title="添加内容和工具"
                   >
@@ -1774,12 +1774,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="button"
                     onClick={isRecording ? stopRecording : startRecording}
                     disabled={isTranscribing}
-                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 relative ${
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 relative sm:active:scale-[0.98] ${
                       isRecording
                         ? 'bg-red-500 text-white border-red-500 animate-pulse hover:bg-red-600'
                         : isTranscribing
                         ? 'bg-blue-500 text-white border-blue-500'
-                        : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        : 'border-[#DDDDDD] dark:border-gray-700 text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                     }`}
                     title={isRecording ? '停止录音' : isTranscribing ? '转录中...' : '开始录音'}
                   >
@@ -1805,7 +1805,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="button"
                     size="sm"
                     onClick={stopGeneration}
-                    className="w-8 h-8 p-0 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200"
+                    className="w-8 h-8 p-0 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all duration-200 sm:active:scale-[0.98]"
                     title="停止生成"
                   >
                     <StopIcon className="w-5 h-5" />
@@ -1815,7 +1815,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     type="submit"
                     size="sm"
                     disabled={!input.trim() && attachedImages.length === 0 && attachedFiles.length === 0}
-                    className={`w-8 h-8 p-0 flex items-center justify-center rounded-lg transition-colors duration-200 ${
+                    className={`w-8 h-8 p-0 flex items-center justify-center rounded-lg transition-all duration-200 sm:active:scale-[0.98] ${
                       (input.trim() || attachedImages.length > 0 || attachedFiles.length > 0)
                         ? 'bg-[#C96342] text-white hover:bg-[#B5583A] hover:shadow-lg dark:bg-[#C96342] dark:hover:bg-[#D97050]'
                         : 'bg-[#E5B2A1] dark:bg-gray-700 text-white dark:text-gray-500 cursor-not-allowed opacity-60'

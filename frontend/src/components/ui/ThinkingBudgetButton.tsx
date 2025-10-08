@@ -77,7 +77,7 @@ function ThinkingBudgetPopover({ current, onChange, onClose, provider = 'openai'
               className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 animate-in fade-in-0 slide-in-from-left-1 sm:active:scale-[0.98] ${
                 current === option.value
                   ? 'bg-[#C96342]/10 dark:bg-[#C96342]/20 text-[#C96342] dark:text-[#C96342] md:scale-[1.02]'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 md:hover:translate-x-1'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 md:hover:scale-[1.02]'
               }`}
               role="menuitem"
               tabIndex={0}
@@ -120,7 +120,7 @@ export default function ThinkingBudgetButton({
         <button
           type="button"
           onClick={() => onThinkingToggle(!thinkingEnabled)}
-          className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 ${
+          className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 sm:active:scale-[0.98] ${
             thinkingEnabled
               ? 'bg-[#C96342] text-white border-[#C96342] shadow-lg'
               : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -140,7 +140,7 @@ export default function ThinkingBudgetButton({
       <button
         type="button"
         onClick={() => setShowPopover(!showPopover)}
-        className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-colors duration-200 ${
+        className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 sm:active:scale-[0.98] ${
           showPopover
             ? 'bg-[#C96342]/10 text-[#C96342] border-[#C96342]/30 dark:bg-[#C96342]/20 dark:border-[#C96342]/40'
             : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
