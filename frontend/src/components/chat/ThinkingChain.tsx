@@ -244,9 +244,9 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           align-items: center;
           justify-content: space-between;
           padding: 14px 18px;
-          background: linear-gradient(to right, rgba(103, 232, 249, 0.15), rgba(186, 230, 253, 0.15));
-          border: 2px solid rgba(147, 197, 253, 0.25);
-          border-radius: 12px;
+          background: rgba(0, 0, 0, 0.05);
+          border: 0.7px solid rgba(0, 0, 0, 0.2);
+          border-radius: 16px;
           cursor: pointer;
           transition: all 0.3s ease;
           position: relative;
@@ -254,11 +254,16 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
         }
 
         .thinking-header.streaming {
-          border-color: rgba(96, 165, 250, 0.35);
+          background: linear-gradient(to right, rgba(103, 232, 249, 0.15), rgba(186, 230, 253, 0.15));
+          border: 2px solid rgba(147, 197, 253, 0.25);
           box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.1);
         }
 
         .thinking-header:hover {
+          background: rgba(0, 0, 0, 0.08);
+        }
+
+        .thinking-header.streaming:hover {
           background: linear-gradient(to right, rgba(103, 232, 249, 0.2), rgba(186, 230, 253, 0.2));
         }
 
@@ -269,7 +274,7 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
         }
 
         .thinking-header.collapsed {
-          border-radius: 12px;
+          border-radius: 16px;
         }
 
         .thinking-content {
@@ -339,8 +344,12 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
         .thinking-text {
           font-size: 18px;
           font-weight: 700;
-          color: #0c4a6e;
+          color: #000000;
           line-height: 1.3;
+        }
+
+        .thinking-header.streaming .thinking-text {
+          color: #0c4a6e;
         }
 
         .thinking-time-inline {
@@ -349,26 +358,40 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
 
         .thinking-subtitle {
           font-size: 14px;
-          color: rgba(12, 74, 110, 0.5);
+          color: rgba(0, 0, 0, 0.5);
           font-weight: 400;
           line-height: 1.3;
         }
 
+        .thinking-header.streaming .thinking-subtitle {
+          color: rgba(12, 74, 110, 0.5);
+        }
+
         .expand-arrow {
-          color: #0c4a6e;
+          color: #000000;
           transition: transform 0.2s ease;
           opacity: 0.7;
         }
+
+        .thinking-header.streaming .expand-arrow {
+          color: #0c4a6e;
+        }
         
         .thinking-details {
-          background: linear-gradient(to right, rgba(103, 232, 249, 0.08), rgba(186, 230, 253, 0.08));
-          border: 2px solid rgba(147, 197, 253, 0.25);
+          background: rgba(0, 0, 0, 0.03);
+          border: 0.7px solid rgba(0, 0, 0, 0.2);
           border-top: none;
-          border-bottom-left-radius: 12px;
-          border-bottom-right-radius: 12px;
+          border-bottom-left-radius: 16px;
+          border-bottom-right-radius: 16px;
           overflow: hidden;
           transition: all 0.3s ease;
           position: relative;
+        }
+
+        .thinking-details.streaming-content {
+          background: linear-gradient(to right, rgba(103, 232, 249, 0.08), rgba(186, 230, 253, 0.08));
+          border: 2px solid rgba(147, 197, 253, 0.25);
+          border-top: none;
         }
         
         .thinking-details.collapsed {
@@ -457,28 +480,45 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
         /* Dark mode support */
         @media (prefers-color-scheme: dark) {
           .thinking-header {
-            background: linear-gradient(to right, rgba(3, 105, 161, 0.12), rgba(8, 145, 178, 0.08) 61%, rgba(12, 74, 110, 0.12));
-            border-color: rgba(14, 165, 233, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
           }
 
           .thinking-header.streaming {
+            background: linear-gradient(to right, rgba(3, 105, 161, 0.12), rgba(8, 145, 178, 0.08) 61%, rgba(12, 74, 110, 0.12));
             border-color: rgba(14, 165, 233, 0.3);
             box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.1);
           }
 
           .thinking-header:hover {
+            background: rgba(255, 255, 255, 0.15);
+          }
+
+          .thinking-header.streaming:hover {
             background: linear-gradient(to right, rgba(3, 105, 161, 0.18), rgba(8, 145, 178, 0.12) 61%, rgba(12, 74, 110, 0.18));
           }
 
           .thinking-text {
+            color: #ffffff;
+          }
+
+          .thinking-header.streaming .thinking-text {
             color: #bfdbfe;
           }
 
           .thinking-subtitle {
+            color: rgba(255, 255, 255, 0.5);
+          }
+
+          .thinking-header.streaming .thinking-subtitle {
             color: rgba(191, 219, 254, 0.5);
           }
 
           .expand-arrow {
+            color: #ffffff;
+          }
+
+          .thinking-header.streaming .expand-arrow {
             color: #bfdbfe;
           }
 
@@ -491,6 +531,11 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           }
 
           .thinking-details {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+          }
+
+          .thinking-details.streaming-content {
             background: linear-gradient(to right, rgba(3, 105, 161, 0.08), rgba(8, 145, 178, 0.06) 61%, rgba(12, 74, 110, 0.08));
             border-color: rgba(14, 165, 233, 0.2);
           }
