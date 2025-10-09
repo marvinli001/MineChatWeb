@@ -869,10 +869,10 @@ const handleSubmit = async (e: React.FormEvent) => {
           onDrop={handleDrop}
         >
           {/* 录音覆盖层 */}
-          <RecordingOverlay 
+          <RecordingOverlay
             isRecording={isRecording}
           />
-          
+
           {/* 拖拽蒙版 */}
           {isDragging && (
             <div className="fixed inset-0 z-40 flex items-center justify-center bg-blue-500/20 backdrop-blur-sm animate-in fade-in-0 duration-200">
@@ -886,7 +886,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     支持 JPG, PNG, WebP, GIF 格式
                   </p>
                 </div>
-                
+
                 {/* 使用说明 */}
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -899,7 +899,161 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
             </div>
           )}
-          
+
+          {/* 手机端：气泡显示在输入框上方 */}
+          {hasAttachments && (
+            <div className="lg:hidden mb-2 max-w-[min(1100px,90vw)] mx-auto sm:max-w-[calc(100vw-2rem)]">
+              <div className="bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] px-3 py-2 animate-in fade-in-0 duration-300">
+                <div className="flex flex-wrap gap-1.5">
+                  {/* 显示附加的图片 */}
+                  {attachedImages.map((image, index) => (
+                    <div
+                      key={image.id}
+                      className="flex items-center gap-1.5 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-xs border border-green-200 dark:border-green-800 animate-in fade-in-0 duration-200 cursor-pointer"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={() => setPreviewImage(image)}
+                    >
+                      <PhotoIcon className="w-3.5 h-3.5" />
+                      <span className="truncate max-w-20">{image.filename}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeImage(image.id)
+                        }}
+                        className="hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5 transition-colors duration-200"
+                      >
+                        <XMarkIcon className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* 显示附加的文件 */}
+                  {attachedFiles.map((file, index) => {
+                    const isProcessing = file.status === 'uploading' || file.status === 'processing'
+                    const hasError = file.status === 'error'
+                    const isCompleted = file.status === 'completed'
+
+                    return (
+                      <div
+                        key={file.id}
+                        className={`relative flex items-center gap-1.5 px-2 py-1 rounded-full text-xs border animate-in fade-in-0 duration-200 overflow-hidden ${
+                          hasError
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
+                            : isCompleted
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                        }`}
+                        style={{ animationDelay: `${(attachedImages.length + index) * 50}ms` }}
+                        title={hasError ? file.error : getProcessModeDescription(file.processMode)}
+                      >
+                        {/* 加载进度条背景 */}
+                        {isProcessing && (
+                          <div
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"
+                            style={{
+                              background: `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) ${file.progress || 0}%, transparent 100%)`
+                            }}
+                          />
+                        )}
+
+                        {/* 圆润的进度条 */}
+                        {isProcessing && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-current rounded-full transition-all duration-300 ease-out"
+                              style={{ width: `${file.progress || 0}%` }}
+                            />
+                          </div>
+                        )}
+
+                        <span className="text-base">{getFileIcon(file.filename)}</span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="truncate max-w-24 font-medium text-xs">{file.filename}</span>
+                          <span className="text-[10px] opacity-70">
+                            {hasError ? '处理失败' :
+                             isProcessing ? `${file.processMode === 'file_search' ? '上传到向量库' : '处理中'}...` :
+                             isCompleted ? '已完成' :
+                             formatFileSize(file.size)}
+                          </span>
+                        </div>
+
+                        {/* 状态指示器 */}
+                        {isProcessing && (
+                          <div className="animate-spin rounded-full h-2.5 w-2.5 border border-current border-t-transparent" />
+                        )}
+                        {isCompleted && (
+                          <CheckIcon className="w-2.5 h-2.5" />
+                        )}
+                        {hasError && (
+                          <XMarkIcon className="w-2.5 h-2.5" />
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => removeFile(file.id)}
+                          className={`rounded-full p-0.5 transition-colors duration-200 ${
+                            hasError
+                              ? 'hover:bg-red-200 dark:hover:bg-red-800'
+                              : isCompleted
+                              ? 'hover:bg-green-200 dark:hover:bg-green-800'
+                              : 'hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30'
+                          }`}
+                        >
+                          <XMarkIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )
+                  })}
+
+                  {/* 显示附加的工具 */}
+                  {selectedTools.map((tool, index) => (
+                    <div
+                      key={tool.id}
+                      className="flex items-center gap-1.5 px-2 py-1 bg-[#C96342]/10 dark:bg-[#C96342]/20 text-[#C96342] dark:text-[#C96342] rounded-full text-xs border border-[#C96342]/30 dark:border-[#C96342]/40 animate-in fade-in-0 duration-200"
+                      style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + index) * 50}ms` }}
+                    >
+                      <tool.icon className="w-3.5 h-3.5" />
+                      <span>{tool.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeTool(tool.id)}
+                        className="hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30 rounded-full p-0.5 transition-colors duration-200"
+                      >
+                        <XMarkIcon className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* 显示已选择的插件 */}
+                  {selectedPluginIds.map((pluginId, index) => {
+                    const { plugins } = usePluginStore.getState()
+                    const plugin = plugins.find(p => p.id === pluginId)
+                    if (!plugin) return null
+
+                    return (
+                      <div
+                        key={pluginId}
+                        className="flex items-center gap-1.5 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-xs border border-purple-200 dark:border-purple-800 animate-in fade-in-0 duration-200"
+                        style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + selectedTools.length + index) * 50}ms` }}
+                      >
+                        <WrenchScrewdriverIcon className="w-3.5 h-3.5" />
+                        <span>{plugin.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeTool(pluginId)}
+                          className="hover:bg-purple-200 dark:hover:bg-purple-800 rounded-full p-0.5 transition-colors duration-200"
+                        >
+                          <XMarkIcon className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 两行一体式容器 - Claude.ai 设计语言 */}
           <div className="relative bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] dark:hover:shadow-[2px_2px_20px_rgba(0,0,0,0.4)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
             
@@ -1072,10 +1226,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <button
                       type="button"
                       onClick={() => setShowImageGenOptions(!showImageGenOptions)}
-                      className={`p-2 rounded-full transition-colors duration-200 ${
+                      className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 sm:active:scale-[0.98] ${
                         showImageGenOptions
-                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
-                          : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700'
+                          : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                       title="自定义图像输出"
                     >
@@ -1085,19 +1239,19 @@ const handleSubmit = async (e: React.FormEvent) => {
                 )}
               </div>
 
-              {/* 中间：工具 Chips - flex换行处理溢出 */}
+              {/* 中间：工具 Chips - flex换行处理溢出 - 桌面端显示 */}
               {hasAttachments && (
-                <div className="flex flex-wrap gap-2 flex-1 min-w-0 animate-in fade-in-0 duration-300">
+                <div className="hidden lg:flex flex-wrap gap-2 flex-1 min-w-0 animate-in fade-in-0 duration-300">
                   {/* 显示附加的图片 */}
                   {attachedImages.map((image, index) => (
                     <div
                       key={image.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-sm border border-green-200 dark:border-green-800 animate-in fade-in-0 duration-200 cursor-pointer"
+                      className="flex items-center gap-1.5 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-xs border border-green-200 dark:border-green-800 animate-in fade-in-0 duration-200 cursor-pointer"
                       style={{ animationDelay: `${index * 50}ms` }}
                       onClick={() => setPreviewImage(image)}
                     >
-                      <PhotoIcon className="w-4 h-4" />
-                      <span className="truncate max-w-24">{image.filename}</span>
+                      <PhotoIcon className="w-3.5 h-3.5" />
+                      <span className="truncate max-w-20">{image.filename}</span>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1106,7 +1260,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                         }}
                         className="hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5 transition-colors duration-200"
                       >
-                        <XMarkIcon className="w-3 h-3" />
+                        <XMarkIcon className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   ))}
@@ -1193,17 +1347,17 @@ const handleSubmit = async (e: React.FormEvent) => {
                   {selectedTools.map((tool, index) => (
                     <div
                       key={tool.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-[#C96342]/10 dark:bg-[#C96342]/20 text-[#C96342] dark:text-[#C96342] rounded-full text-sm border border-[#C96342]/30 dark:border-[#C96342]/40 animate-in fade-in-0 duration-200"
+                      className="flex items-center gap-1.5 px-2 py-1 bg-[#C96342]/10 dark:bg-[#C96342]/20 text-[#C96342] dark:text-[#C96342] rounded-full text-xs border border-[#C96342]/30 dark:border-[#C96342]/40 animate-in fade-in-0 duration-200"
                       style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + index) * 50}ms` }}
                     >
-                      <tool.icon className="w-4 h-4" />
+                      <tool.icon className="w-3.5 h-3.5" />
                       <span>{tool.name}</span>
                       <button
                         type="button"
                         onClick={() => removeTool(tool.id)}
                         className="hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30 rounded-full p-0.5 transition-colors duration-200"
                       >
-                        <XMarkIcon className="w-3 h-3" />
+                        <XMarkIcon className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   ))}
@@ -1217,17 +1371,17 @@ const handleSubmit = async (e: React.FormEvent) => {
                     return (
                       <div
                         key={pluginId}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-sm border border-purple-200 dark:border-purple-800 animate-in fade-in-0 duration-200"
+                        className="flex items-center gap-1.5 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-xs border border-purple-200 dark:border-purple-800 animate-in fade-in-0 duration-200"
                         style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + selectedTools.length + index) * 50}ms` }}
                       >
-                        <WrenchScrewdriverIcon className="w-4 h-4" />
+                        <WrenchScrewdriverIcon className="w-3.5 h-3.5" />
                         <span>{plugin.name}</span>
                         <button
                           type="button"
                           onClick={() => removeTool(pluginId)}
                           className="hover:bg-purple-200 dark:hover:bg-purple-800 rounded-full p-0.5 transition-colors duration-200"
                         >
-                          <XMarkIcon className="w-3 h-3" />
+                          <XMarkIcon className="w-2.5 h-2.5" />
                         </button>
                       </div>
                     )
@@ -1427,6 +1581,160 @@ const handleSubmit = async (e: React.FormEvent) => {
     <div className="bg-white dark:bg-gray-900 py-4 input-area">
       <div className="px-4 lg:px-4 sm:px-3">
         <form onSubmit={handleSubmit} className="relative">
+          {/* 手机端：气泡显示在输入框上方 */}
+          {hasAttachments && (
+            <div className="lg:hidden mb-2 max-w-[min(1100px,90vw)] mx-auto sm:max-w-[calc(100vw-2rem)]">
+              <div className="bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] px-3 py-2 animate-in fade-in-0 duration-300">
+                <div className="flex flex-wrap gap-1.5">
+                  {/* 显示附加的图片 */}
+                  {attachedImages.map((image, index) => (
+                    <div
+                      key={image.id}
+                      className="flex items-center gap-1.5 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-xs border border-green-200 dark:border-green-800 animate-in fade-in-0 duration-200 cursor-pointer"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                      onClick={() => setPreviewImage(image)}
+                    >
+                      <PhotoIcon className="w-3.5 h-3.5" />
+                      <span className="truncate max-w-20">{image.filename}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeImage(image.id)
+                        }}
+                        className="hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5 transition-colors duration-200"
+                      >
+                        <XMarkIcon className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* 显示附加的文件 */}
+                  {attachedFiles.map((file, index) => {
+                    const isProcessing = file.status === 'uploading' || file.status === 'processing'
+                    const hasError = file.status === 'error'
+                    const isCompleted = file.status === 'completed'
+
+                    return (
+                      <div
+                        key={file.id}
+                        className={`relative flex items-center gap-1.5 px-2 py-1 rounded-full text-xs border animate-in fade-in-0 duration-200 overflow-hidden ${
+                          hasError
+                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
+                            : isCompleted
+                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800'
+                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                        }`}
+                        style={{ animationDelay: `${(attachedImages.length + index) * 50}ms` }}
+                        title={hasError ? file.error : getProcessModeDescription(file.processMode)}
+                      >
+                        {/* 加载进度条背景 */}
+                        {isProcessing && (
+                          <div
+                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"
+                            style={{
+                              background: `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) ${file.progress || 0}%, transparent 100%)`
+                            }}
+                          />
+                        )}
+
+                        {/* 圆润的进度条 */}
+                        {isProcessing && (
+                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/20 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-current rounded-full transition-all duration-300 ease-out"
+                              style={{ width: `${file.progress || 0}%` }}
+                            />
+                          </div>
+                        )}
+
+                        <span className="text-base">{getFileIcon(file.filename)}</span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="truncate max-w-24 font-medium text-xs">{file.filename}</span>
+                          <span className="text-[10px] opacity-70">
+                            {hasError ? '处理失败' :
+                             isProcessing ? `${file.processMode === 'file_search' ? '上传到向量库' : '处理中'}...` :
+                             isCompleted ? '已完成' :
+                             formatFileSize(file.size)}
+                          </span>
+                        </div>
+
+                        {/* 状态指示器 */}
+                        {isProcessing && (
+                          <div className="animate-spin rounded-full h-2.5 w-2.5 border border-current border-t-transparent" />
+                        )}
+                        {isCompleted && (
+                          <CheckIcon className="w-2.5 h-2.5" />
+                        )}
+                        {hasError && (
+                          <XMarkIcon className="w-2.5 h-2.5" />
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => removeFile(file.id)}
+                          className={`rounded-full p-0.5 transition-colors duration-200 ${
+                            hasError
+                              ? 'hover:bg-red-200 dark:hover:bg-red-800'
+                              : isCompleted
+                              ? 'hover:bg-green-200 dark:hover:bg-green-800'
+                              : 'hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30'
+                          }`}
+                        >
+                          <XMarkIcon className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )
+                  })}
+
+                  {/* 显示附加的工具 */}
+                  {selectedTools.map((tool, index) => (
+                    <div
+                      key={tool.id}
+                      className="flex items-center gap-1.5 px-2 py-1 bg-[#C96342]/10 dark:bg-[#C96342]/20 text-[#C96342] dark:text-[#C96342] rounded-full text-xs border border-[#C96342]/30 dark:border-[#C96342]/40 animate-in fade-in-0 duration-200"
+                      style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + index) * 50}ms` }}
+                    >
+                      <tool.icon className="w-3.5 h-3.5" />
+                      <span>{tool.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeTool(tool.id)}
+                        className="hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30 rounded-full p-0.5 transition-colors duration-200"
+                      >
+                        <XMarkIcon className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* 显示已选择的插件 */}
+                  {selectedPluginIds.map((pluginId, index) => {
+                    const { plugins } = usePluginStore.getState()
+                    const plugin = plugins.find(p => p.id === pluginId)
+                    if (!plugin) return null
+
+                    return (
+                      <div
+                        key={pluginId}
+                        className="flex items-center gap-1.5 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-xs border border-purple-200 dark:border-purple-800 animate-in fade-in-0 duration-200"
+                        style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + selectedTools.length + index) * 50}ms` }}
+                      >
+                        <WrenchScrewdriverIcon className="w-3.5 h-3.5" />
+                        <span>{plugin.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeTool(pluginId)}
+                          className="hover:bg-purple-200 dark:hover:bg-purple-800 rounded-full p-0.5 transition-colors duration-200"
+                        >
+                          <XMarkIcon className="w-2.5 h-2.5" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 两行一体式容器 - Claude.ai 设计语言 */}
           <div className="relative bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] dark:hover:shadow-[2px_2px_20px_rgba(0,0,0,0.4)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
             {/* 录音覆盖层 */}
@@ -1603,10 +1911,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                     <button
                       type="button"
                       onClick={() => setShowImageGenOptions(!showImageGenOptions)}
-                      className={`p-2 rounded-full transition-colors duration-200 ${
+                      className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 sm:active:scale-[0.98] ${
                         showImageGenOptions
-                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
-                          : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-300 dark:border-purple-700'
+                          : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }`}
                       title="自定义图像输出"
                     >
@@ -1616,19 +1924,19 @@ const handleSubmit = async (e: React.FormEvent) => {
                 )}
               </div>
 
-              {/* 中间：工具 Chips - flex换行处理溢出 */}
+              {/* 中间：工具 Chips - flex换行处理溢出 - 桌面端显示 */}
               {hasAttachments && (
-                <div className="flex flex-wrap gap-2 flex-1 min-w-0 animate-in fade-in-0 duration-300">
+                <div className="hidden lg:flex flex-wrap gap-2 flex-1 min-w-0 animate-in fade-in-0 duration-300">
                   {/* 显示附加的图片 */}
                   {attachedImages.map((image, index) => (
                     <div
                       key={image.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-sm border border-green-200 dark:border-green-800 animate-in fade-in-0 duration-200 cursor-pointer"
+                      className="flex items-center gap-1.5 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-100 rounded-full text-xs border border-green-200 dark:border-green-800 animate-in fade-in-0 duration-200 cursor-pointer"
                       style={{ animationDelay: `${index * 50}ms` }}
                       onClick={() => setPreviewImage(image)}
                     >
-                      <PhotoIcon className="w-4 h-4" />
-                      <span className="truncate max-w-24">{image.filename}</span>
+                      <PhotoIcon className="w-3.5 h-3.5" />
+                      <span className="truncate max-w-20">{image.filename}</span>
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1637,7 +1945,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                         }}
                         className="hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5 transition-colors duration-200"
                       >
-                        <XMarkIcon className="w-3 h-3" />
+                        <XMarkIcon className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   ))}
@@ -1724,17 +2032,17 @@ const handleSubmit = async (e: React.FormEvent) => {
                   {selectedTools.map((tool, index) => (
                     <div
                       key={tool.id}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-[#C96342]/10 dark:bg-[#C96342]/20 text-[#C96342] dark:text-[#C96342] rounded-full text-sm border border-[#C96342]/30 dark:border-[#C96342]/40 animate-in fade-in-0 duration-200"
+                      className="flex items-center gap-1.5 px-2 py-1 bg-[#C96342]/10 dark:bg-[#C96342]/20 text-[#C96342] dark:text-[#C96342] rounded-full text-xs border border-[#C96342]/30 dark:border-[#C96342]/40 animate-in fade-in-0 duration-200"
                       style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + index) * 50}ms` }}
                     >
-                      <tool.icon className="w-4 h-4" />
+                      <tool.icon className="w-3.5 h-3.5" />
                       <span>{tool.name}</span>
                       <button
                         type="button"
                         onClick={() => removeTool(tool.id)}
                         className="hover:bg-[#C96342]/20 dark:hover:bg-[#C96342]/30 rounded-full p-0.5 transition-colors duration-200"
                       >
-                        <XMarkIcon className="w-3 h-3" />
+                        <XMarkIcon className="w-2.5 h-2.5" />
                       </button>
                     </div>
                   ))}
@@ -1748,17 +2056,17 @@ const handleSubmit = async (e: React.FormEvent) => {
                     return (
                       <div
                         key={pluginId}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-sm border border-purple-200 dark:border-purple-800 animate-in fade-in-0 duration-200"
+                        className="flex items-center gap-1.5 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-900 dark:text-purple-100 rounded-full text-xs border border-purple-200 dark:border-purple-800 animate-in fade-in-0 duration-200"
                         style={{ animationDelay: `${(attachedImages.length + attachedFiles.length + selectedTools.length + index) * 50}ms` }}
                       >
-                        <WrenchScrewdriverIcon className="w-4 h-4" />
+                        <WrenchScrewdriverIcon className="w-3.5 h-3.5" />
                         <span>{plugin.name}</span>
                         <button
                           type="button"
                           onClick={() => removeTool(pluginId)}
                           className="hover:bg-purple-200 dark:hover:bg-purple-800 rounded-full p-0.5 transition-colors duration-200"
                         >
-                          <XMarkIcon className="w-3 h-3" />
+                          <XMarkIcon className="w-2.5 h-2.5" />
                         </button>
                       </div>
                     )

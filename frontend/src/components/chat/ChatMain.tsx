@@ -40,6 +40,10 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const isAtBottom = useIsAtBottom(messagesContainerRef, 100)
 
+  // 跟踪当前对话ID，用于判断是否切换了对话
+  const conversationIdRef = useRef<string | null>(null)
+  const [shouldAnimate, setShouldAnimate] = useState(true)
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
@@ -64,6 +68,21 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
     const randomIndex = Math.floor(Math.random() * welcomeTitles.length)
     setWelcomeTitle(welcomeTitles[randomIndex])
   }, [])
+
+  // 检测对话切换，只在首次加载或新消息添加时播放动画
+  useEffect(() => {
+    const currentId = currentConversation?.id
+
+    // 如果对话ID改变（切换了对话），禁用动画
+    if (conversationIdRef.current !== null && conversationIdRef.current !== currentId) {
+      setShouldAnimate(false)
+    } else if (conversationIdRef.current === null) {
+      // 首次加载，启用动画
+      setShouldAnimate(true)
+    }
+
+    conversationIdRef.current = currentId || null
+  }, [currentConversation?.id])
 
   useEffect(() => {
     scrollToBottom()
@@ -137,20 +156,20 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
         >
           <motion.div
             className="max-w-3xl mx-auto px-4 py-6 messages-content"
-            initial={{ opacity: 0 }}
+            initial={shouldAnimate ? { opacity: 0 } : { opacity: 1 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
             {currentConversation.messages.map((message, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 20 }}
+                initial={shouldAnimate ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{
+                transition={shouldAnimate ? {
                   duration: 0.4,
                   delay: index * 0.05,
                   ease: "easeOut"
-                }}
+                } : { duration: 0 }}
               >
                 <MessageItem
                   message={message}
@@ -167,9 +186,9 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
         {/* 输入区域 */}
         <motion.div
           className="flex-shrink-0 input-area"
-          initial={{ opacity: 0, y: 20 }}
+          initial={shouldAnimate ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2, ease: "easeOut" }}
+          transition={shouldAnimate ? { duration: 0.4, delay: 0.2, ease: "easeOut" } : { duration: 0 }}
         >
           <InputArea isWelcomeMode={false} onModelMarketClick={onModelMarketClick} />
         </motion.div>

@@ -2248,7 +2248,7 @@ class AIProviderService:
             if provider == "openai":
                 # 检查模型是否支持流式输出
                 if await self._supports_streaming(provider, model):
-                    async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries, tools, use_native_search):
+                    async for chunk in self._openai_stream_completion(model, messages, api_key, thinking_mode, reasoning_summaries, reasoning, tools, use_native_search):
                         yield chunk
                 else:
                     # 不支持流式的模型，直接返回完整响应
@@ -2283,6 +2283,7 @@ class AIProviderService:
         api_key: str,
         thinking_mode: bool = False,
         reasoning_summaries: str = "auto",
+        reasoning: str = "medium",
         tools: List[Dict[str, Any]] = None,
         use_native_search: bool = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
@@ -2339,6 +2340,20 @@ class AIProviderService:
 
             # 使用 max_output_tokens（Responses API 的参数）
             stream_params["max_output_tokens"] = 4000
+
+            # 如果是 GPT-5 模型，添加 reasoning 参数
+            if self._is_gpt5_model(model):
+                # 将前端的 reasoning 值映射到 OpenAI Responses API 的 reasoning.effort 格式
+                effort_map = {
+                    "instant": "minimal",  # instant 映射到 minimal
+                    "low": "low",
+                    "medium": "medium",
+                    "high": "high"
+                }
+                stream_params["reasoning"] = {
+                    "effort": effort_map.get(reasoning, "medium")
+                }
+                logger.info(f"GPT-5 流式调用，使用 reasoning effort: {stream_params['reasoning']['effort']}")
 
             # 使用 Responses API 进行流式调用
             stream = await client.responses.create(**stream_params)
@@ -2409,8 +2424,12 @@ class AIProviderService:
                     logger.warning(f"未处理的 Responses API 事件类型: {event_type}")
 
         except Exception as e:
-            logger.error(f"OpenAI流式调用失败: {str(e)}")
-            yield {"error": str(e)}
+            import traceback
+            error_msg = str(e) if str(e) else repr(e)
+            logger.error(f"OpenAI流式调用失败: {error_msg}")
+            logger.error(f"异常类型: {type(e).__name__}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            yield {"error": error_msg or "未知错误"}
 
     async def _openai_compatible_stream_completion(
         self,
