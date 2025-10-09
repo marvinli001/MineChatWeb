@@ -66,6 +66,31 @@ MineChatWeb 是一个开源 AI 聊天平台，整合多个主流大语言模型�
 - 图像：支持 JPG、PNG、WebP、GIF 格式，兼容 OpenAI base64 和 Anthropic Files API
 - 语音：支持 Whisper-1、GPT-4o Transcribe 等转录模型
 
+## 快速开始
+
+### 部署方式
+
+MineChatWeb 提供多种部署方式，详细教程请查看 [**部署文档**](./DEPLOYMENT.md)：
+
+- 🐳 [Docker Compose 部署](./DEPLOYMENT.md#docker-compose-部署推荐) - 一键启动，适合快速体验
+- ☁️ [Vercel + Railway 部署](./DEPLOYMENT.md#vercel--railway-部署) - 云端部署，自动化 CI/CD
+
+### 本地开发
+
+```bash
+# 克隆项目
+git clone https://github.com/your-username/MineChatWeb.git
+cd MineChatWeb
+
+# 使用 Docker Compose 启动
+docker-compose up -d
+
+# 访问应用
+# 前端: http://localhost:3000
+# 后端: http://localhost:8000
+# API 文档: http://localhost:8000/docs
+```
+
 ## API 文档
 
 后端启动后访问以下地址查看完整 API 文档：
