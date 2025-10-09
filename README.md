@@ -72,8 +72,8 @@ MineChatWeb 是一个开源 AI 聊天平台，整合多个主流大语言模型�
 
 MineChatWeb 提供多种部署方式，详细教程请查看 [**部署文档**](./DEPLOYMENT.md)：
 
-- 🐳 [Docker Compose 部署](./DEPLOYMENT.md#docker-compose-部署推荐) - 一键启动，适合快速体验
-- ☁️ [Vercel + Railway 部署](./DEPLOYMENT.md#vercel--railway-部署) - 云端部署，自动化 CI/CD
+- <img src="https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png" width="16" height="16" /> [Docker Compose 部署](./DEPLOYMENT.md#docker-compose-部署推荐) - 一键启动，适合快速体验
+- <img src="https://assets.vercel.com/image/upload/front/favicon/vercel/favicon.ico" width="16" height="16" /> [Vercel](./DEPLOYMENT.md#vercel--railway-部署) + <img src="https://railway.app/favicon.ico" width="16" height="16" /> [Railway 部署](./DEPLOYMENT.md#vercel--railway-部署) - 云端部署，自动化 CI/CD
 
 ### 本地开发
 
