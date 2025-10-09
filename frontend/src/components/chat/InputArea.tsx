@@ -903,7 +903,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           {/* 手机端：气泡显示在输入框上方 */}
           {hasAttachments && (
             <div className="lg:hidden mb-2 max-w-[min(1100px,90vw)] mx-auto sm:max-w-[calc(100vw-2rem)]">
-              <div className="bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] px-3 py-2 animate-in fade-in-0 duration-300">
+              <div className="bg-white dark:bg-gray-800 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] px-3 py-2 animate-in fade-in-0 duration-300">
                 <div className="flex flex-wrap gap-1.5">
                   {/* 显示附加的图片 */}
                   {attachedImages.map((image, index) => (
@@ -1055,8 +1055,8 @@ const handleSubmit = async (e: React.FormEvent) => {
           )}
 
           {/* 两行一体式容器 - Claude.ai 设计语言 */}
-          <div className="relative bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] dark:hover:shadow-[2px_2px_20px_rgba(0,0,0,0.4)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
-            
+          <div className="relative bg-white dark:bg-gray-800 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] dark:hover:shadow-[2px_2px_20px_rgba(0,0,0,0.4)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
+
             {/* 第一行：输入框 */}
             <div className="relative">
               <textarea
@@ -1584,7 +1584,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           {/* 手机端：气泡显示在输入框上方 */}
           {hasAttachments && (
             <div className="lg:hidden mb-2 max-w-[min(1100px,90vw)] mx-auto sm:max-w-[calc(100vw-2rem)]">
-              <div className="bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] px-3 py-2 animate-in fade-in-0 duration-300">
+              <div className="bg-white dark:bg-gray-800 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] px-3 py-2 animate-in fade-in-0 duration-300">
                 <div className="flex flex-wrap gap-1.5">
                   {/* 显示附加的图片 */}
                   {attachedImages.map((image, index) => (
@@ -1736,9 +1736,9 @@ const handleSubmit = async (e: React.FormEvent) => {
           )}
 
           {/* 两行一体式容器 - Claude.ai 设计语言 */}
-          <div className="relative bg-[#FFFFFF] dark:bg-gray-850 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] dark:hover:shadow-[2px_2px_20px_rgba(0,0,0,0.4)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
+          <div className="relative bg-white dark:bg-gray-800 border border-[#DDDDDD] dark:border-gray-700 rounded-2xl shadow-[2px_2px_16px_rgba(0,0,0,0.05)] dark:shadow-[2px_2px_16px_rgba(0,0,0,0.3)] hover:shadow-[2px_2px_20px_rgba(0,0,0,0.08)] dark:hover:shadow-[2px_2px_20px_rgba(0,0,0,0.4)] transition-all duration-300 max-w-[min(1100px,90vw)] mx-auto lg:max-w-[min(1100px,90vw)] sm:max-w-[calc(100vw-2rem)]">
             {/* 录音覆盖层 */}
-            <RecordingOverlay 
+            <RecordingOverlay
               isRecording={isRecording}
             />
             

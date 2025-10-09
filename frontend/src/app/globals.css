@@ -207,11 +207,11 @@ html, body {
   }
   
   .dark .input-container {
-    background: rgb(17 24 39);
+    background: rgb(31 41 55); /* gray-800 instead of gray-900 */
   }
-  
+
   .dark .input-container::before {
-    background: linear-gradient(to bottom, rgba(17, 24, 39, 0), rgba(17, 24, 39, 1));
+    background: linear-gradient(to bottom, rgba(31, 41, 55, 0), rgba(31, 41, 55, 1)); /* gray-800 gradient */
   }
 }
 
@@ -258,11 +258,11 @@ html, body {
   }
   
   .dark .input-area {
-    background: rgb(17 24 39 / 0.95);
+    background: rgb(31 41 55 / 0.95); /* gray-800 instead of gray-900 */
   }
   
   .dark .input-area::before {
-    background: linear-gradient(to bottom, rgba(17, 24, 39, 0), rgba(17, 24, 39, 0.95));
+    background: linear-gradient(to bottom, rgba(31, 41, 55, 0), rgba(31, 41, 55, 0.95)); /* gray-800 gradient */
   }
 }
 
