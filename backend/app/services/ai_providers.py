@@ -1714,18 +1714,39 @@ class AIProviderService:
                 tools=gemini_tools
             )
 
-            # 检查是否有图像生成工具
-            has_image_generation_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
-
             # 处理最后一条用户消息
             last_message = messages[-1]
             user_parts = self._convert_message_to_gemini_parts(last_message)
 
-            # 如果有图像生成工具，使用专门的图像生成模型
-            if has_image_generation_tool:
-                return await self._handle_google_image_generation(
-                    user_parts, api_key, tools, model
-                )
+            # 检查是否有图像生成工具
+            if tools:
+                image_gen_tool = next((t for t in tools if t.get("type") == "image_generation"), None)
+                if image_gen_tool:
+                    # 提取提示文本
+                    prompt_text = self._extract_text_from_parts(user_parts)
+
+                    # 优先使用 Imagen API
+                    try:
+                        logger.info("尝试使用 Imagen API 生成图片")
+                        return await self._handle_google_imagen_generation(
+                            prompt_text, api_key, image_gen_tool
+                        )
+                    except ImportError:
+                        # 如果 Imagen API 不可用，回退到 Gemini 图片模型
+                        logger.warning("Imagen API 不可用，使用 Gemini 图片模型作为备用方案")
+                        return await self._handle_google_image_generation(
+                            user_parts, api_key, tools, model
+                        )
+                    except Exception as e:
+                        # 如果 Imagen API 失败，尝试备用方案
+                        logger.warning(f"Imagen API 调用失败: {e}，尝试使用 Gemini 图片模型")
+                        try:
+                            return await self._handle_google_image_generation(
+                                user_parts, api_key, tools, model
+                            )
+                        except Exception as e2:
+                            logger.error(f"Gemini 图片模型也失败: {e2}")
+                            raise Exception(f"图片生成失败: Imagen API ({e}), Gemini 图片模型 ({e2})")
 
             # 生成响应
             if stream:
@@ -1787,11 +1808,15 @@ class AIProviderService:
         return parts if parts else [content or ""]
 
     def _convert_tools_to_gemini_format(self, tools):
-        """将工具转换为Gemini格式"""
+        """将工具转换为Gemini格式（增强版）"""
         gemini_tools = []
+        has_google_search = False
 
         for tool in tools:
-            if tool.get("type") == "function":
+            tool_type = tool.get("type")
+
+            # 处理 Function Calling
+            if tool_type == "function":
                 function_info = tool.get("function", {})
                 gemini_tools.append({
                     "function_declarations": [{
@@ -1801,7 +1826,110 @@ class AIProviderService:
                     }]
                 })
 
-        return gemini_tools
+            # 处理 Google Search（原生支持）
+            elif tool_type in ["web_search", "web_search_preview"]:
+                if not has_google_search:
+                    # Gemini 使用特殊的 google_search 工具
+                    try:
+                        from google.genai import types
+                        gemini_tools.append(types.Tool(google_search=types.GoogleSearch()))
+                        has_google_search = True
+                        logger.info("已添加 Google Search grounding 工具")
+                    except ImportError:
+                        logger.warning("无法导入 google.genai.types，使用字典格式")
+                        gemini_tools.append({"google_search": {}})
+                        has_google_search = True
+
+            # 图片生成工具在 _google_completion 中单独处理
+            # 不在这里添加到 gemini_tools
+
+        return gemini_tools if gemini_tools else None
+
+    def _extract_text_from_parts(self, parts):
+        """从 parts 中提取文本内容"""
+        text_parts = []
+
+        if isinstance(parts, str):
+            return parts
+
+        if isinstance(parts, list):
+            for part in parts:
+                if isinstance(part, str):
+                    text_parts.append(part)
+                elif isinstance(part, dict) and "text" in part:
+                    text_parts.append(part["text"])
+
+        return " ".join(text_parts)
+
+    def _extract_search_citations(self, response):
+        """从 Gemini 响应中提取搜索引用和来源"""
+        citations = []
+        sources = []
+
+        if not hasattr(response, 'candidates'):
+            return citations, sources
+
+        try:
+            for candidate in response.candidates:
+                # 检查 grounding_metadata
+                if hasattr(candidate, 'grounding_metadata'):
+                    metadata = candidate.grounding_metadata
+
+                    # 提取搜索查询（用于日志）
+                    if hasattr(metadata, 'search_queries'):
+                        for query in metadata.search_queries:
+                            logger.info(f"Google Search query used: {query}")
+
+                    # 提取 grounding chunks（搜索结果来源）
+                    grounding_chunks = []
+                    if hasattr(metadata, 'grounding_chunks'):
+                        grounding_chunks = metadata.grounding_chunks
+
+                    # 提取 grounding supports（引用支持）
+                    if hasattr(metadata, 'grounding_supports'):
+                        for support in metadata.grounding_supports:
+                            start_index = 0
+                            end_index = 0
+
+                            # 提取文本范围
+                            if hasattr(support, 'segment'):
+                                start_index = getattr(support.segment, 'start_index', 0)
+                                end_index = getattr(support.segment, 'end_index', 0)
+
+                            # 提取对应的来源
+                            if hasattr(support, 'grounding_chunk_indices'):
+                                for chunk_idx in support.grounding_chunk_indices:
+                                    if chunk_idx < len(grounding_chunks):
+                                        chunk = grounding_chunks[chunk_idx]
+
+                                        if hasattr(chunk, 'web'):
+                                            web_info = chunk.web
+                                            uri = getattr(web_info, 'uri', '')
+                                            title = getattr(web_info, 'title', uri)
+
+                                            # 添加来源（去重）
+                                            source_exists = any(s.get('uri') == uri for s in sources)
+                                            if not source_exists and uri:
+                                                sources.append({
+                                                    "uri": uri,
+                                                    "title": title
+                                                })
+
+                                            # 添加引用
+                                            if uri:
+                                                citations.append({
+                                                    "start_index": start_index,
+                                                    "end_index": end_index,
+                                                    "uri": uri,
+                                                    "title": title
+                                                })
+
+            logger.info(f"提取到 {len(citations)} 个引用，{len(sources)} 个来源")
+
+        except Exception as e:
+            logger.warning(f"提取搜索引用时出错: {e}")
+
+        return citations, sources
 
     def _get_thinking_budget(self, reasoning):
         """根据reasoning级别获取thinking budget"""
@@ -1835,8 +1963,11 @@ class AIProviderService:
             raise
 
     def _convert_gemini_response_to_openai_format(self, response, model):
-        """将Gemini响应转换为OpenAI格式"""
+        """将Gemini响应转换为OpenAI格式（包含搜索引用）"""
         choices = []
+
+        # 提取搜索引用和来源
+        citations, sources = self._extract_search_citations(response)
 
         # 处理候选响应
         for i, candidate in enumerate(response.candidates):
@@ -1868,6 +1999,12 @@ class AIProviderService:
             if tool_calls:
                 message["tool_calls"] = tool_calls
 
+            # 添加搜索引用（如果有）
+            if citations:
+                message["citations"] = citations
+            if sources:
+                message["sources"] = sources
+
             choices.append({
                 "index": i,
                 "message": message,
@@ -1897,6 +2034,107 @@ class AIProviderService:
             "OTHER": "stop"
         }
         return mapping.get(str(finish_reason), "stop")
+
+    async def _handle_google_imagen_generation(
+        self,
+        prompt: str,
+        api_key: str,
+        tool_config: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """使用 Imagen API 生成图片（推荐方案）"""
+        try:
+            from google import genai
+            from google.genai import types
+            import io
+
+            client = genai.Client(api_key=api_key)
+
+            # 从工具配置中提取参数
+            number_of_images = tool_config.get("n", 1)
+            size = tool_config.get("size", "1024x1024")
+            quality = tool_config.get("quality", "standard")
+
+            # 转换尺寸格式到 aspect_ratio
+            aspect_ratio = "1:1"  # 默认
+            if size == "1024x1792" or size == "9:16":
+                aspect_ratio = "9:16"
+            elif size == "1792x1024" or size == "16:9":
+                aspect_ratio = "16:9"
+            elif size == "3:4":
+                aspect_ratio = "3:4"
+            elif size == "4:3":
+                aspect_ratio = "4:3"
+
+            # 选择模型
+            model = "imagen-4.0-generate-001"
+            if quality == "hd":
+                model = "imagen-4.0-ultra-generate-001"
+            elif quality == "fast":
+                model = "imagen-4.0-fast-generate-001"
+
+            logger.info(f"使用 Imagen API 生成图片: model={model}, aspect_ratio={aspect_ratio}, n={number_of_images}")
+
+            # 生成图片
+            response = client.models.generate_images(
+                model=model,
+                prompt=prompt,
+                config=types.GenerateImagesConfig(
+                    number_of_images=min(number_of_images, 4),
+                    aspect_ratio=aspect_ratio,
+                    safety_filter_level="block_some",
+                    person_generation="allow_all"
+                )
+            )
+
+            # 处理响应
+            image_generations = []
+            for i, generated_image in enumerate(response.generated_images):
+                # generated_image.image 是 PIL.Image 对象
+                img_bytes = io.BytesIO()
+                generated_image.image.save(img_bytes, format='PNG')
+                img_bytes.seek(0)
+
+                import base64
+                b64_data = base64.b64encode(img_bytes.read()).decode('utf-8')
+
+                image_generations.append({
+                    "id": f"img_{int(time.time() * 1000)}_{i}",
+                    "type": "image_generation_call",
+                    "status": "completed",
+                    "result": {
+                        "url": f"data:image/png;base64,{b64_data}",
+                        "b64_json": b64_data,
+                        "revised_prompt": prompt
+                    }
+                })
+
+            return {
+                "id": f"imagen_{int(time.time() * 1000)}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": model,
+                "choices": [{
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": f"已使用 Imagen API 生成 {len(image_generations)} 张图片。",
+                        "image_generations": image_generations
+                    },
+                    "finish_reason": "stop"
+                }],
+                "usage": {
+                    "prompt_tokens": len(prompt.split()),
+                    "completion_tokens": 0,
+                    "total_tokens": len(prompt.split())
+                }
+            }
+
+        except ImportError as e:
+            logger.error(f"Imagen API 导入失败: {str(e)}")
+            raise ImportError("需要安装 google-genai 库以使用 Imagen API")
+        except Exception as e:
+            logger.error(f"Imagen API 调用失败: {str(e)}")
+            raise Exception(f"Imagen API 调用失败: {str(e)}")
 
     async def _handle_google_image_generation(
         self,

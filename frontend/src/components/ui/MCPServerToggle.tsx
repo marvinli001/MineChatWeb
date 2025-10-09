@@ -17,6 +17,9 @@ export default function MCPServerToggle({
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // 只显示启用的MCP服务器
+  const enabledServers = mcpServers.filter(server => server.enabled !== false)
+
   // 点击外部关闭下拉菜单
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -32,9 +35,9 @@ export default function MCPServerToggle({
   }, [])
 
   const activatedCount = activatedServerIds.length
-  const hasServers = mcpServers.length > 0
+  const hasServers = enabledServers.length > 0
 
-  // 如果没有MCP服务器，不显示按钮
+  // 如果没有启用的MCP服务器，不显示按钮
   if (!hasServers) {
     return null
   }
@@ -75,7 +78,7 @@ export default function MCPServerToggle({
             </div>
 
             <div className="space-y-2">
-              {mcpServers.map((server) => {
+              {enabledServers.map((server) => {
                 const isActivated = activatedServerIds.includes(server.id)
                 return (
                   <div

@@ -440,3 +440,4 @@ codex-x86_64-pc-windows-msvc.exe
 
 # API Documentation (internal reference only)
 Backend API provider development documentation/
+backend/test_google_tools.py

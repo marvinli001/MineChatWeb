@@ -27,6 +27,7 @@ export interface MCPServer {
   authorization?: string // OAuth授权令牌
   require_approval?: string // 审批要求配置
   allowed_tools?: string[] // 允许的工具列表
+  enabled?: boolean // 是否启用（默认true）
   created_at: string
 }
 
@@ -53,6 +54,11 @@ interface PluginState {
   convertPluginsToTools: (pluginIds: string[]) => any[]
   convertMCPServersToTools: (serverIds: string[]) => any[]
 }
+
+// List of deprecated MCP server connector IDs that should be auto-removed
+const DEPRECATED_MCP_CONNECTORS = [
+  'dmcp-dice-roller' // Removed in version 2
+]
 
 export const usePluginStore = create<PluginState>()(
   persist(
@@ -182,7 +188,16 @@ export const usePluginStore = create<PluginState>()(
     }),
     {
       name: 'plugin-store',
-      version: 1
+      version: 2, // Bumped to clear legacy DMCP Dice Roller data
+      migrate: (persistedState: any, version: number) => {
+        // Auto-remove deprecated MCP servers
+        if (version < 2 && persistedState.mcpServers) {
+          persistedState.mcpServers = persistedState.mcpServers.filter(
+            (server: MCPServer) => !DEPRECATED_MCP_CONNECTORS.includes(server.connector_id || '')
+          )
+        }
+        return persistedState
+      }
     }
   )
 )

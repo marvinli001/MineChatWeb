@@ -147,7 +147,8 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
     addPlugin,
     removePlugin,
     addMCPServer,
-    removeMCPServer
+    removeMCPServer,
+    updateMCPServer
   } = usePluginStore()
 
   const [activeTab, setActiveTab] = useState<TabType>('mcp')
@@ -184,18 +185,24 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
 
   const handleToggleService = (serviceId: string) => {
     const newEnabledServices = new Set(Array.from(enabledServices))
+    const existingServer = mcpServers.find(s => s.connector_id === serviceId || s.url?.includes(serviceId))
+
     if (newEnabledServices.has(serviceId)) {
       newEnabledServices.delete(serviceId)
-      // 从存储中移除
-      const existingServer = mcpServers.find(s => s.connector_id === serviceId || s.url?.includes(serviceId))
+      // 禁用服务器（而不是删除）
       if (existingServer) {
-        removeMCPServer(existingServer.id)
+        updateMCPServer(existingServer.id, { enabled: false })
       }
     } else {
       newEnabledServices.add(serviceId)
-      // 如果没有配置授权信息，先提示配置
-      setSelectedService(getServiceById(serviceId))
-      setShowConfigDialog(true)
+      // 如果已存在服务器，只需启用它
+      if (existingServer) {
+        updateMCPServer(existingServer.id, { enabled: true })
+      } else {
+        // 如果没有配置授权信息，先提示配置
+        setSelectedService(getServiceById(serviceId))
+        setShowConfigDialog(true)
+      }
     }
     setEnabledServices(newEnabledServices)
   }
@@ -237,6 +244,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
       name: selectedService.name,
       description: selectedService.description,
       url: selectedService.url, // OpenAI也使用url字段表示MCP服务器地址
+      enabled: true, // 新添加的服务器默认启用
     }
 
     if (configForm.authorization.trim()) {
@@ -256,11 +264,12 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
     const existingServer = mcpServers.find(s => s.url === selectedService.url)
 
     if (existingServer) {
-      // 更新现有服务器（这里需要添加更新方法到store）
-      removeMCPServer(existingServer.id)
+      // 更新现有服务器
+      updateMCPServer(existingServer.id, serverConfig)
+    } else {
+      // 添加新服务器
+      addMCPServer(serverConfig)
     }
-
-    addMCPServer(serverConfig)
     setEnabledServices(prev => new Set([...Array.from(prev), selectedService.id]))
     setShowConfigDialog(false)
     setSelectedService(null)
@@ -469,10 +478,11 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
             // MCP服务器卡片网格
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {builtInServices.map((service) => {
-                const isEnabled = enabledServices.has(service.id)
-                const hasConfig = mcpServers.some(s =>
+                const existingServer = mcpServers.find(s =>
                   s.connector_id === service.id || s.url === service.url
                 )
+                const isEnabled = existingServer?.enabled !== false // 默认enabled为true
+                const hasConfig = !!existingServer
 
                 return (
                   <div
