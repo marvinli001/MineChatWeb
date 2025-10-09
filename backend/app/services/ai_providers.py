@@ -26,7 +26,7 @@ class AIProviderService:
     def __init__(self):
         # 设置不同操作的超时时间
         self.default_timeout = 60  # 默认60秒超时
-        self.responses_api_timeout = 180  # Responses API 使用更长的超时时间
+        self.responses_api_timeout = 300  # Responses API 使用更长的超时时间（5分钟），支持深度推理
         self.config_timeout = 5  # 配置加载超时缩短到5秒
         self.max_retries = 2  # 最大重试次数
         self._models_config = None
@@ -2289,10 +2289,15 @@ class AIProviderService:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """OpenAI流式完成 - 使用 Responses API"""
         try:
+            # GPT-5 推理模型需要更长的超时时间
+            timeout = self.responses_api_timeout if self._is_gpt5_model(model) else self.default_timeout
+
             client = openai.AsyncOpenAI(
                 api_key=api_key,
-                timeout=self.default_timeout
+                timeout=timeout
             )
+
+            logger.info(f"OpenAI流式调用，模型: {model}，超时时间: {timeout}秒")
 
             # 准备工具配置
             tools_config = self._prepare_tools_config(messages, tools, "openai")
@@ -2351,9 +2356,10 @@ class AIProviderService:
                     "high": "high"
                 }
                 stream_params["reasoning"] = {
-                    "effort": effort_map.get(reasoning, "medium")
+                    "effort": effort_map.get(reasoning, "medium"),
+                    "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                 }
-                logger.info(f"GPT-5 流式调用，使用 reasoning effort: {stream_params['reasoning']['effort']}")
+                logger.info(f"GPT-5 流式调用，使用 reasoning effort: {stream_params['reasoning']['effort']}, summary: {stream_params['reasoning']['summary']}")
 
             # 使用 Responses API 进行流式调用
             stream = await client.responses.create(**stream_params)
@@ -2363,8 +2369,26 @@ class AIProviderService:
                 event_dict = event.model_dump() if hasattr(event, 'model_dump') else event
                 event_type = event_dict.get('type', '')
 
+                # 处理reasoning summary事件
+                if event_type == 'response.reasoning_summary_part.done':
+                    # 获取reasoning summary文本
+                    part = event_dict.get('part', {})
+                    summary_text = part.get('text', '')
+                    if summary_text:
+                        # 发送reasoning summary作为特殊消息
+                        yield {
+                            'choices': [{
+                                'delta': {
+                                    'reasoning': summary_text
+                                },
+                                'index': 0,
+                                'finish_reason': None
+                            }]
+                        }
+                        logger.info(f"收到 reasoning summary，长度: {len(summary_text)}")
+
                 # 处理文本增量事件
-                if event_type == 'response.output_text.delta':
+                elif event_type == 'response.output_text.delta':
                     yield {
                         'choices': [{
                             'delta': {
@@ -2401,6 +2425,7 @@ class AIProviderService:
                     'response.content_part.added',
                     'response.content_part.done',
                     'response.output_text.done',
+                    'response.reasoning_summary_part.added',
                     'response.web_search_call.in_progress',
                     'response.web_search_call.searching',
                     'response.web_search_call.completed',
