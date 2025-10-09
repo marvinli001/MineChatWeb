@@ -52,14 +52,6 @@ const OPENAI_MCP_SERVERS = [
     icon: '📚', // 保留emoji，因为没有对应的品牌图标
     url: 'https://mcp.deepwiki.com/mcp',
     requiresAuth: false
-  },
-  {
-    id: 'mcp_dmcp',
-    name: 'DMCP Dice Roller',
-    description: 'D&D骰子投掷工具（示例MCP服务器）',
-    icon: '🎲', // 保留emoji，因为是示例项目
-    url: 'https://dmcp-server.deno.dev/sse',
-    requiresAuth: false
   }
 ]
 

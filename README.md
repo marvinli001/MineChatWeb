@@ -79,7 +79,7 @@ MineChatWeb 提供多种部署方式，详细教程请查看 [**部署文档**](
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/MineChatWeb.git
+git clone https://github.com/marvinli001/MineChatWeb.git
 cd MineChatWeb
 
 # 使用 Docker Compose 启动

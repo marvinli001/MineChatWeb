@@ -27,7 +27,7 @@ Docker Compose 是最简单的一键部署方案，适合快速搭建和本地�
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/your-username/MineChatWeb.git
+git clone https://github.com/marvinli001/MineChatWeb.git
 cd MineChatWeb
 ```
 
@@ -222,7 +222,7 @@ services:
 
 #### 第一步：Fork 仓库
 
-1. 访问项目仓库：https://github.com/your-username/MineChatWeb
+1. 访问项目仓库：https://github.com/marvinli001/MineChatWeb
 2. 点击右上角的 `Fork` 按钮
 3. 将项目 Fork 到你的 GitHub 账户
 
@@ -442,7 +442,7 @@ docker-compose up -d
 
 如遇到部署问题，请：
 
-1. 查看项目 [Issues](https://github.com/your-username/MineChatWeb/issues)
+1. 查看项目 [Issues](https://github.com/marvinli001/MineChatWeb/issues)
 2. 提交新 Issue 并附上详细日志
 3. 加入社区讨论获取帮助
 
