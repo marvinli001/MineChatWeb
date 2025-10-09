@@ -18,11 +18,16 @@ warnings.filterwarnings('ignore', category=UserWarning, module='pydantic')
 logger = logging.getLogger(__name__)
 
 class AIProviderService:
+    # 类级别的缓存,所有实例共享
+    _models_config_cache = None
+    _config_cache_time = 0
+    _config_cache_ttl = 600  # 10分钟缓存
+
     def __init__(self):
         # 设置不同操作的超时时间
         self.default_timeout = 60  # 默认60秒超时
         self.responses_api_timeout = 180  # Responses API 使用更长的超时时间
-        self.config_timeout = 30  # 配置加载超时
+        self.config_timeout = 5  # 配置加载超时缩短到5秒
         self.max_retries = 2  # 最大重试次数
         self._models_config = None
         self.web_search_service = WebSearchService()  # 初始化搜索服务
@@ -434,16 +439,45 @@ class AIProviderService:
         
         return completion_params
         
-    async def _load_models_config(self) -> Dict[str, Any]:
-        """加载模型配置"""
-        if self._models_config is None:
+    async def _load_models_config(self, force_refresh: bool = False) -> Dict[str, Any]:
+        """加载模型配置(带缓存)"""
+        current_time = time.time()
+
+        # 检查缓存是否有效
+        if not force_refresh and AIProviderService._models_config_cache is not None:
+            if current_time - AIProviderService._config_cache_time < AIProviderService._config_cache_ttl:
+                logger.debug("使用缓存的模型配置")
+                return AIProviderService._models_config_cache
+
+        # 缓存过期或强制刷新,尝试从远程加载
+        try:
             config_url = "https://raw.githubusercontent.com/marvinli001/MineChatWeb/main/models-config.json"
             async with httpx.AsyncClient(timeout=self.config_timeout) as client:
                 response = await client.get(config_url)
                 response.raise_for_status()
-                self._models_config = response.json()
-                logger.info("成功从远程加载模型配置")
-        return self._models_config
+                AIProviderService._models_config_cache = response.json()
+                AIProviderService._config_cache_time = current_time
+                logger.info("成功从远程加载模型配置并更新缓存")
+                return AIProviderService._models_config_cache
+        except Exception as e:
+            logger.warning(f"从远程加载模型配置失败: {e}")
+
+            # 如果有旧缓存,继续使用
+            if AIProviderService._models_config_cache is not None:
+                logger.info("使用过期的缓存配置")
+                return AIProviderService._models_config_cache
+
+            # 尝试从本地文件加载
+            try:
+                local_config_path = os.path.join(os.path.dirname(__file__), '../../..', 'models-config.json')
+                with open(local_config_path, 'r', encoding='utf-8') as f:
+                    AIProviderService._models_config_cache = json.load(f)
+                    AIProviderService._config_cache_time = current_time
+                    logger.info("成功从本地文件加载模型配置")
+                    return AIProviderService._models_config_cache
+            except Exception as local_error:
+                logger.error(f"从本地文件加载模型配置失败: {local_error}")
+                raise Exception("无法加载模型配置文件")
         
     async def get_completion(
         self,

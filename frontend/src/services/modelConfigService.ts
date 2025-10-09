@@ -28,24 +28,105 @@ export interface ModelsConfig {
 
 class ModelConfigService {
   private config: ModelsConfig | null = null
+  private configCacheTime: number = 0
+  private readonly configCacheTTL = 600000 // 10分钟缓存 (600秒 = 600000毫秒)
   private readonly configUrl = 'https://raw.githubusercontent.com/marvinli001/MineChatWeb/main/models-config.json'
+  private readonly localStorageKey = 'models_config_cache'
+  private readonly localStorageTimeKey = 'models_config_cache_time'
+  private refreshTimer: NodeJS.Timeout | null = null
 
-  async loadConfig(): Promise<ModelsConfig> {
-    if (this.config) {
+  constructor() {
+    // 启动时从 localStorage 加载缓存
+    this.loadFromLocalStorage()
+    // 启动定时刷新
+    this.startAutoRefresh()
+  }
+
+  private loadFromLocalStorage(): void {
+    try {
+      const cachedConfig = localStorage.getItem(this.localStorageKey)
+      const cachedTime = localStorage.getItem(this.localStorageTimeKey)
+
+      if (cachedConfig && cachedTime) {
+        const cacheAge = Date.now() - parseInt(cachedTime)
+        if (cacheAge < this.configCacheTTL) {
+          this.config = JSON.parse(cachedConfig)
+          this.configCacheTime = parseInt(cachedTime)
+          console.log('[ModelConfig] 从 localStorage 加载配置缓存')
+        } else {
+          console.log('[ModelConfig] localStorage 缓存已过期')
+          // 清除过期缓存
+          localStorage.removeItem(this.localStorageKey)
+          localStorage.removeItem(this.localStorageTimeKey)
+        }
+      }
+    } catch (error) {
+      console.warn('[ModelConfig] 从 localStorage 加载缓存失败:', error)
+    }
+  }
+
+  private saveToLocalStorage(config: ModelsConfig): void {
+    try {
+      localStorage.setItem(this.localStorageKey, JSON.stringify(config))
+      localStorage.setItem(this.localStorageTimeKey, Date.now().toString())
+    } catch (error) {
+      console.warn('[ModelConfig] 保存到 localStorage 失败:', error)
+    }
+  }
+
+  private startAutoRefresh(): void {
+    // 每10分钟自动刷新一次
+    this.refreshTimer = setInterval(() => {
+      console.log('[ModelConfig] 自动刷新配置...')
+      this.refreshConfig().catch(err => {
+        console.warn('[ModelConfig] 自动刷新失败:', err)
+      })
+    }, this.configCacheTTL)
+  }
+
+  async loadConfig(forceRefresh: boolean = false): Promise<ModelsConfig> {
+    const now = Date.now()
+
+    // 检查缓存是否有效
+    if (!forceRefresh && this.config && (now - this.configCacheTime < this.configCacheTTL)) {
+      console.log('[ModelConfig] 使用内存缓存')
       return this.config
     }
 
     try {
-      const response = await fetch(this.configUrl)
+      console.log('[ModelConfig] 从远程加载配置...')
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5秒超时
+
+      const response = await fetch(this.configUrl, {
+        signal: controller.signal,
+        cache: 'no-cache'
+      })
+      clearTimeout(timeoutId)
+
       if (!response.ok) {
         throw new Error(`Failed to fetch config: ${response.status}`)
       }
-      
+
       this.config = await response.json()
+      this.configCacheTime = now
+
+      // 保存到 localStorage
+      this.saveToLocalStorage(this.config)
+
+      console.log('[ModelConfig] 远程配置加载成功并缓存')
       return this.config!
     } catch (error) {
-      console.error('Failed to load model config:', error)
-      // 返回默认配置
+      console.error('[ModelConfig] 远程加载失败:', error)
+
+      // 如果有旧缓存,继续使用
+      if (this.config) {
+        console.log('[ModelConfig] 使用过期的缓存配置')
+        return this.config
+      }
+
+      // 否则返回默认配置
+      console.log('[ModelConfig] 使用默认配置')
       return this.getDefaultConfig()
     }
   }
@@ -239,8 +320,16 @@ class ModelConfigService {
 
   // 刷新配置
   async refreshConfig(): Promise<ModelsConfig> {
-    this.config = null
-    return this.loadConfig()
+    console.log('[ModelConfig] 手动刷新配置')
+    return this.loadConfig(true) // 强制刷新
+  }
+
+  // 清理资源
+  destroy(): void {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer)
+      this.refreshTimer = null
+    }
   }
 }
 

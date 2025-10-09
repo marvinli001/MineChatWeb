@@ -8,6 +8,7 @@ import ModelMarket from '@/components/ui/ModelMarket'
 import PluginMarket from '@/components/ui/PluginMarket'
 import DeepResearchPage from '@/components/deep-research/DeepResearchPage'
 import { useSettingsStore } from '@/store/settingsStore'
+import { useChatStore } from '@/store/chatStore'
 
 export default function Home() {
   const [showSettings, setShowSettings] = useState(false)
@@ -16,12 +17,23 @@ export default function Home() {
   const [showPluginMarket, setShowPluginMarket] = useState(false)
   const [currentView, setCurrentView] = useState<'chat' | 'deep-research'>('chat')
   const { initialized, initializeSettings, settings } = useSettingsStore()
+  const prewarmWebSocket = useChatStore(state => state._prewarmWebSocket)
 
   useEffect(() => {
     if (!initialized) {
       initializeSettings()
     }
   }, [initialized, initializeSettings])
+
+  // 页面加载后预热 WebSocket 连接
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log('[App] 触发 WebSocket 预热')
+      prewarmWebSocket()
+    }, 1000) // 延迟1秒,让页面先渲染
+
+    return () => clearTimeout(timer)
+  }, [prewarmWebSocket])
 
   const handleModelMarketClick = () => {
     setShowModelMarket(true)

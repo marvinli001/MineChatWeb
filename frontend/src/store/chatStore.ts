@@ -18,7 +18,8 @@ interface ChatState {
   wsReconnectDelay: number
   wsHeartbeatInterval: NodeJS.Timeout | null
   wsLastHeartbeat: number
-  
+  wsPrewarmed: boolean
+
   // Actions
   createNewConversation: () => void
   setCurrentConversation: (id: string) => void
@@ -37,6 +38,7 @@ interface ChatState {
   _createWebSocketConnection: (url: string) => Promise<WebSocket>
   _setupHeartbeat: (ws: WebSocket) => void
   _cleanupWebSocket: () => void
+  _prewarmWebSocket: () => void
 }
 
 export const useChatStore = create<ChatState>()(
@@ -50,10 +52,11 @@ export const useChatStore = create<ChatState>()(
       // WebSocket connection state
       wsConnection: null,
       wsReconnectAttempts: 0,
-      wsMaxReconnectAttempts: 3,
-      wsReconnectDelay: 1000,
+      wsMaxReconnectAttempts: 1,  // 减少重连次数从3到1
+      wsReconnectDelay: 500,  // 减少重连延迟从1000ms到500ms
       wsHeartbeatInterval: null,
       wsLastHeartbeat: 0,
+      wsPrewarmed: false,
 
       createNewConversation: () => {
         const newConversation: Conversation = {
@@ -111,11 +114,11 @@ export const useChatStore = create<ChatState>()(
       _createWebSocketConnection: async (url: string): Promise<WebSocket> => {
         return new Promise((resolve, reject) => {
           const ws = new WebSocket(url)
-          
+
           const timeout = setTimeout(() => {
             ws.close()
             reject(new Error('WebSocket connection timeout'))
-          }, 10000) // 10 second timeout
+          }, 3000) // 缩短超时从10秒到3秒
           
           ws.onopen = () => {
             clearTimeout(timeout)
@@ -840,6 +843,46 @@ export const useChatStore = create<ChatState>()(
         if (lastUserMessage) {
           await get().sendMessage(lastUserMessage.content)
         }
+      },
+
+      _prewarmWebSocket: () => {
+        // 预热WebSocket连接(不发送实际请求)
+        const { wsPrewarmed, wsConnection } = get()
+
+        // 如果已经预热过或已有连接,跳过
+        if (wsPrewarmed || (wsConnection && wsConnection.readyState === WebSocket.OPEN)) {
+          return
+        }
+
+        console.log('[WebSocket] 开始预热连接...')
+
+        const getWebSocketUrl = () => {
+          if (process.env.NODE_ENV === 'development') {
+            return 'ws://localhost:8000/api/v1/chat/stream'
+          } else {
+            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ||
+              process.env.NEXT_PUBLIC_API_BASE_URL ||
+              `${window.location.protocol}//${window.location.host}`
+
+            return backendUrl
+              .replace('https:', 'wss:')
+              .replace('http:', 'ws:') + '/api/v1/chat/stream'
+          }
+        }
+
+        const wsUrl = getWebSocketUrl()
+
+        // 异步预热,不阻塞主线程
+        get()._createWebSocketConnection(wsUrl)
+          .then(ws => {
+            console.log('[WebSocket] 预热成功')
+            set({ wsConnection: ws, wsPrewarmed: true })
+            get()._setupHeartbeat(ws)
+          })
+          .catch(err => {
+            console.warn('[WebSocket] 预热失败(将在发送消息时重试):', err)
+            set({ wsPrewarmed: true }) // 标记已尝试预热,避免重复
+          })
       }
     }),
     {

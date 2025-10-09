@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import time
 import logging
+import asyncio
 from app.api.v1 import chat, sync, voice, image, file, deep_research
+from app.services.ai_providers import AIProviderService
 
 # 配置日志
 logging.basicConfig(
@@ -17,6 +19,17 @@ app = FastAPI(
     description="A ChatGPT-like application with Cloudflare D1 sync",
     version="1.0.0"
 )
+
+# 启动时预加载模型配置
+@app.on_event("startup")
+async def startup_event():
+    logger.info("应用启动中,预加载模型配置...")
+    try:
+        ai_service = AIProviderService()
+        await ai_service._load_models_config()
+        logger.info("模型配置预加载成功")
+    except Exception as e:
+        logger.warning(f"模型配置预加载失败(将在首次请求时重试): {e}")
 
 app.add_middleware(
     CORSMiddleware,
