@@ -115,7 +115,9 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-white/10 backdrop-blur-md" onClick={onClose} />
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden">
+
+      {/* 桌面端布局 */}
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden max-sm:hidden">
         {/* 头部 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
@@ -389,10 +391,225 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
         )}
       </div>
 
+      {/* 移动端布局 - 浮窗 */}
+      <div className="hidden max-sm:flex max-sm:flex-col bg-white dark:bg-gray-800 rounded-t-2xl w-full max-h-[90vh] shadow-2xl" style={{ position: 'fixed', bottom: 0, left: 0, right: 0 }}>
+        {/* 移动端头部 */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              模型市场
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+              选择适合您需求的 AI 模型
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={refreshConfig}
+              disabled={loading}
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              title="刷新配置"
+            >
+              <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* 移动端提供商标签页 */}
+        <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+          {config && Object.entries(config.providers).map(([providerId, provider]) => (
+            <button
+              key={providerId}
+              onClick={() => setSelectedProvider(providerId)}
+              className={`flex-1 min-w-[100px] px-3 py-3 text-sm font-medium transition-all whitespace-nowrap ${
+                selectedProvider === providerId
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+            >
+              <div className="flex flex-col items-center gap-1">
+                <span>{provider.name}</span>
+                {hasApiKey(providerId) && (
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full" title="已配置" />
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* 移动端内容区 */}
+        <div className="flex-1 overflow-y-auto p-4 max-h-[55vh]">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : config && selectedProvider && config.providers[selectedProvider] ? (
+            <div>
+              {!hasApiKey(selectedProvider) && (
+                <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                    请先在设置中配置 {config.providers[selectedProvider].name} 的 API 密钥
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {selectedProvider === 'openai_compatible' ? (
+                  // OpenAI兼容提供商的自定义模型管理界面（移动端）
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-gray-900 dark:text-white">
+                        自定义模型
+                      </h4>
+                      <button
+                        onClick={() => setShowAddModelDialog(true)}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                        添加
+                      </button>
+                    </div>
+
+                    {getCustomModels().length === 0 ? (
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                        <p className="text-sm">暂无自定义模型</p>
+                        <p className="text-xs mt-2">点击上方按钮添加模型</p>
+                      </div>
+                    ) : (
+                      getCustomModels().map((model) => (
+                        <div
+                          key={model.id}
+                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+                        >
+                          <div className="flex items-start gap-2 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                                {model.name}
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                                {model.description}
+                              </p>
+                            </div>
+                            {isCurrentModel('openai_compatible', model.id) && (
+                              <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 px-2 py-1 rounded-full flex-shrink-0">
+                                使用中
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => selectModel('openai_compatible', model.id)}
+                              disabled={!hasApiKey('openai_compatible')}
+                              className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                isCurrentModel('openai_compatible', model.id)
+                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
+                                  : hasApiKey('openai_compatible')
+                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              }`}
+                            >
+                              {isCurrentModel('openai_compatible', model.id) ? '已选择' : '选择'}
+                            </button>
+                            <button
+                              onClick={() => handleRemoveCustomModel(model.id, model.name)}
+                              className="p-1.5 text-red-600 hover:text-red-700 border border-red-200 dark:border-red-800 rounded-lg transition-colors"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </>
+                ) : (
+                  // 其他提供商的标准模型列表（移动端）
+                  Object.entries(config.providers[selectedProvider].models).map(([modelId, model]) => (
+                    <div
+                      key={modelId}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+                    >
+                      <div className="flex items-start gap-2 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 dark:text-white text-sm">
+                            {model.name}
+                          </h4>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                            {model.description}
+                          </p>
+                        </div>
+                        {isCurrentModel(selectedProvider, modelId) && (
+                          <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 px-2 py-1 rounded-full flex-shrink-0">
+                            使用中
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        <div>上下文: {(model.context_length / 1000).toFixed(0)}K</div>
+                        <div>输入: ${model.pricing.input}/1M</div>
+                        <div>输出: ${model.pricing.output}/1M</div>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {model.supports_vision && (
+                          <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
+                            图像
+                          </span>
+                        )}
+                        {model.supports_function_calling && (
+                          <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
+                            函数
+                          </span>
+                        )}
+                        {model.supports_thinking && (
+                          <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded">
+                            思考
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => selectModel(selectedProvider, modelId)}
+                        disabled={!hasApiKey(selectedProvider)}
+                        className={`w-full px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          isCurrentModel(selectedProvider, modelId)
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
+                            : hasApiKey(selectedProvider)
+                            ? 'bg-blue-600 text-white hover:bg-blue-700'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        {isCurrentModel(selectedProvider, modelId) ? '已选择' : '选择此模型'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+              <p className="text-sm">暂无模型数据</p>
+            </div>
+          )}
+        </div>
+
+        {/* 移动端底部信息 */}
+        {config && (
+          <div className="border-t border-gray-200 dark:border-gray-700 p-3">
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              版本: {config.version}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* 添加自定义模型对话框 */}
       {showAddModelDialog && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md shadow-2xl">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 添加自定义模型

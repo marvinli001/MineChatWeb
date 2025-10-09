@@ -140,27 +140,42 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
 
   return (
     <div className={`thinking-chain mb-3 ${className}`}>
-      <div 
+      <div
         className={`thinking-header ${isExpanded ? 'expanded' : 'collapsed'} ${(isStreaming && !isComplete) ? 'streaming' : ''}`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="thinking-content">
-          <span className={`thinking-text ${(isStreaming && !isComplete) ? 'streaming-text' : ''}`}>
-            {isComplete ? '已深度思考' : (
-              <span className="streaming-cursor" aria-label="思考中">▊</span>
-            )}
-          </span>
-          {isComplete && finalThinkingTime > 0 ? (
-            <span className="thinking-time">
-              (用时 {formatTime(finalThinkingTime)} 秒)
-            </span>
-          ) : !isComplete && currentThinkingTime > 0 && (
-            <span className="thinking-time">
-              ({formatTime(currentThinkingTime)} 秒)
-            </span>
+          {/* Loading animation circle for thinking state */}
+          {!isComplete && (
+            <div className="loading-circle" aria-label="思考中">
+              <svg className="loading-svg" viewBox="0 0 24 24">
+                <circle className="loading-track" cx="12" cy="12" r="10" />
+                <circle className="loading-progress" cx="12" cy="12" r="10" />
+              </svg>
+            </div>
           )}
+
+          <div className="thinking-text-wrapper">
+            <span className={`thinking-text ${(isStreaming && !isComplete) ? 'streaming-text' : ''}`}>
+              {isComplete ? '思考完成' : (
+                <>
+                  思考中
+                  {currentThinkingTime > 0 && (
+                    <span className="thinking-time-inline"> {formatTime(currentThinkingTime)} 秒</span>
+                  )}
+                </>
+              )}
+            </span>
+            <span className="thinking-subtitle">
+              {isComplete ? (
+                finalThinkingTime > 0 && `用时 ${formatTime(finalThinkingTime)} 秒`
+              ) : (
+                '点击展开思考过程'
+              )}
+            </span>
+          </div>
         </div>
-        
+
         <div className="expand-arrow">
           {isExpanded ? (
             <ChevronDownIcon className="w-4 h-4" />
@@ -223,64 +238,134 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           width: 100%;
           transition: all 0.3s ease;
         }
-        
+
         .thinking-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 12px 16px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
+          padding: 14px 18px;
+          background: linear-gradient(to right, rgba(103, 232, 249, 0.15), rgba(186, 230, 253, 0.15));
+          border: 2px solid rgba(147, 197, 253, 0.25);
+          border-radius: 12px;
           cursor: pointer;
           transition: all 0.3s ease;
           position: relative;
           overflow: hidden;
         }
-        
-        .thinking-header:hover {
-          background: #f3f4f6;
+
+        .thinking-header.streaming {
+          border-color: rgba(96, 165, 250, 0.35);
+          box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.1);
         }
-        
+
+        .thinking-header:hover {
+          background: linear-gradient(to right, rgba(103, 232, 249, 0.2), rgba(186, 230, 253, 0.2));
+        }
+
         .thinking-header.expanded {
           border-bottom: none;
           border-bottom-left-radius: 0;
           border-bottom-right-radius: 0;
         }
-        
+
         .thinking-header.collapsed {
-          border-radius: 8px;
+          border-radius: 12px;
         }
-        
+
         .thinking-content {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 12px;
           flex: 1;
         }
-        
+
+        /* Loading circle animation */
+        .loading-circle {
+          width: 24px;
+          height: 24px;
+          flex-shrink: 0;
+        }
+
+        .loading-svg {
+          width: 100%;
+          height: 100%;
+          animation: rotate 2s linear infinite;
+        }
+
+        .loading-track {
+          fill: none;
+          stroke: rgba(59, 130, 246, 0.2);
+          stroke-width: 2;
+        }
+
+        .loading-progress {
+          fill: none;
+          stroke: rgba(59, 130, 246, 0.8);
+          stroke-width: 2;
+          stroke-linecap: round;
+          stroke-dasharray: 62.83;
+          stroke-dashoffset: 47.12;
+          animation: progress 1.5s ease-in-out infinite;
+        }
+
+        @keyframes rotate {
+          0% {
+            transform: rotate(0deg);
+          }
+          100% {
+            transform: rotate(360deg);
+          }
+        }
+
+        @keyframes progress {
+          0% {
+            stroke-dashoffset: 62.83;
+          }
+          50% {
+            stroke-dashoffset: 15.71;
+          }
+          100% {
+            stroke-dashoffset: 62.83;
+          }
+        }
+
+        .thinking-text-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1;
+        }
+
         .thinking-text {
+          font-size: 18px;
+          font-weight: 700;
+          color: #0c4a6e;
+          line-height: 1.3;
+        }
+
+        .thinking-time-inline {
+          font-weight: 600;
+        }
+
+        .thinking-subtitle {
           font-size: 14px;
-          font-weight: 500;
-          color: #374151;
-          position: relative;
+          color: rgba(12, 74, 110, 0.5);
+          font-weight: 400;
+          line-height: 1.3;
         }
-        
-        .thinking-time {
-          font-size: 12px;
-          color: #6b7280;
-        }
-        
+
         .expand-arrow {
-          color: #6b7280;
+          color: #0c4a6e;
           transition: transform 0.2s ease;
+          opacity: 0.7;
         }
         
         .thinking-details {
-          background: #ffffff;
-          border: 1px solid #e5e7eb;
+          background: linear-gradient(to right, rgba(103, 232, 249, 0.08), rgba(186, 230, 253, 0.08));
+          border: 2px solid rgba(147, 197, 253, 0.25);
           border-top: none;
-          border-bottom-left-radius: 8px;
-          border-bottom-right-radius: 8px;
+          border-bottom-left-radius: 12px;
+          border-bottom-right-radius: 12px;
           overflow: hidden;
           transition: all 0.3s ease;
           position: relative;
@@ -372,29 +457,42 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
         /* Dark mode support */
         @media (prefers-color-scheme: dark) {
           .thinking-header {
-            background: #374151;
-            border-color: #4b5563;
+            background: linear-gradient(to right, rgba(3, 105, 161, 0.12), rgba(8, 145, 178, 0.08) 61%, rgba(12, 74, 110, 0.12));
+            border-color: rgba(14, 165, 233, 0.2);
           }
-          
+
+          .thinking-header.streaming {
+            border-color: rgba(14, 165, 233, 0.3);
+            box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.1);
+          }
+
           .thinking-header:hover {
-            background: #4b5563;
+            background: linear-gradient(to right, rgba(3, 105, 161, 0.18), rgba(8, 145, 178, 0.12) 61%, rgba(12, 74, 110, 0.18));
           }
-          
+
           .thinking-text {
-            color: #d1d5db;
+            color: #bfdbfe;
           }
-          
-          .thinking-time {
-            color: #9ca3af;
+
+          .thinking-subtitle {
+            color: rgba(191, 219, 254, 0.5);
           }
-          
+
           .expand-arrow {
-            color: #9ca3af;
+            color: #bfdbfe;
           }
-          
+
+          .loading-track {
+            stroke: rgba(147, 197, 253, 0.2);
+          }
+
+          .loading-progress {
+            stroke: rgba(147, 197, 253, 0.8);
+          }
+
           .thinking-details {
-            background: #1f2937;
-            border-color: #4b5563;
+            background: linear-gradient(to right, rgba(3, 105, 161, 0.08), rgba(8, 145, 178, 0.06) 61%, rgba(12, 74, 110, 0.08));
+            border-color: rgba(14, 165, 233, 0.2);
           }
         }
       `}</style>

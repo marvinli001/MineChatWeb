@@ -184,27 +184,21 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
   })
 
   const handleToggleService = (serviceId: string) => {
-    const newEnabledServices = new Set(Array.from(enabledServices))
-    const existingServer = mcpServers.find(s => s.connector_id === serviceId || s.url?.includes(serviceId))
+    const service = getServiceById(serviceId)
+    if (!service) return
 
-    if (newEnabledServices.has(serviceId)) {
-      newEnabledServices.delete(serviceId)
-      // 禁用服务器（而不是删除）
-      if (existingServer) {
-        updateMCPServer(existingServer.id, { enabled: false })
-      }
+    const existingServer = mcpServers.find(s => s.url === service.url)
+
+    if (existingServer) {
+      // 如果服务器已存在，切换启用/禁用状态
+      const newEnabled = !existingServer.enabled
+      updateMCPServer(existingServer.id, { enabled: newEnabled })
+      toast.success(newEnabled ? `${service.name} 已启用` : `${service.name} 已禁用`)
     } else {
-      newEnabledServices.add(serviceId)
-      // 如果已存在服务器，只需启用它
-      if (existingServer) {
-        updateMCPServer(existingServer.id, { enabled: true })
-      } else {
-        // 如果没有配置授权信息，先提示配置
-        setSelectedService(getServiceById(serviceId))
-        setShowConfigDialog(true)
-      }
+      // 如果服务器不存在，打开配置对话框
+      setSelectedService(service)
+      setShowConfigDialog(true)
     }
-    setEnabledServices(newEnabledServices)
   }
 
   const getServiceById = (serviceId: string) => {
@@ -386,7 +380,9 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-white/10 backdrop-blur-md" onClick={onClose} />
-      <div className="relative w-full max-w-6xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden">
+
+      {/* 桌面端布局 */}
+      <div className="relative w-full max-w-6xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden max-sm:hidden">
         {/* 头部 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
@@ -628,10 +624,211 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
         </div>
       </div>
 
+      {/* 移动端布局 - 浮窗 */}
+      <div className="hidden max-sm:flex max-sm:flex-col bg-white dark:bg-gray-800 rounded-t-2xl w-full max-h-[90vh] shadow-2xl" style={{ position: 'fixed', bottom: 0, left: 0, right: 0 }}>
+        {/* 移动端头部 */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              插件市场
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+              {currentProvider === 'openai' ? 'OpenAI MCP' : 'Anthropic MCP'}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <motion.button
+              onClick={() => setShowAddDialog(true)}
+              className="p-2 text-blue-600"
+              whileTap={{ scale: 0.95 }}
+            >
+              <PlusIcon className="w-5 h-5" />
+            </motion.button>
+            <motion.button
+              onClick={onClose}
+              className="p-2 text-gray-400"
+              whileTap={{ scale: 0.95 }}
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </motion.button>
+          </div>
+        </div>
+
+        {/* 移动端标签页 */}
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
+          <motion.button
+            onClick={() => setActiveTab('mcp')}
+            className={`flex-1 px-3 py-3 text-sm font-medium transition-all ${
+              activeTab === 'mcp'
+                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
+                : 'text-gray-600 dark:text-gray-400'
+            }`}
+            whileTap={{ scale: 0.98 }}
+          >
+            MCP ({builtInServices.length})
+          </motion.button>
+          {currentProvider === 'openai' && (
+            <motion.button
+              onClick={() => setActiveTab('function')}
+              className={`flex-1 px-3 py-3 text-sm font-medium transition-all ${
+                activeTab === 'function'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
+                  : 'text-gray-600 dark:text-gray-400'
+              }`}
+              whileTap={{ scale: 0.98 }}
+            >
+              函数 ({plugins.length})
+            </motion.button>
+          )}
+        </div>
+
+        {/* 移动端内容区 */}
+        <div className="flex-1 overflow-y-auto p-4 max-h-[60vh]">
+          {activeTab === 'mcp' ? (
+            // MCP服务器列表（移动端）
+            <div className="space-y-3">
+              {builtInServices.map((service) => {
+                const existingServer = mcpServers.find(s => s.url === service.url)
+                const isEnabled = existingServer?.enabled !== false
+                const hasConfig = !!existingServer
+
+                return (
+                  <div
+                    key={service.id}
+                    className={`border rounded-lg p-3 ${
+                      isEnabled
+                        ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
+                        : 'border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2 mb-2">
+                      {/* 图标 */}
+                      {typeof service.icon === 'string' ? (
+                        <span className="text-xl flex-shrink-0">{service.icon}</span>
+                      ) : (
+                        <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                          {(() => {
+                            const IconComponent = service.icon
+                            return <IconComponent className="w-5 h-5" />
+                          })()}
+                        </div>
+                      )}
+                      {/* 名称和状态 */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-gray-900 dark:text-white text-sm">
+                            {service.name}
+                          </h4>
+                          <span className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300 px-1.5 py-0.5 rounded">
+                            MCP
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                          {service.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 认证信息 */}
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                        {service.requiresAuth ? (
+                          <>
+                            <span className="text-yellow-600">🔑</span>
+                            <span>需要密钥</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-green-600">✓</span>
+                            <span>无需认证</span>
+                          </>
+                        )}
+                      </div>
+                      {hasConfig && (
+                        <span className="text-green-600 dark:text-green-400">
+                          ✓ 已配置
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 操作按钮 */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleConfigureService(service)}
+                        className="flex-1 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg"
+                      >
+                        配置
+                      </button>
+                      <button
+                        onClick={() => handleToggleService(service.id)}
+                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-lg ${
+                          isEnabled
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {isEnabled ? '已启用' : '启用'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            // 函数调用列表（移动端）
+            <div>
+              {plugins.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <WrenchScrewdriverIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">暂无函数调用</p>
+                  <p className="text-xs mt-2">点击右上角 + 添加函数</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {plugins.map((plugin) => (
+                    <div
+                      key={plugin.id}
+                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+                    >
+                      <div className="flex items-start gap-2 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-gray-900 dark:text-white text-sm truncate">
+                              {plugin.name}
+                            </h4>
+                            {plugin.strict && (
+                              <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 px-1.5 py-0.5 rounded flex-shrink-0">
+                                严格
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+                            {plugin.description}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleRemovePlugin(plugin.id, plugin.name)}
+                          className="p-1.5 text-red-600 flex-shrink-0"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {Object.keys(plugin.parameters.properties || {}).length} 个参数
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* 配置对话框 */}
       {showConfigDialog && selectedService && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-lg shadow-2xl">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-lg shadow-2xl max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 配置 {selectedService.name}
@@ -741,8 +938,8 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
 
       {/* 添加自定义插件对话框（保持原有逻辑，但简化） */}
       {showAddDialog && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 添加自定义{activeTab === 'mcp' ? 'MCP服务器' : '函数'}
