@@ -477,7 +477,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                 const existingServer = mcpServers.find(s =>
                   s.connector_id === service.id || s.url === service.url
                 )
-                const isEnabled = existingServer?.enabled !== false // 默认enabled为true
+                const isEnabled = !!existingServer && existingServer.enabled !== false
                 const hasConfig = !!existingServer
 
                 return (
@@ -689,7 +689,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
             <div className="space-y-3">
               {builtInServices.map((service) => {
                 const existingServer = mcpServers.find(s => s.url === service.url)
-                const isEnabled = existingServer?.enabled !== false
+                const isEnabled = !!existingServer && existingServer.enabled !== false
                 const hasConfig = !!existingServer
 
                 return (

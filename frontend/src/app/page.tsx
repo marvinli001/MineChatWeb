@@ -71,18 +71,20 @@ export default function Home() {
       {/* 主内容区域 */}
       <div className="flex-1 min-w-0">
         {currentView === 'chat' ? (
-          <ChatMain 
+          <ChatMain
             onModelMarketClick={handleModelMarketClick}
+            onPluginMarketClick={handlePluginMarketClick}
             onSettingsClick={() => setShowSettings(true)}
             onLoginClick={() => setShowLogin(true)}
             onDeepResearchClick={handleDeepResearchClick}
           />
         ) : (
-          <DeepResearchPage 
-            onBackToChat={() => setCurrentView('chat')} 
+          <DeepResearchPage
+            onBackToChat={() => setCurrentView('chat')}
             onSettingsClick={() => setShowSettings(true)}
             onLoginClick={() => setShowLogin(true)}
             onModelMarketClick={handleModelMarketClick}
+            onPluginMarketClick={handlePluginMarketClick}
           />
         )}
       </div>

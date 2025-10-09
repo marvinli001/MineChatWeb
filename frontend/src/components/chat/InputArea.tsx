@@ -1578,7 +1578,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   // 对话模式输入框样式（与欢迎页保持一致）
   return (
-    <div className="bg-white dark:bg-gray-900 py-4 input-area">
+    <div className="bg-transparent py-4 input-area">
       <div className="px-4 lg:px-4 sm:px-3">
         <form onSubmit={handleSubmit} className="relative">
           {/* 手机端：气泡显示在输入框上方 */}

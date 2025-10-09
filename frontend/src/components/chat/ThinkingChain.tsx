@@ -239,6 +239,35 @@ export default function ThinkingChain({ reasoning, className = '', startTime, is
           transition: all 0.3s ease;
         }
 
+        /* 移动端专属样式 - 确保思考块不被挤压 */
+        @media (max-width: 640px) {
+          .thinking-chain {
+            /* 确保占满父容器宽度 */
+            min-width: 0;
+            width: 100%;
+          }
+
+          .thinking-header {
+            /* 移动端稍微减小padding */
+            padding: 12px 14px;
+          }
+
+          .thinking-text {
+            /* 移动端字体稍小 */
+            font-size: 16px;
+          }
+
+          .thinking-subtitle {
+            font-size: 13px;
+          }
+
+          .loading-circle {
+            /* 移动端图标稍小 */
+            width: 20px;
+            height: 20px;
+          }
+        }
+
         .thinking-header {
           display: flex;
           align-items: center;

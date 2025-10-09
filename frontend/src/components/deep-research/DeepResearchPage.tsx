@@ -17,9 +17,10 @@ interface DeepResearchPageProps {
   onSettingsClick?: () => void
   onLoginClick?: () => void
   onModelMarketClick?: () => void
+  onPluginMarketClick?: () => void
 }
 
-export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLoginClick, onModelMarketClick }: DeepResearchPageProps) {
+export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLoginClick, onModelMarketClick, onPluginMarketClick }: DeepResearchPageProps) {
   const [input, setInput] = useState('')
   const [selectedModel, setSelectedModel] = useState('o3-deep-research')
   const [tasks, setTasks] = useState<DeepResearchTask[]>([])
@@ -512,10 +513,11 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
         
         {/* 移动端侧边栏抽屉 */}
         <MobileDrawer isOpen={isSidebarOpen} onClose={handleCloseSidebar}>
-          <ChatSidebar 
+          <ChatSidebar
             onSettingsClick={onSettingsClick || (() => {})}
             onLoginClick={onLoginClick || (() => {})}
             onModelMarketClick={onModelMarketClick}
+            onPluginMarketClick={onPluginMarketClick}
             onDeepResearchClick={() => {}}
             onBackToChat={onBackToChat}
           />
@@ -761,10 +763,11 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
 
       {/* 移动端侧边栏抽屉 */}
       <MobileDrawer isOpen={isSidebarOpen} onClose={handleCloseSidebar}>
-        <ChatSidebar 
+        <ChatSidebar
           onSettingsClick={onSettingsClick || (() => {})}
           onLoginClick={onLoginClick || (() => {})}
           onModelMarketClick={onModelMarketClick}
+          onPluginMarketClick={onPluginMarketClick}
           onDeepResearchClick={() => {}}
           onBackToChat={onBackToChat}
         />

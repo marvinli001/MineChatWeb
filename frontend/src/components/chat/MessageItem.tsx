@@ -323,16 +323,18 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
           </div>
 
           {/* 消息内容 */}
-          <div className="flex-1 min-w-0 message-bubble assistant sm:max-w-[92%]">
+          <div className="flex-1 min-w-0 message-bubble assistant sm:max-w-full lg:max-w-[92%]">
             {/* 显示推理链（推理模型的消息都显示思维链） */}
             {isReasoningModel && message.thinking_start_time && (
-              <ThinkingChain 
-                reasoning={message.reasoning || ''} 
-                startTime={message.thinking_start_time}
-                isComplete={!isLoading || !isLast}
-                messageId={message.id}
-                className="mb-4" 
-              />
+              <div className="sm:-mx-0 lg:mx-0">
+                <ThinkingChain
+                  reasoning={message.reasoning || ''}
+                  startTime={message.thinking_start_time}
+                  isComplete={!isLoading || !isLast}
+                  messageId={message.id}
+                  className="mb-4"
+                />
+              </div>
             )}
             
             {/* 渲染AI消息内容（支持引用） */}

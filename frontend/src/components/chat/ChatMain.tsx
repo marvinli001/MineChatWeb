@@ -13,6 +13,7 @@ import { motion } from 'motion/react'
 
 interface ChatMainProps {
   onModelMarketClick?: () => void
+  onPluginMarketClick?: () => void
   onSettingsClick: () => void
   onLoginClick: () => void
   onDeepResearchClick?: () => void
@@ -30,7 +31,7 @@ const welcomeTitles = [
   "您今天想聊什么？"
 ]
 
-export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginClick, onDeepResearchClick }: ChatMainProps) {
+export default function ChatMain({ onModelMarketClick, onPluginMarketClick, onSettingsClick, onLoginClick, onDeepResearchClick }: ChatMainProps) {
   const currentConversation = useCurrentConversation()
   // 使用当前对话的loading状态
   const isLoading = currentConversation?.isLoading || false
@@ -63,6 +64,12 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
     }
   }
 
+  const handlePluginMarketClick = () => {
+    if (onPluginMarketClick) {
+      onPluginMarketClick()
+    }
+  }
+
   // 设置随机欢迎标题
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * welcomeTitles.length)
@@ -91,25 +98,25 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
   if (!currentConversation || currentConversation.messages.length === 0) {
     return (
       <>
-        <div className="flex flex-col h-full bg-white dark:bg-gray-900 chat-layout">
+        <div className="flex flex-col h-full bg-white dark:bg-gray-900 chat-layout overflow-hidden">
           {/* 移动端头部 */}
           <ChatHeader onMenuClick={handleMenuClick} onModelMarketClick={onModelMarketClick} />
-          
+
           {/* 主内容区域 - 居中显示欢迎信息和输入框 */}
           <motion.div
-            className="flex-1 flex flex-col items-center justify-center welcome-container"
+            className="flex-1 min-h-0 flex flex-col items-center justify-center welcome-container px-4 py-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
           >
             <motion.div
-              className="text-center max-w-2xl mx-auto px-4 mb-8"
+              className="text-center max-w-2xl mx-auto mb-6 sm:mb-8"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
             >
               <motion.h1
-                className="text-3xl sm:text-4xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-8"
+                className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.4, ease: "easeOut" }}
@@ -120,7 +127,7 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
 
             {/* 居中的输入区域 */}
             <motion.div
-              className="w-full max-w-3xl px-4 input-container"
+              className="w-full max-w-3xl input-container"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6, ease: "easeOut" }}
@@ -132,10 +139,11 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
         
         {/* 移动端抽屉侧边栏 */}
         <MobileDrawer isOpen={isSidebarOpen} onClose={handleCloseSidebar}>
-          <ChatSidebar 
-            onSettingsClick={onSettingsClick} 
-            onLoginClick={onLoginClick} 
+          <ChatSidebar
+            onSettingsClick={onSettingsClick}
+            onLoginClick={onLoginClick}
             onModelMarketClick={onModelMarketClick}
+            onPluginMarketClick={handlePluginMarketClick}
             onDeepResearchClick={handleDeepResearchClick}
           />
         </MobileDrawer>
@@ -202,10 +210,11 @@ export default function ChatMain({ onModelMarketClick, onSettingsClick, onLoginC
       
       {/* 移动端抽屉侧边栏 */}
       <MobileDrawer isOpen={isSidebarOpen} onClose={handleCloseSidebar}>
-        <ChatSidebar 
-          onSettingsClick={onSettingsClick} 
-          onLoginClick={onLoginClick} 
+        <ChatSidebar
+          onSettingsClick={onSettingsClick}
+          onLoginClick={onLoginClick}
           onModelMarketClick={onModelMarketClick}
+          onPluginMarketClick={handlePluginMarketClick}
           onDeepResearchClick={handleDeepResearchClick}
         />
       </MobileDrawer>
