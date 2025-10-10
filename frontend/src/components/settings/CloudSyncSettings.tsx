@@ -94,6 +94,7 @@ export default function CloudSyncSettings() {
                 accountId: e.target.value
               }
             })}
+            className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
           />
           <p className="text-xs text-gray-500 mt-1">
             在 Cloudflare 控制台右侧找到您的 Account ID
@@ -114,6 +115,7 @@ export default function CloudSyncSettings() {
                 apiToken: e.target.value
               }
             })}
+            className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
           />
           <p className="text-xs text-gray-500 mt-1">
             需要具有 D1:Edit 权限的 API Token
@@ -133,6 +135,7 @@ export default function CloudSyncSettings() {
                 databaseId: e.target.value
               }
             })}
+            className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
           />
           <p className="text-xs text-gray-500 mt-1">
             在 D1 数据库详情页面找到数据库 ID

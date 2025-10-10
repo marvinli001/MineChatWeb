@@ -114,17 +114,17 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-white/10 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" onClick={onClose} />
 
       {/* 桌面端布局 */}
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden max-sm:hidden">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-2xl overflow-hidden max-sm:hidden" style={{boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)'}}>
         {/* 头部 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-black/10 dark:border-white/10">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               模型市场
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
               选择适合您需求的 AI 模型
             </p>
           </div>
@@ -132,14 +132,14 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
             <button
               onClick={refreshConfig}
               disabled={loading}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
               title="刷新配置"
             >
               <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
             >
               <XMarkIcon className="w-5 h-5" />
             </button>
@@ -149,8 +149,8 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
         {/* 内容 */}
         <div className="flex h-[70vh]">
           {/* 侧边栏 - 提供商列表 */}
-          <div className="w-64 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-            <div className="p-4">
+          <div className="w-64 border-r border-black/10 dark:border-white/10 overflow-y-auto">
+            <div className="p-5">
               <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-3">
                 AI 提供商
               </h3>
@@ -158,10 +158,10 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                 <button
                   key={providerId}
                   onClick={() => setSelectedProvider(providerId)}
-                  className={`w-full text-left p-3 rounded-lg mb-2 transition-colors ${
+                  className={`w-full text-left p-3 rounded-lg mb-1 transition-colors text-sm font-medium ${
                     selectedProvider === providerId
-                      ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                      ? 'bg-black/[0.04] dark:bg-white/[0.04] text-gray-900 dark:text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -184,7 +184,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
 
           {/* 主内容 - 模型列表 */}
           <div className="flex-1 overflow-y-auto">
-            <div className="p-6">
+            <div className="p-5">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -199,7 +199,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                       {config.providers[selectedProvider].description}
                     </p>
                     {!hasApiKey(selectedProvider) && (
-                      <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                      <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200/50 dark:border-yellow-800/50 rounded-lg">
                         <p className="text-sm text-yellow-800 dark:text-yellow-200">
                           请先在设置中配置 {config.providers[selectedProvider].name} 的 API 密钥
                         </p>
@@ -306,7 +306,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                       Object.entries(config.providers[selectedProvider].models).map(([modelId, model]) => (
                       <div
                         key={modelId}
-                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+                        className="border border-black/10 dark:border-white/10 rounded-lg p-4 hover:border-black/20 dark:hover:border-white/20 hover:shadow-md transition-all"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
@@ -383,7 +383,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
 
         {/* 底部信息 */}
         {config && (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+          <div className="border-t border-black/10 dark:border-white/10 px-5 py-3">
             <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
               配置版本: {config.version} | 最后更新: {new Date(config.last_updated).toLocaleString()}
             </div>
@@ -392,9 +392,9 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
       </div>
 
       {/* 移动端布局 - 浮窗 */}
-      <div className="hidden max-sm:flex max-sm:flex-col bg-white dark:bg-gray-800 rounded-t-2xl w-full max-h-[90vh] shadow-2xl" style={{ position: 'fixed', bottom: 0, left: 0, right: 0 }}>
+      <div className="hidden max-sm:flex max-sm:flex-col bg-white dark:bg-gray-900 rounded-t-2xl w-full max-h-[90vh]" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)' }}>
         {/* 移动端头部 */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10">
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               模型市场
@@ -422,15 +422,15 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
         </div>
 
         {/* 移动端提供商标签页 */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+        <div className="flex border-b border-black/10 dark:border-white/10 overflow-x-auto">
           {config && Object.entries(config.providers).map(([providerId, provider]) => (
             <button
               key={providerId}
               onClick={() => setSelectedProvider(providerId)}
-              className={`flex-1 min-w-[100px] px-3 py-3 text-sm font-medium transition-all whitespace-nowrap ${
+              className={`flex-1 min-w-[100px] px-3 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                 selectedProvider === providerId
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
-                  : 'text-gray-600 dark:text-gray-400'
+                  ? 'text-gray-900 dark:text-white bg-black/[0.04] dark:bg-white/[0.04]'
+                  : 'text-gray-500 dark:text-gray-400'
               }`}
             >
               <div className="flex flex-col items-center gap-1">
@@ -485,7 +485,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                       getCustomModels().map((model) => (
                         <div
                           key={model.id}
-                          className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+                          className="border border-black/10 dark:border-white/10 rounded-lg p-3"
                         >
                           <div className="flex items-start gap-2 mb-2">
                             <div className="flex-1 min-w-0">
@@ -532,7 +532,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                   Object.entries(config.providers[selectedProvider].models).map(([modelId, model]) => (
                     <div
                       key={modelId}
-                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+                      className="border border-black/10 dark:border-white/10 rounded-lg p-3"
                     >
                       <div className="flex items-start gap-2 mb-2">
                         <div className="flex-1 min-w-0">
@@ -598,7 +598,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
 
         {/* 移动端底部信息 */}
         {config && (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-3">
+          <div className="border-t border-black/10 dark:border-white/10 p-3">
             <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
               版本: {config.version}
             </div>
@@ -608,9 +608,9 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
 
       {/* 添加自定义模型对话框 */}
       {showAddModelDialog && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md shadow-2xl max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto" style={{boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)'}}>
+            <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 添加自定义模型
               </h3>
@@ -623,7 +623,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                     supports_reasoning: false
                   })
                 }}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -638,7 +638,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                   type="text"
                   value={newModelForm.name}
                   onChange={(e) => setNewModelForm(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                   placeholder="例如：gpt-4-turbo"
                 />
               </div>
@@ -650,7 +650,7 @@ export default function ModelMarket({ isOpen, onClose }: ModelMarketProps) {
                 <textarea
                   value={newModelForm.description}
                   onChange={(e) => setNewModelForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                   placeholder="可选的模型描述..."
                   rows={3}
                 />

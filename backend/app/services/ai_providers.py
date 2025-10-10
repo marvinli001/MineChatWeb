@@ -1419,26 +1419,29 @@ class AIProviderService:
                     converted_msg = self._convert_message_to_anthropic_format(msg)
                     user_messages.append(converted_msg)
             
+            # Extended Thinking支持 - 需要先确定是否启用思考模式
+            thinking_budget_tokens = 10000 if thinking_mode else 0
+
             # 构建请求参数
             kwargs = {
                 "model": model,
-                "max_tokens": 4000,
+                "max_tokens": 16384 if thinking_mode else 4000,  # 思考模式需要更大的max_tokens
                 "messages": user_messages,
-                "temperature": 0.7,
+                "temperature": 1 if thinking_mode else 0.7,  # 思考模式下必须为1
                 "stream": stream
             }
-            
+
             # 添加system消息（如果有）
             if system_message:
                 kwargs["system"] = system_message
-            
+
             # Extended Thinking支持（Claude不允许用户设置budget_tokens，使用固定值10000）
             if thinking_mode:
                 kwargs["thinking"] = {
                     "type": "enabled",
-                    "budget_tokens": 10000  # 固定值，如文档要求
+                    "budget_tokens": thinking_budget_tokens
                 }
-                logger.info("启用Claude扩展思考模式，budget_tokens: 10000")
+                logger.info(f"启用Claude扩展思考模式，budget_tokens: {thinking_budget_tokens}, max_tokens: {kwargs['max_tokens']}, temperature: 1")
             
             # 工具配置（如果有）
             if tools:
@@ -1665,54 +1668,54 @@ class AIProviderService:
     ) -> Dict[str, Any]:
         """Google Gemini API 调用 - 完整实现"""
         try:
-            genai.configure(api_key=api_key)
+            # 创建客户端实例（新版 SDK）
+            client = genai.Client(api_key=api_key)
 
             logger.info(f"调用Google模型: {model}, 流式: {stream}")
 
             # 转换消息格式和多模态内容
-            history = []
+            contents = []
             system_instruction = None
 
             # 处理系统消息
-            for i, msg in enumerate(messages):
+            for msg in messages:
                 role = self._get_message_attr(msg, "role")
                 content = self._get_message_attr(msg, "content")
 
                 if role == "system":
                     system_instruction = content
                     continue
-                elif i == len(messages) - 1:
-                    # 最后一条消息单独处理
-                    break
                 elif role == "user":
                     # 处理多模态内容
                     parts = self._convert_message_to_gemini_parts(msg)
-                    history.append({"role": "user", "parts": parts})
+                    contents.append({
+                        "role": "user",
+                        "parts": parts
+                    })
                 elif role == "assistant":
-                    history.append({"role": "model", "parts": [content]})
+                    contents.append({
+                        "role": "model",
+                        "parts": [{"text": content}]
+                    })
 
             # 配置生成参数
-            generation_config = {
+            config_dict = {
                 "temperature": 0.7,
                 "max_output_tokens": 8192,
             }
 
             # 处理thinking mode
             if thinking_mode and model.startswith("gemini-2.0"):
-                generation_config["thinking_budget"] = self._get_thinking_budget(reasoning)
+                config_dict["thinking_budget"] = self._get_thinking_budget(reasoning)
+
+            # 使用新版 SDK 的 types.GenerateContentConfig
+            from google.genai import types
+            generation_config = types.GenerateContentConfig(**config_dict)
 
             # 转换工具
             gemini_tools = None
             if tools:
                 gemini_tools = self._convert_tools_to_gemini_format(tools)
-
-            # 创建模型实例
-            model_instance = genai.GenerativeModel(
-                model_name=model,
-                generation_config=generation_config,
-                system_instruction=system_instruction,
-                tools=gemini_tools
-            )
 
             # 处理最后一条用户消息
             last_message = messages[-1]
@@ -1748,15 +1751,25 @@ class AIProviderService:
                             logger.error(f"Gemini 图片模型也失败: {e2}")
                             raise Exception(f"图片生成失败: Imagen API ({e}), Gemini 图片模型 ({e2})")
 
-            # 生成响应
+            # 如果有 system instruction，将其添加到 contents 的开头
+            if system_instruction:
+                contents.insert(0, {
+                    "role": "user",
+                    "parts": [{"text": f"System: {system_instruction}"}]
+                })
+
+            # 生成响应（使用新版 SDK API）
             if stream:
                 return await self._google_stream_completion(
-                    model_instance, history, user_parts
+                    client, model, contents, generation_config, gemini_tools
                 )
             else:
-                chat = model_instance.start_chat(history=history)
                 response = await asyncio.wait_for(
-                    chat.send_message_async(user_parts),
+                    client.aio.models.generate_content(
+                        model=model,
+                        contents=contents,
+                        config=generation_config
+                    ),
                     timeout=self.default_timeout
                 )
 
@@ -1767,7 +1780,7 @@ class AIProviderService:
             raise Exception(f"Google API调用失败: {str(e)}")
 
     def _convert_message_to_gemini_parts(self, msg):
-        """将消息转换为Gemini Parts格式，支持多模态"""
+        """将消息转换为Gemini Parts格式，支持多模态（新版 SDK）"""
         content = self._get_message_attr(msg, "content")
 
         # 获取图片数据
@@ -1779,9 +1792,9 @@ class AIProviderService:
 
         parts = []
 
-        # 添加文本内容
+        # 添加文本内容（新版 SDK 使用字典格式）
         if content and content.strip():
-            parts.append(content)
+            parts.append({"text": content})
 
         # 添加图片内容
         if images:
@@ -1799,13 +1812,15 @@ class AIProviderService:
                         # 解码base64图片数据
                         image_bytes = base64.b64decode(image_data)
                         parts.append({
-                            "mime_type": mime_type,
-                            "data": image_bytes
+                            "inline_data": {
+                                "mime_type": mime_type,
+                                "data": image_bytes
+                            }
                         })
                     except Exception as e:
                         logger.warning(f"解码图片数据失败: {e}")
 
-        return parts if parts else [content or ""]
+        return parts if parts else [{"text": content or ""}]
 
     def _convert_tools_to_gemini_format(self, tools):
         """将工具转换为Gemini格式（增强版）"""
@@ -1940,23 +1955,26 @@ class AIProviderService:
         }
         return budget_map.get(reasoning, 5000)
 
-    async def _google_stream_completion(self, model_instance, history, user_parts):
-        """Google流式响应处理"""
+    async def _google_stream_completion(self, client, model, contents, generation_config, gemini_tools):
+        """Google流式响应处理（新版 SDK）"""
         try:
-            chat = model_instance.start_chat(history=history)
-            response_stream = chat.send_message_stream(user_parts)
+            # 使用新版 SDK 的流式 API
+            response_stream = await client.aio.models.generate_content_stream(
+                model=model,
+                contents=contents,
+                config=generation_config,
+                tools=gemini_tools
+            )
 
             # 收集流式响应
             full_text = ""
+            final_response = None
             async for chunk in response_stream:
-                if chunk.text:
+                if hasattr(chunk, 'text') and chunk.text:
                     full_text += chunk.text
+                final_response = chunk
 
-            # 等待流完成
-            await response_stream.resolve()
-            final_response = response_stream.response
-
-            return self._convert_gemini_response_to_openai_format(final_response, model_instance.model_name)
+            return self._convert_gemini_response_to_openai_format(final_response, model)
 
         except Exception as e:
             logger.error(f"Google流式响应失败: {str(e)}")
@@ -2307,68 +2325,75 @@ class AIProviderService:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Google Gemini WebSocket流式响应"""
         try:
-            genai.configure(api_key=api_key)
+            # 创建客户端实例（新版 SDK）
+            client = genai.Client(api_key=api_key)
 
             logger.info(f"开始Google流式调用: {model}")
 
             # 转换消息格式和多模态内容
-            history = []
+            contents = []
             system_instruction = None
 
             # 处理系统消息
-            for i, msg in enumerate(messages):
+            for msg in messages:
                 role = self._get_message_attr(msg, "role")
                 content = self._get_message_attr(msg, "content")
 
                 if role == "system":
                     system_instruction = content
                     continue
-                elif i == len(messages) - 1:
-                    # 最后一条消息单独处理
-                    break
                 elif role == "user":
                     # 处理多模态内容
                     parts = self._convert_message_to_gemini_parts(msg)
-                    history.append({"role": "user", "parts": parts})
+                    contents.append({
+                        "role": "user",
+                        "parts": parts
+                    })
                 elif role == "assistant":
-                    history.append({"role": "model", "parts": [content]})
+                    contents.append({
+                        "role": "model",
+                        "parts": [{"text": content}]
+                    })
 
             # 配置生成参数
-            generation_config = {
+            config_dict = {
                 "temperature": 0.7,
                 "max_output_tokens": 8192,
             }
 
             # 处理thinking mode
             if thinking_mode and model.startswith("gemini-2.0"):
-                generation_config["thinking_budget"] = self._get_thinking_budget(reasoning)
+                config_dict["thinking_budget"] = self._get_thinking_budget(reasoning)
+
+            # 使用新版 SDK 的 types.GenerateContentConfig
+            from google.genai import types
+            generation_config = types.GenerateContentConfig(**config_dict)
 
             # 转换工具
             gemini_tools = None
             if tools:
                 gemini_tools = self._convert_tools_to_gemini_format(tools)
 
-            # 创建模型实例
-            model_instance = genai.GenerativeModel(
-                model_name=model,
-                generation_config=generation_config,
-                system_instruction=system_instruction,
+            # 如果有 system instruction，将其添加到 contents 的开头
+            if system_instruction:
+                contents.insert(0, {
+                    "role": "user",
+                    "parts": [{"text": f"System: {system_instruction}"}]
+                })
+
+            # 使用新版 SDK 的流式 API
+            response_stream = client.aio.models.generate_content_stream(
+                model=model,
+                contents=contents,
+                config=generation_config,
                 tools=gemini_tools
             )
-
-            # 处理最后一条用户消息
-            last_message = messages[-1]
-            user_parts = self._convert_message_to_gemini_parts(last_message)
-
-            # 开始流式响应
-            chat = model_instance.start_chat(history=history)
-            response_stream = chat.send_message(user_parts, stream=True)
 
             accumulated_text = ""
             message_id = f"gemini_{int(time.time() * 1000)}"
 
-            for chunk in response_stream:
-                if chunk.text:
+            async for chunk in response_stream:
+                if hasattr(chunk, 'text') and chunk.text:
                     accumulated_text += chunk.text
 
                     # 生成流式响应块
@@ -2776,25 +2801,28 @@ class AIProviderService:
                     converted_msg = self._convert_message_to_anthropic_format(msg)
                     user_messages.append(converted_msg)
             
+            # Extended Thinking支持 - 需要先确定是否启用思考模式
+            thinking_budget_tokens = 10000 if thinking_mode else 0
+
             # 构建流式请求参数
             stream_params = {
                 "model": model,
-                "max_tokens": 4000,
+                "max_tokens": 16384 if thinking_mode else 4000,  # 思考模式需要更大的max_tokens
                 "messages": user_messages,
-                "temperature": 0.7
+                "temperature": 1 if thinking_mode else 0.7  # 思考模式下必须为1
             }
-            
+
             # 添加system消息（如果有）
             if system_message:
                 stream_params["system"] = system_message
-            
+
             # Extended Thinking支持
             if thinking_mode:
                 stream_params["thinking"] = {
                     "type": "enabled",
-                    "budget_tokens": 10000  # 固定值
+                    "budget_tokens": thinking_budget_tokens
                 }
-                logger.info("启用Claude流式扩展思考模式，budget_tokens: 10000")
+                logger.info(f"启用Claude流式扩展思考模式，budget_tokens: {thinking_budget_tokens}, max_tokens: {stream_params['max_tokens']}, temperature: 1")
             
             # 工具配置（如果有）
             if tools:

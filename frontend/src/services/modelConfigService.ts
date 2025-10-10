@@ -296,11 +296,26 @@ class ModelConfigService {
   async supportsStreaming(providerId: string, modelId: string): Promise<boolean> {
     try {
       const modelConfig = await this.getModelConfig(providerId, modelId)
+
+      // Google 提供商的所有模型默认都支持流式(除非明确标记为不支持)
+      if (providerId === 'google') {
+        // 图片生成模型不支持流式
+        if (modelId.includes('image')) {
+          return false
+        }
+        // 其他所有 Google 模型都支持流式
+        return true
+      }
+
       return modelConfig?.supports_streaming || false
     } catch (error) {
       console.warn('无法检查模型流式支持，使用回退逻辑:', error)
-      // 根据API文档，OpenAI和Anthropic的所有模型都支持流式输出
+      // 根据API文档，OpenAI、Anthropic 和 Google 的所有模型都支持流式输出
       if (providerId === 'openai' || providerId === 'anthropic') {
+        return true
+      }
+      // Google 提供商默认支持流式(除了图片模型)
+      if (providerId === 'google' && !modelId.includes('image')) {
         return true
       }
       return false

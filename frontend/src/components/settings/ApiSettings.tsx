@@ -91,7 +91,7 @@ export default function ApiSettings() {
                         placeholder="https://your-proxy.com"
                         value={settings.openaiProxyUrl || ''}
                         onChange={(e) => handleOpenAIProxyChange(e.target.value)}
-                        className="text-sm"
+                        className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                       />
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         配置后将使用此代理地址替换 api.openai.com，留空则使用官方地址
@@ -114,7 +114,7 @@ export default function ApiSettings() {
                     placeholder="https://api.openai.com/v1"
                     value={settings.openaiCompatibleConfig?.baseUrl || ''}
                     onChange={(e) => handleBaseUrlChange(e.target.value)}
-                    className="text-sm"
+                    className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     设置OpenAI兼容API的基础URL
@@ -128,7 +128,7 @@ export default function ApiSettings() {
               placeholder={`请输入${provider.name} API Key`}
               value={settings.apiKeys[provider.id] || ''}
               onChange={(e) => handleApiKeyChange(provider.id, e.target.value)}
-              className="font-mono"
+              className="w-full px-3 py-2 text-sm font-mono border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
             />
           </div>
         ))}

@@ -379,17 +379,17 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-white/10 backdrop-blur-md" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/10 backdrop-blur-sm" onClick={onClose} />
 
       {/* 桌面端布局 */}
-      <div className="relative w-full max-w-6xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden max-sm:hidden">
+      <div className="relative w-full max-w-6xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-2xl overflow-hidden max-sm:hidden" style={{boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)'}}>
         {/* 头部 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-black/10 dark:border-white/10">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              插件市场 - {currentProvider === 'openai' ? 'OpenAI' : 'Anthropic MCP服务器'}
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              插件市场
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">
               {currentProvider === 'openai'
                 ? '管理您的MCP服务器和函数调用'
                 : '管理您的MCP服务器和自定义插件'}
@@ -398,30 +398,15 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
           <div className="flex items-center gap-2">
             <motion.button
               onClick={() => setShowAddDialog(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg"
-              whileHover={{
-                backgroundColor: "#2563eb",
-                scale: 1.02,
-                transition: { duration: 0.15 }
-              }}
+              className="flex items-center gap-2 px-3 py-2 bg-black/5 dark:bg-white/5 text-gray-900 dark:text-white text-sm rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
               whileTap={{ scale: 0.98 }}
             >
-              <motion.div
-                whileHover={{ rotate: 90 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-              >
-                <PlusIcon className="w-4 h-4" />
-              </motion.div>
-              添加自定义{activeTab === 'mcp' ? 'MCP服务器' : '函数'}
+              <PlusIcon className="w-4 h-4" />
+              添加
             </motion.button>
             <motion.button
               onClick={onClose}
-              className="p-2 text-gray-400"
-              whileHover={{
-                backgroundColor: "rgba(0, 0, 0, 0.05)",
-                scale: 1.1,
-                transition: { duration: 0.15 }
-              }}
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
               whileTap={{ scale: 0.95 }}
             >
               <XMarkIcon className="w-5 h-5" />
@@ -430,46 +415,50 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
         </div>
 
         {/* Tab切换 */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <div className="flex border-b border-black/10 dark:border-white/10 px-5">
           <motion.button
             onClick={() => setActiveTab('mcp')}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-medium ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative ${
               activeTab === 'mcp'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 dark:text-gray-400'
+                ? 'text-gray-900 dark:text-white'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
             }`}
-            whileHover={{
-              color: activeTab !== 'mcp' ? "#3b82f6" : undefined,
-              transition: { duration: 0.2 }
-            }}
             whileTap={{ scale: 0.98 }}
           >
             <ServerIcon className="w-4 h-4" />
             MCP服务器 ({builtInServices.length})
+            {activeTab === 'mcp' && (
+              <motion.div
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 dark:bg-white"
+                layoutId="activeTab"
+              />
+            )}
           </motion.button>
           {/* 只有OpenAI提供商才显示函数调用tab */}
           {currentProvider === 'openai' && (
             <motion.button
               onClick={() => setActiveTab('function')}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium ${
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors relative ${
                 activeTab === 'function'
-                  ? 'text-blue-600 border-b-2 border-blue-600'
-                  : 'text-gray-500 dark:text-gray-400'
+                  ? 'text-gray-900 dark:text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
-              whileHover={{
-                color: activeTab !== 'function' ? "#3b82f6" : undefined,
-                transition: { duration: 0.2 }
-              }}
               whileTap={{ scale: 0.98 }}
             >
               <WrenchScrewdriverIcon className="w-4 h-4" />
               函数调用 ({plugins.length})
+              {activeTab === 'function' && (
+                <motion.div
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900 dark:bg-white"
+                  layoutId="activeTab"
+                />
+              )}
             </motion.button>
           )}
         </div>
 
         {/* 内容区域 */}
-        <div className="p-6 h-[60vh] overflow-y-auto">
+        <div className="p-5 h-[60vh] overflow-y-auto">
           {activeTab === 'mcp' ? (
             // MCP服务器卡片网格
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -483,10 +472,10 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                 return (
                   <div
                     key={service.id}
-                    className={`border rounded-lg p-4 ${
+                    className={`border rounded-lg p-4 transition-all hover:shadow-md ${
                       isEnabled
-                        ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
-                        : 'border-gray-200 dark:border-gray-700'
+                        ? 'border-black/10 bg-black/[0.04] dark:bg-white/[0.04] dark:border-white/10'
+                        : 'border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20'
                     }`}
                   >
                     <div className="flex items-start justify-between mb-3">
@@ -498,15 +487,15 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                           <div className="w-8 h-8 flex items-center justify-center">
                             {(() => {
                               const IconComponent = service.icon
-                              return <IconComponent className="w-6 h-6" />
+                              return <IconComponent className="w-6 h-6 text-gray-700 dark:text-gray-300" />
                             })()}
                           </div>
                         )}
                         <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white">
+                          <h4 className="text-sm font-medium text-gray-900 dark:text-white">
                             {service.name}
                           </h4>
-                          <span className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300 px-2 py-1 rounded-full">
+                          <span className="text-xs bg-black/5 text-gray-600 dark:bg-white/5 dark:text-gray-400 px-2 py-0.5 rounded-md mt-1 inline-block">
                             MCP
                           </span>
                         </div>
@@ -515,7 +504,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                         {/* 设置按钮 */}
                         <button
                           onClick={() => handleConfigureService(service)}
-                          className="p-1.5 text-gray-500 dark:text-gray-400"
+                          className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                           title="配置服务"
                         >
                           <CogIcon className="w-4 h-4" />
@@ -523,13 +512,13 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                         {/* 开关按钮 */}
                         <button
                           onClick={() => handleToggleService(service.id)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                            isEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            isEnabled ? 'bg-gray-900 dark:bg-gray-100' : 'bg-gray-200 dark:bg-gray-700'
                           }`}
                         >
                           <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white ${
-                              isEnabled ? 'translate-x-6' : 'translate-x-1'
+                            className={`inline-block h-4 w-4 transform rounded-full transition-transform ${
+                              isEnabled ? 'translate-x-6 bg-white dark:bg-gray-900' : 'translate-x-1 bg-white dark:bg-gray-400'
                             }`}
                           />
                         </button>
@@ -625,9 +614,9 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
       </div>
 
       {/* 移动端布局 - 浮窗 */}
-      <div className="hidden max-sm:flex max-sm:flex-col bg-white dark:bg-gray-800 rounded-t-2xl w-full max-h-[90vh] shadow-2xl" style={{ position: 'fixed', bottom: 0, left: 0, right: 0 }}>
+      <div className="hidden max-sm:flex max-sm:flex-col bg-white dark:bg-gray-900 rounded-t-2xl w-full max-h-[90vh]" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)' }}>
         {/* 移动端头部 */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10">
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               插件市场
@@ -655,13 +644,13 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
         </div>
 
         {/* 移动端标签页 */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <div className="flex border-b border-black/10 dark:border-white/10">
           <motion.button
             onClick={() => setActiveTab('mcp')}
-            className={`flex-1 px-3 py-3 text-sm font-medium transition-all ${
+            className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
               activeTab === 'mcp'
-                ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
-                : 'text-gray-600 dark:text-gray-400'
+                ? 'text-gray-900 dark:text-white bg-black/[0.04] dark:bg-white/[0.04]'
+                : 'text-gray-500 dark:text-gray-400'
             }`}
             whileTap={{ scale: 0.98 }}
           >
@@ -670,10 +659,10 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
           {currentProvider === 'openai' && (
             <motion.button
               onClick={() => setActiveTab('function')}
-              className={`flex-1 px-3 py-3 text-sm font-medium transition-all ${
+              className={`flex-1 px-3 py-3 text-sm font-medium transition-colors ${
                 activeTab === 'function'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
-                  : 'text-gray-600 dark:text-gray-400'
+                  ? 'text-gray-900 dark:text-white bg-black/[0.04] dark:bg-white/[0.04]'
+                  : 'text-gray-500 dark:text-gray-400'
               }`}
               whileTap={{ scale: 0.98 }}
             >
@@ -697,8 +686,8 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                     key={service.id}
                     className={`border rounded-lg p-3 ${
                       isEnabled
-                        ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600'
-                        : 'border-gray-200 dark:border-gray-700'
+                        ? 'border-black/10 bg-black/[0.04] dark:bg-white/[0.04] dark:border-white/10'
+                        : 'border-black/10 dark:border-white/10'
                     }`}
                   >
                     <div className="flex items-start gap-2 mb-2">
@@ -755,16 +744,16 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleConfigureService(service)}
-                        className="flex-1 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg"
+                        className="flex-1 px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                       >
                         配置
                       </button>
                       <button
                         onClick={() => handleToggleService(service.id)}
-                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-lg ${
+                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
                           isEnabled
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                            ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900'
+                            : 'bg-black/5 dark:bg-white/5 text-gray-700 dark:text-gray-300'
                         }`}
                       >
                         {isEnabled ? '已启用' : '启用'}
@@ -788,7 +777,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                   {plugins.map((plugin) => (
                     <div
                       key={plugin.id}
-                      className="border border-gray-200 dark:border-gray-700 rounded-lg p-3"
+                      className="border border-black/10 dark:border-white/10 rounded-lg p-3 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors"
                     >
                       <div className="flex items-start gap-2 mb-2">
                         <div className="flex-1 min-w-0">
@@ -827,8 +816,8 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
 
       {/* 配置对话框 */}
       {showConfigDialog && selectedService && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-lg shadow-2xl max-h-[85vh] overflow-y-auto">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto" style={{boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)'}}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 配置 {selectedService.name}
@@ -843,7 +832,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                     allowed_tools: ''
                   })
                 }}
-                className="text-gray-400 "
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -860,7 +849,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                     type="password"
                     value={configForm.authorization}
                     onChange={(e) => setConfigForm(prev => ({ ...prev, authorization: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                     placeholder={`输入您的 ${selectedService.authType || 'API密钥'}`}
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -886,7 +875,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                 <select
                   value={configForm.require_approval}
                   onChange={(e) => setConfigForm(prev => ({ ...prev, require_approval: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                 >
                   <option value="always">总是需要审批</option>
                   <option value="never">不需要审批</option>
@@ -901,7 +890,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                   type="text"
                   value={configForm.allowed_tools}
                   onChange={(e) => setConfigForm(prev => ({ ...prev, allowed_tools: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                   placeholder="用逗号分隔工具名称，留空表示允许所有工具"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -936,17 +925,17 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
         </div>
       )}
 
-      {/* 添加自定义插件对话框（保持原有逻辑，但简化） */}
+      {/* 添加自定义插件对话框 */}
       {showAddDialog && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl">
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/10 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-[85vh] overflow-y-auto" style={{boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)'}}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 添加自定义{activeTab === 'mcp' ? 'MCP服务器' : '函数'}
               </h3>
               <button
                 onClick={() => setShowAddDialog(false)}
-                className="text-gray-400 "
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -963,7 +952,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                     type="text"
                     value={pluginForm.name}
                     onChange={(e) => setPluginForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                     placeholder="例如：get_weather"
                   />
                 </div>
@@ -975,7 +964,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                   <textarea
                     value={pluginForm.description}
                     onChange={(e) => setPluginForm(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                     placeholder="描述函数的功能和使用场景..."
                     rows={2}
                   />
@@ -988,7 +977,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                   <textarea
                     value={pluginForm.parameters}
                     onChange={(e) => setPluginForm(prev => ({ ...prev, parameters: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"
+                    className="w-full px-3 py-2 text-xs border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors font-mono"
                     placeholder="JSON Schema格式的参数定义"
                     rows={8}
                   />
@@ -1018,7 +1007,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                     type="text"
                     value={mcpForm.name}
                     onChange={(e) => setMcpForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                     placeholder="例如：My Custom MCP Server"
                   />
                 </div>
@@ -1030,7 +1019,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                   <textarea
                     value={mcpForm.description}
                     onChange={(e) => setMcpForm(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                     placeholder="描述MCP服务器的功能..."
                     rows={2}
                   />
@@ -1044,7 +1033,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                     type="url"
                     value={mcpForm.url}
                     onChange={(e) => setMcpForm(prev => ({ ...prev, url: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                     placeholder="https://example.com/mcp"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -1060,7 +1049,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                     type="password"
                     value={mcpForm.authorization}
                     onChange={(e) => setMcpForm(prev => ({ ...prev, authorization: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                     placeholder="如服务器需要认证，请输入API密钥或令牌"
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -1076,7 +1065,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                     <select
                       value={mcpForm.require_approval}
                       onChange={(e) => setMcpForm(prev => ({ ...prev, require_approval: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                     >
                       <option value="always">总是需要审批</option>
                       <option value="never">不需要审批</option>
@@ -1091,7 +1080,7 @@ export default function PluginMarket({ isOpen, onClose, currentProvider }: Plugi
                       type="text"
                       value={mcpForm.allowed_tools}
                       onChange={(e) => setMcpForm(prev => ({ ...prev, allowed_tools: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors"
                       placeholder="tool1, tool2, tool3"
                     />
                   </div>

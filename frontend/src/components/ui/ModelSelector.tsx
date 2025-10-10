@@ -145,18 +145,18 @@ export default function ModelSelector({ onModelMarketClick, showDetailedInfo = f
 
       {isOpen && (
         <>
-          <div 
-            className="fixed inset-0 z-10" 
+          <div
+            className="fixed inset-0 z-10"
             onClick={() => setIsOpen(false)}
           />
-          <div className={`absolute left-0 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 lg:left-0 lg:w-80 sm:mx-4 sm:left-0 sm:right-4 sm:w-auto ${
-            actualDirection === 'up' 
-              ? 'bottom-full mb-2' 
+          <div className={`absolute left-0 w-80 bg-white dark:bg-gray-900 border border-black/10 dark:border-white/10 rounded-xl z-20 lg:left-0 lg:w-80 sm:mx-4 sm:left-0 sm:right-4 sm:w-auto ${
+            actualDirection === 'up'
+              ? 'bottom-full mb-2'
               : 'top-full mt-2'
-          }`}>
+          }`} style={{boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)'}}>
             <div className="p-4">
               {/* 当前选择的模型信息 */}
-              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div className="mb-4 p-3 bg-black/[0.04] dark:bg-white/[0.04] rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-gray-900 dark:text-white">
                     当前模型
@@ -200,9 +200,9 @@ export default function ModelSelector({ onModelMarketClick, showDetailedInfo = f
               </div>
 
               {/* 打开模型市场按钮 */}
-              <button 
+              <button
                 onClick={handleMoreModelsClick}
-                className="w-full text-center py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                className="w-full text-center py-2.5 text-sm text-gray-900 dark:text-white font-medium border border-black/10 dark:border-white/10 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
               >
                 打开模型市场 →
               </button>

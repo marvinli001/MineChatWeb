@@ -22,6 +22,9 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
   const supportedProviders = ['openai', 'anthropic']
   const isPluginMarketSupported = supportedProviders.includes(settings.chatProvider)
 
+  // 检查是否配置了 OpenAI API Key（深度研究只支持 OpenAI）
+  const hasOpenAIKey = settings.apiKeys?.openai && settings.apiKeys.openai.trim() !== ''
+
   const handleNewChat = () => {
     createNewConversation()
     if (onBackToChat) {
@@ -123,21 +126,23 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
           </motion.div>
         )}
 
-        {/* 深度研究 */}
-        <motion.div
-          onClick={handleDeepResearchClick}
-          className="self-stretch p-2.5 bg-gray-50 dark:bg-[#171717] rounded-lg inline-flex justify-start items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
-            <svg className="w-full h-full text-gray-700 dark:text-[#D9D9D9]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-          </div>
-          <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal">深度研究</div>
-        </motion.div>
+        {/* 深度研究 - 只在配置了 OpenAI API Key 时显示 */}
+        {hasOpenAIKey && (
+          <motion.div
+            onClick={handleDeepResearchClick}
+            className="self-stretch p-2.5 bg-gray-50 dark:bg-[#171717] rounded-lg inline-flex justify-start items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
+              <svg className="w-full h-full text-gray-700 dark:text-[#D9D9D9]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+            </div>
+            <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal">深度研究</div>
+          </motion.div>
+        )}
 
         {/* 设置 */}
         <motion.div

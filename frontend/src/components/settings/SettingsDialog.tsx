@@ -30,32 +30,32 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
   }
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-white/30 dark:bg-black/30 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50">
       {/* 桌面端布局 */}
-      <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-white/20 dark:border-gray-700/50 rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden max-sm:hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden max-sm:hidden" style={{boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)'}}>
         {/* 头部 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200/50 dark:border-gray-700/50">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">设置</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-black/10 dark:border-white/10">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">设置</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
         <div className="flex h-[60vh]">
           {/* 侧边栏 */}
-          <div className="w-64 border-r border-gray-200/50 dark:border-gray-700/50 p-4">
-            <nav className="space-y-2">
+          <div className="w-64 border-r border-black/10 dark:border-white/10 p-5">
+            <nav className="space-y-1">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full px-3 py-2 rounded-lg text-left transition-colors ${
+                  className={`w-full px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${
                     activeTab === tab.id
-                      ? 'bg-blue-100/80 dark:bg-blue-900/40 text-blue-900 dark:text-blue-100'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100/80 dark:hover:bg-gray-700/50'
+                      ? 'bg-black/[0.04] dark:bg-white/[0.04] text-gray-900 dark:text-white'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
                   {tab.name}
@@ -65,7 +65,7 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
           </div>
 
           {/* 主内容区 */}
-          <div className="flex-1 p-6 overflow-y-auto">
+          <div className="flex-1 p-5 overflow-y-auto">
             {activeTab === 'api' && <ApiSettings />}
             {activeTab === 'model' && <ModelSettings />}
             {activeTab === 'voice' && <VoiceSettings />}
@@ -74,7 +74,7 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
         </div>
 
         {/* 底部 */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200/50 dark:border-gray-700/50">
+        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-white/10">
           <Button variant="outline" onClick={onClose}>
             取消
           </Button>
@@ -85,28 +85,28 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
       </div>
 
       {/* 移动端布局 - 浮窗 */}
-      <div className="hidden max-sm:flex max-sm:flex-col bg-white dark:bg-gray-800 rounded-t-2xl w-full max-h-[90vh] shadow-2xl" style={{ position: 'fixed', bottom: 0, left: 0, right: 0 }}>
+      <div className="hidden max-sm:flex max-sm:flex-col bg-white dark:bg-gray-900 rounded-t-2xl w-full max-h-[90vh]" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, boxShadow: '0px 4.35px 21.75px rgba(0, 0, 0, 0.10)' }}>
         {/* 移动端头部 */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-black/10 dark:border-white/10">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">设置</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
           >
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
         {/* 移动端标签页 */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+        <div className="flex border-b border-black/10 dark:border-white/10 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-[80px] px-3 py-3 text-sm font-medium transition-all whitespace-nowrap ${
+              className={`flex-1 min-w-[80px] px-3 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-900/20'
-                  : 'text-gray-600 dark:text-gray-400'
+                  ? 'text-gray-900 dark:text-white bg-black/[0.04] dark:bg-white/[0.04]'
+                  : 'text-gray-500 dark:text-gray-400'
               }`}
             >
               {tab.mobileName}
@@ -123,7 +123,7 @@ export default function SettingsDialog({ onClose }: SettingsDialogProps) {
         </div>
 
         {/* 移动端底部按钮 */}
-        <div className="flex gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex gap-2 p-4 border-t border-black/10 dark:border-white/10">
           <Button variant="outline" onClick={onClose} className="flex-1">
             取消
           </Button>
