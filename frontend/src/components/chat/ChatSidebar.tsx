@@ -78,7 +78,7 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
           whileTap={{ scale: 0.98 }}
         >
           <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
-            <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+            <svg className="w-full h-full text-gray-700 dark:text-[#D9D9D9]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -94,7 +94,7 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
           whileTap={{ scale: 0.98 }}
         >
           <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
-            <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+            <svg className="w-full h-full text-gray-700 dark:text-[#D9D9D9]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" />
               <rect x="14" y="3" width="7" height="7" />
               <rect x="14" y="14" width="7" height="7" />
@@ -113,7 +113,7 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
             whileTap={{ scale: 0.98 }}
           >
             <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
-              <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+              <svg className="w-full h-full text-gray-700 dark:text-[#D9D9D9]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2L2 7L12 12L22 7L12 2Z" />
                 <path d="M2 17L12 22L22 17" />
                 <path d="M2 12L12 17L22 12" />
@@ -131,7 +131,7 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
           whileTap={{ scale: 0.98 }}
         >
           <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
-            <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+            <svg className="w-full h-full text-gray-700 dark:text-[#D9D9D9]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
@@ -147,7 +147,7 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
           whileTap={{ scale: 0.98 }}
         >
           <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
-            <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+            <svg className="w-full h-full text-gray-700 dark:text-[#D9D9D9]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="3" />
               <line x1="12" y1="1" x2="12" y2="3" />
               <line x1="12" y1="21" x2="12" y2="23" />
