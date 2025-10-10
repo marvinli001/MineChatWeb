@@ -59,19 +59,9 @@ export const useChatStore = create<ChatState>()(
       wsPrewarmed: false,
 
       createNewConversation: () => {
-        const newConversation: Conversation = {
-          id: Date.now().toString(),
-          title: '新对话',
-          messages: [],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          isLoading: false
-        }
-
-        set(state => ({
-          conversations: [newConversation, ...state.conversations],
-          currentConversationId: newConversation.id
-        }))
+        // 只是切换到欢迎页（没有当前对话），不创建实际的对话记录
+        // 真正的对话会在用户发送第一条消息时创建
+        set({ currentConversationId: null })
       },
 
       setCurrentConversation: (id: string) => {

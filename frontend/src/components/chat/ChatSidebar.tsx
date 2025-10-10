@@ -1,9 +1,7 @@
 'use client'
 
-import { PlusIcon, ChatBubbleLeftIcon, Cog6ToothIcon, UserIcon, CubeIcon, PuzzlePieceIcon, SparklesIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { useChatStore } from '@/store/chatStore'
 import { useSettingsStore } from '@/store/settingsStore'
-import { Button } from '@/components/ui/button'
 import { Conversation } from '@/lib/types'
 import { motion } from 'motion/react'
 
@@ -13,7 +11,7 @@ interface ChatSidebarProps {
   onModelMarketClick?: () => void
   onPluginMarketClick?: () => void
   onDeepResearchClick?: () => void
-  onBackToChat?: () => void // 新增：返回聊天的回调
+  onBackToChat?: () => void
 }
 
 export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMarketClick, onPluginMarketClick, onDeepResearchClick, onBackToChat }: ChatSidebarProps) {
@@ -26,7 +24,6 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
 
   const handleNewChat = () => {
     createNewConversation()
-    // 如果在深度研究页面，返回聊天页面
     if (onBackToChat) {
       onBackToChat()
     }
@@ -57,8 +54,9 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
 
     if (days === 0) return '今天'
     if (days === 1) return '昨天'
-    if (days < 7) return `${days}天前`
-    return date.toLocaleDateString('zh-CN')
+    if (days < 7) return '最近7天'
+    if (days < 30) return '最近30天'
+    return '更早'
   }
 
   const groupedConversations = conversations.reduce((groups, conv) => {
@@ -69,217 +67,148 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
   }, {} as Record<string, typeof conversations>)
 
   return (
-    <div className="w-[235px] bg-gray-50 dark:bg-gray-800 flex flex-col h-screen flex-shrink-0">
-      {/* 头部 - 新建对话 */}
-      <motion.div
-        className="p-4"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-      >
+    <div className="w-full lg:w-64 h-screen px-3 py-3 bg-gray-50 dark:bg-[#171717] inline-flex flex-col justify-start items-start">
+      {/* Apps */}
+      <div className="self-stretch flex flex-col justify-start items-start">
+        {/* 新建对话 */}
         <motion.div
+          onClick={handleNewChat}
+          className="self-stretch p-2.5 bg-gray-50 dark:bg-[#171717] rounded-lg inline-flex justify-start items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          transition={{ duration: 0.15, ease: "easeOut" }}
         >
-          <Button
-            onClick={handleNewChat}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            <motion.div
-              whileHover={{ rotate: 90 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
-              <PlusIcon className="w-4 h-4" />
-            </motion.div>
-            新建对话
-          </Button>
+          <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
+            <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </div>
+          <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal">新建对话</div>
         </motion.div>
-      </motion.div>
 
-      {/* 模型市场按钮 */}
-      <motion.div
-        className="px-4 pb-2"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3, delay: 0.1, ease: "easeOut" }}
-      >
-        <motion.button
+        {/* 模型市场 */}
+        <motion.div
           onClick={handleModelMarketClick}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-left group"
-          whileHover={{
-            backgroundColor: "rgba(0, 0, 0, 0.05)",
-            transition: { duration: 0.15 }
-          }}
+          className="self-stretch p-2.5 bg-gray-50 dark:bg-[#171717] rounded-lg inline-flex justify-start items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <motion.div
-            whileHover={{ scale: 1.1 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
-            <SparklesIcon className="w-4 h-4 text-purple-500" />
-          </motion.div>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">模型市场</span>
-        </motion.button>
-      </motion.div>
+          <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
+            <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+          </div>
+          <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal">模型市场</div>
+        </motion.div>
 
-      {/* 插件市场按钮 - 只在支持的提供商时显示 */}
-      {isPluginMarketSupported && (
-        <motion.div
-          className="px-4 pb-2"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3, delay: 0.15, ease: "easeOut" }}
-        >
-          <motion.button
+        {/* 插件市场 */}
+        {isPluginMarketSupported && (
+          <motion.div
             onClick={handlePluginMarketClick}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-left group"
-            whileHover={{
-              backgroundColor: "rgba(0, 0, 0, 0.05)",
-              transition: { duration: 0.15 }
-            }}
+            className="self-stretch p-2.5 bg-gray-50 dark:bg-[#171717] rounded-lg inline-flex justify-start items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-            >
-              <PuzzlePieceIcon className="w-4 h-4 text-blue-500" />
-            </motion.div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">插件市场</span>
-          </motion.button>
-        </motion.div>
-      )}
-
-      {/* 深度研究按钮 */}
-      <motion.div
-        className="px-4 pb-2"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3, delay: 0.2, ease: "easeOut" }}
-      >
-        <motion.button
-          onClick={handleDeepResearchClick}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-left group"
-          whileHover={{
-            backgroundColor: "rgba(0, 0, 0, 0.05)",
-            transition: { duration: 0.15 }
-          }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <motion.div
-            whileHover={{ scale: 1.1 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
-          >
-            <MagnifyingGlassIcon className="w-4 h-4 text-green-500" />
-          </motion.div>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">深度研究</span>
-        </motion.button>
-      </motion.div>
-
-      {/* 设置按钮 */}
-      <motion.div
-        className="px-4 pb-4"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3, delay: 0.25, ease: "easeOut" }}
-      >
-        <motion.button
-          onClick={onSettingsClick}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-left group"
-          whileHover={{
-            backgroundColor: "rgba(0, 0, 0, 0.05)",
-            transition: { duration: 0.15 }
-          }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <motion.div
-            whileHover={{ rotate: 180 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          >
-            <Cog6ToothIcon className="w-4 h-4 text-gray-500" />
-          </motion.div>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">设置</span>
-        </motion.button>
-      </motion.div>
-
-      {/* 对话列表 */}
-      <motion.div
-        className="flex-1 overflow-y-auto scrollbar-thin px-2"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.3, ease: "easeOut" }}
-      >
-        <div className="px-2 py-2">
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">聊天记录</span>
-        </div>
-
-        {Object.entries(groupedConversations).map(([date, convs], groupIndex) => (
-          <motion.div
-            key={date}
-            className="mb-4"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{
-              duration: 0.3,
-              delay: 0.35 + (groupIndex * 0.05),
-              ease: "easeOut"
-            }}
-          >
-            <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1 font-medium">
-              {date}
+            <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
+              <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+                <path d="M2 17L12 22L22 17" />
+                <path d="M2 12L12 17L22 12" />
+              </svg>
             </div>
-            {(convs as Conversation[]).map((conversation, convIndex) => (
+            <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal">插件市场</div>
+          </motion.div>
+        )}
+
+        {/* 深度研究 */}
+        <motion.div
+          onClick={handleDeepResearchClick}
+          className="self-stretch p-2.5 bg-gray-50 dark:bg-[#171717] rounded-lg inline-flex justify-start items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
+            <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+          </div>
+          <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal">深度研究</div>
+        </motion.div>
+
+        {/* 设置 */}
+        <motion.div
+          onClick={onSettingsClick}
+          className="self-stretch p-2.5 bg-gray-50 dark:bg-[#171717] rounded-lg inline-flex justify-start items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <div className="size-7 p-1.5 rounded-2xl outline outline-1 outline-offset-[-0.92px] outline-gray-300 dark:outline-[#434242] inline-flex flex-col justify-center items-center overflow-hidden flex-shrink-0">
+            <svg className="w-full h-full" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-700 dark:text-[#D9D9D9]">
+              <circle cx="12" cy="12" r="3" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="23" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="12" x2="1" y2="12" />
+              <line x1="20.5" y1="20.5" x2="18.5" y2="18.5" />
+              <line x1="5.5" y1="5.5" x2="3.5" y2="3.5" />
+              <line x1="20.5" y1="3.5" x2="18.5" y2="5.5" />
+              <line x1="5.5" y1="18.5" x2="3.5" y2="20.5" />
+            </svg>
+          </div>
+          <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal">设置</div>
+        </motion.div>
+      </div>
+
+      {/* Chat group */}
+      <div className="self-stretch flex-1 pt-4 flex flex-col justify-start items-start gap-6 overflow-y-auto scrollbar-thin">
+        {Object.entries(groupedConversations).map(([date, convs]) => (
+          <div key={date} className="self-stretch flex flex-col justify-start items-start gap-1">
+            {/* Header */}
+            <div className="self-stretch px-2.5 inline-flex justify-start items-center mb-1">
+              <div className="flex-1 justify-start text-gray-500 dark:text-[#B5B5B5] text-[10px] font-normal">{date}</div>
+            </div>
+            {/* Conversations */}
+            {(convs as Conversation[]).map((conversation) => (
               <motion.div
                 key={conversation.id}
                 onClick={() => {
                   setCurrentConversation(conversation.id)
-                  // 如果在深度研究页面，返回聊天页面
                   if (onBackToChat) {
                     onBackToChat()
                   }
                 }}
-                className={`
-                  flex items-center gap-2 p-2 rounded-lg cursor-pointer group transition-all duration-150
-                  ${currentConversationId === conversation.id
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-100'
-                    : 'hover:bg-black/5 dark:hover:bg-white/5 hover:scale-[1.02]'
-                  }
-                `}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{
-                  duration: 0.3,
-                  delay: 0.4 + (groupIndex * 0.05) + (convIndex * 0.02),
-                  ease: "easeOut"
-                }}
-                whileTap={{ scale: 0.98 }}
+                className={`self-stretch h-8 px-2.5 py-2 relative rounded-lg inline-flex justify-start items-center overflow-hidden cursor-pointer group ${
+                  currentConversationId === conversation.id
+                    ? 'bg-black/10 dark:bg-white/10'
+                    : 'bg-gray-50 dark:bg-[#171717] hover:bg-black/5 dark:hover:bg-white/5'
+                }`}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
               >
-                <ChatBubbleLeftIcon className="w-4 h-4 flex-shrink-0" />
-                <span className="flex-1 truncate text-sm">
+                <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal truncate">
                   {conversation.title || '新对话'}
-                </span>
+                </div>
+                <div className="w-6 h-8 absolute right-0 top-0 bg-gradient-to-l from-gray-50 dark:from-[#171717] to-transparent pointer-events-none" />
                 <motion.button
                   onClick={(e) => {
                     e.stopPropagation()
                     deleteConversation(conversation.id)
                   }}
-                  className="opacity-0 group-hover:opacity-100 text-gray-400"
-                  whileHover={{
-                    scale: 1.1,
-                    rotate: 90,
-                    color: "#ef4444",
-                    transition: { duration: 0.2 }
-                  }}
+                  className="absolute right-1.5 opacity-0 group-hover:opacity-100 text-gray-400 dark:text-[#B5B5B5] hover:text-red-400 text-base z-10"
+                  whileHover={{ scale: 1.2 }}
                   whileTap={{ scale: 0.9 }}
                 >
                   ×
                 </motion.button>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
     </div>
   )
 }
