@@ -169,12 +169,12 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   // 检查当前选择的模型是否支持thinking mode
   const showThinkingToggle = (): boolean => {
     if (!settings.chatModel || !settings.chatProvider) return false
-    
+
     // 对于OpenAI，只有GPT-5系列支持thinking mode
     if (settings.chatProvider === 'openai') {
       return isGPT5Model(settings.chatModel)
     }
-    
+
     // 对于Anthropic，从模型配置中检查是否支持thinking
     if (settings.chatProvider === 'anthropic') {
       // 动态检查模型配置，如果无法获取配置则使用硬编码列表作为后备
@@ -193,7 +193,18 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
         return false
       }
     }
-    
+
+    // 对于Google，支持 Gemini 2.0 和 2.5 系列的 thinking mode
+    if (settings.chatProvider === 'google') {
+      const googleThinkingModels = [
+        'gemini-2.0-flash-exp',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite'
+      ]
+      return googleThinkingModels.includes(settings.chatModel)
+    }
+
     return false
   }
 

@@ -189,23 +189,23 @@ class ModelConfigService {
             },
             "gemini-2.5-flash": {
               name: "Gemini 2.5 Flash",
-              description: "最新多模态模型，速度快、功能全",
+              description: "最新多模态模型，速度快、功能全，支持思考模式",
               api_type: "generate_content",
               context_length: 1000000,
               supports_vision: true,
               supports_function_calling: true,
-              supports_thinking: false,
+              supports_thinking: true,
               supports_streaming: true,
               pricing: { input: 0.075, output: 0.3 }
             },
             "gemini-2.5-flash-lite": {
               name: "Gemini 2.5 Flash Lite",
-              description: "速度最快、成本最低的多模态模型",
+              description: "速度最快、成本最低的多模态模型，支持思考模式",
               api_type: "generate_content",
               context_length: 1000000,
               supports_vision: true,
               supports_function_calling: true,
-              supports_thinking: false,
+              supports_thinking: true,
               supports_streaming: true,
               pricing: { input: 0.0375, output: 0.15 }
             },

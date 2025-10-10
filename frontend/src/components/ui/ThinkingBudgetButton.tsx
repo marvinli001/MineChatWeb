@@ -112,6 +112,7 @@ export default function ThinkingBudgetButton({
   
   const currentOption = budgetOptions.find(opt => opt.value === budget)
   const isAnthropicProvider = provider === 'anthropic'
+  const isGoogleProvider = provider === 'google'
 
   // Anthropic扩展思考模式：显示为开关按钮
   if (isAnthropicProvider && onThinkingToggle) {
@@ -127,6 +128,27 @@ export default function ThinkingBudgetButton({
           }`}
           title={thinkingEnabled ? '扩展思考已启用 (budget_tokens: 10000)' : '点击启用扩展思考'}
           aria-label={thinkingEnabled ? 'Disable extended thinking' : 'Enable extended thinking'}
+        >
+          <LightBulbIcon className="w-5 h-5" />
+        </button>
+      </div>
+    )
+  }
+
+  // Google思考模式：显示为开关按钮（使用动态思维）
+  if (isGoogleProvider && onThinkingToggle) {
+    return (
+      <div className={`relative ${className}`}>
+        <button
+          type="button"
+          onClick={() => onThinkingToggle(!thinkingEnabled)}
+          className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-200 sm:active:scale-[0.98] ${
+            thinkingEnabled
+              ? 'bg-[#C96342] text-white border-[#C96342] shadow-lg'
+              : 'border-[#DDDDDD] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+          }`}
+          title={thinkingEnabled ? '动态思考已启用（模型自动调整思考深度）' : '点击启用动态思考'}
+          aria-label={thinkingEnabled ? 'Disable dynamic thinking' : 'Enable dynamic thinking'}
         >
           <LightBulbIcon className="w-5 h-5" />
         </button>

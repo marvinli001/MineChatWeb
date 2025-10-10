@@ -1704,12 +1704,21 @@ class AIProviderService:
                 "max_output_tokens": 8192,
             }
 
-            # 处理thinking mode
-            if thinking_mode and model.startswith("gemini-2.0"):
-                config_dict["thinking_budget"] = self._get_thinking_budget(reasoning)
+            # 使用新版 SDK 的 types
+            from google.genai import types
+
+            # 处理thinking mode（支持 Gemini 2.0 和 2.5 系列）
+            thinking_config = None
+            if thinking_mode and (model.startswith("gemini-2.0") or model.startswith("gemini-2.5")):
+                # Google Gemini 使用动态思维（thinking_budget=-1）
+                # 模型自动决定何时思考以及思考多少，不允许用户手动设置
+                thinking_config = types.ThinkingConfig(
+                    thinking_budget=-1,  # 动态思维，模型自动调整
+                    include_thoughts=True  # 包含思维链
+                )
+                config_dict["thinking_config"] = thinking_config
 
             # 使用新版 SDK 的 types.GenerateContentConfig
-            from google.genai import types
             generation_config = types.GenerateContentConfig(**config_dict)
 
             # 转换工具
@@ -1990,12 +1999,19 @@ class AIProviderService:
         # 处理候选响应
         for i, candidate in enumerate(response.candidates):
             content = ""
+            reasoning = ""  # 思维链内容
             tool_calls = []
 
-            # 提取文本内容
+            # 提取文本内容和思维链
             for part in candidate.content.parts:
                 if hasattr(part, 'text') and part.text:
-                    content += part.text
+                    # 检查是否为思维部分
+                    if hasattr(part, 'thought') and part.thought:
+                        # 这是思维链部分
+                        reasoning += part.text
+                    else:
+                        # 这是普通文本内容
+                        content += part.text
                 elif hasattr(part, 'function_call'):
                     # 处理函数调用
                     func_call = part.function_call
@@ -2013,6 +2029,10 @@ class AIProviderService:
                 "role": "assistant",
                 "content": content
             }
+
+            # 添加思维链（如果有）
+            if reasoning:
+                message["reasoning"] = reasoning
 
             if tool_calls:
                 message["tool_calls"] = tool_calls
@@ -2361,12 +2381,21 @@ class AIProviderService:
                 "max_output_tokens": 8192,
             }
 
-            # 处理thinking mode
-            if thinking_mode and model.startswith("gemini-2.0"):
-                config_dict["thinking_budget"] = self._get_thinking_budget(reasoning)
+            # 使用新版 SDK 的 types
+            from google.genai import types
+
+            # 处理thinking mode（支持 Gemini 2.0 和 2.5 系列）
+            thinking_config = None
+            if thinking_mode and (model.startswith("gemini-2.0") or model.startswith("gemini-2.5")):
+                # Google Gemini 使用动态思维（thinking_budget=-1）
+                # 模型自动决定何时思考以及思考多少，不允许用户手动设置
+                thinking_config = types.ThinkingConfig(
+                    thinking_budget=-1,  # 动态思维，模型自动调整
+                    include_thoughts=True  # 包含思维链
+                )
+                config_dict["thinking_config"] = thinking_config
 
             # 使用新版 SDK 的 types.GenerateContentConfig
-            from google.genai import types
             generation_config = types.GenerateContentConfig(**config_dict)
 
             # 转换工具
@@ -2390,26 +2419,51 @@ class AIProviderService:
             )
 
             accumulated_text = ""
+            accumulated_reasoning = ""
             message_id = f"gemini_{int(time.time() * 1000)}"
 
             async for chunk in response_stream:
-                if hasattr(chunk, 'text') and chunk.text:
-                    accumulated_text += chunk.text
-
-                    # 生成流式响应块
-                    yield {
-                        "id": message_id,
-                        "object": "chat.completion.chunk",
-                        "created": int(time.time()),
-                        "model": model,
-                        "choices": [{
-                            "index": 0,
-                            "delta": {
-                                "content": chunk.text
-                            },
-                            "finish_reason": None
-                        }]
-                    }
+                # 处理每个 part（可能包含思维链和普通内容）
+                if hasattr(chunk, 'candidates') and chunk.candidates:
+                    for candidate in chunk.candidates:
+                        if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text') and part.text:
+                                    # 检查是否为思维部分
+                                    if hasattr(part, 'thought') and part.thought:
+                                        # 这是思维链部分
+                                        accumulated_reasoning += part.text
+                                        # 生成思维链流式响应块
+                                        yield {
+                                            "id": message_id,
+                                            "object": "chat.completion.chunk",
+                                            "created": int(time.time()),
+                                            "model": model,
+                                            "choices": [{
+                                                "index": 0,
+                                                "delta": {
+                                                    "reasoning": part.text
+                                                },
+                                                "finish_reason": None
+                                            }]
+                                        }
+                                    else:
+                                        # 这是普通文本内容
+                                        accumulated_text += part.text
+                                        # 生成普通内容流式响应块
+                                        yield {
+                                            "id": message_id,
+                                            "object": "chat.completion.chunk",
+                                            "created": int(time.time()),
+                                            "model": model,
+                                            "choices": [{
+                                                "index": 0,
+                                                "delta": {
+                                                    "content": part.text
+                                                },
+                                                "finish_reason": None
+                                            }]
+                                        }
 
             # 发送完成信号
             yield {
