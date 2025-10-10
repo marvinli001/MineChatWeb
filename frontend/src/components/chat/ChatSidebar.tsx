@@ -67,9 +67,9 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
   }, {} as Record<string, typeof conversations>)
 
   return (
-    <div className="w-full lg:w-64 h-screen px-3 py-3 bg-gray-50 dark:bg-[#171717] inline-flex flex-col justify-start items-start">
+    <div className="w-full lg:w-64 h-screen py-3 bg-gray-50 dark:bg-[#171717] inline-flex flex-col justify-start items-start overflow-x-hidden">
       {/* Apps */}
-      <div className="self-stretch flex flex-col justify-start items-start">
+      <div className="self-stretch flex flex-col justify-start items-start px-3">
         {/* 新建对话 */}
         <motion.div
           onClick={handleNewChat}
@@ -164,15 +164,20 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
       </div>
 
       {/* Chat group */}
-      <div className="self-stretch flex-1 pt-4 flex flex-col justify-start items-start gap-6 overflow-y-auto scrollbar-thin">
+      <div className="self-stretch flex-1 pt-4 pl-3 flex flex-col justify-start items-start gap-6 overflow-y-auto scrollbar-thin">
         {Object.entries(groupedConversations).map(([date, convs]) => (
-          <div key={date} className="self-stretch flex flex-col justify-start items-start gap-1">
+          <div key={date} className="w-full flex flex-col justify-start items-start gap-1 pr-3">
             {/* Header */}
             <div className="self-stretch px-2.5 inline-flex justify-start items-center mb-1">
               <div className="flex-1 justify-start text-gray-500 dark:text-[#B5B5B5] text-[10px] font-normal">{date}</div>
             </div>
             {/* Conversations */}
-            {(convs as Conversation[]).map((conversation) => (
+            {(convs as Conversation[]).map((conversation) => {
+              // 限制标题长度为10个字符
+              const displayTitle = conversation.title || '新对话'
+              const truncatedTitle = displayTitle.length > 10 ? displayTitle.slice(0, 10) + '...' : displayTitle
+
+              return (
               <motion.div
                 key={conversation.id}
                 onClick={() => {
@@ -186,11 +191,9 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
                     ? 'bg-black/10 dark:bg-white/10'
                     : 'bg-gray-50 dark:bg-[#171717] hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
               >
-                <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal truncate">
-                  {conversation.title || '新对话'}
+                <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal overflow-hidden whitespace-nowrap text-ellipsis">
+                  {truncatedTitle}
                 </div>
                 <div className="w-6 h-8 absolute right-0 top-0 bg-gradient-to-l from-gray-50 dark:from-[#171717] to-transparent pointer-events-none" />
                 <motion.button
@@ -205,7 +208,8 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
                   ×
                 </motion.button>
               </motion.div>
-            ))}
+              )
+            })}
           </div>
         ))}
       </div>
