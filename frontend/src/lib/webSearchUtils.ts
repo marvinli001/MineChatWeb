@@ -33,13 +33,15 @@ export function supportsNativeWebSearch(provider: string, model: string): boolea
       'claude-opus-4-1-20250805',
       'claude-opus-4-20250514',
       'claude-sonnet-4-20250514',
+      'claude-sonnet-4-5',  // Claude Sonnet 4.5 (短版本)
+      'claude-sonnet-4-5-20250929',  // Claude Sonnet 4.5 (完整版本)
       'claude-3-7-sonnet-20250219',
       'claude-3-5-sonnet-latest',
       'claude-3-5-sonnet-20241022',  // 配置文件中的实际模型ID
       'claude-3-5-haiku-latest',
       'claude-3-5-haiku-20241022'    // 配置文件中的实际模型ID
     ]
-    
+
     return supportedAnthropicModels.includes(model)
   }
 

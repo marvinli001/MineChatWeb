@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { ChatMessage, Conversation, ImageAttachment, FileAttachment } from '@/lib/types'
+import { ChatMessage, Conversation, ImageAttachment, FileAttachment, ImageGeneration } from '@/lib/types'
 import { formatWebSearchError } from '@/lib/webSearchUtils'
 
 interface ChatState {
@@ -59,7 +59,6 @@ export const useChatStore = create<ChatState>()(
       wsPrewarmed: false,
 
       createNewConversation: () => {
-        // 只是切换到欢迎页（没有当前对话），不创建实际的对话记录
         // 真正的对话会在用户发送第一条消息时创建
         set({ currentConversationId: null })
       },
@@ -84,8 +83,12 @@ export const useChatStore = create<ChatState>()(
 
       stopGeneration: () => {
         const { abortController, currentConversationId, conversations } = get()
-        if (abortController) {
-          abortController.abort()
+        if (abortController && typeof abortController.abort === 'function') {
+          try {
+            abortController.abort()
+          } catch (error) {
+            console.warn('Failed to abort controller:', error)
+          }
         }
         // Cleanup WebSocket if active
         get()._cleanupWebSocket()
@@ -266,6 +269,92 @@ export const useChatStore = create<ChatState>()(
         set({ abortController })
 
         try {
+          const imageGenerationMap: Record<string, ImageGeneration> = {}
+
+          const normalizeImageGeneration = (raw: any): ImageGeneration | null => {
+            if (!raw) return null
+
+            const extractBase64 = (): string | undefined => {
+              if (typeof raw.result === 'string' && raw.result.trim()) {
+                return raw.result
+              }
+              if (typeof raw.image_base64 === 'string' && raw.image_base64.trim()) {
+                return raw.image_base64
+              }
+              if (typeof raw.image_base64_png === 'string' && raw.image_base64_png.trim()) {
+                return raw.image_base64_png
+              }
+              if (typeof raw.b64_json === 'string' && raw.b64_json.trim()) {
+                return raw.b64_json
+              }
+              if (Array.isArray(raw.output) && raw.output.length > 0) {
+                const first = raw.output[0]
+                if (typeof first === 'string' && first.trim()) {
+                  return first
+                }
+                if (first && typeof first.b64_json === 'string' && first.b64_json.trim()) {
+                  return first.b64_json
+                }
+                if (first && typeof first.image_base64 === 'string' && first.image_base64.trim()) {
+                  return first.image_base64
+                }
+              }
+              if (Array.isArray(raw.data) && raw.data.length > 0) {
+                const first = raw.data[0]
+                if (typeof first === 'string' && first.trim()) {
+                  return first
+                }
+                if (first && typeof first.b64_json === 'string' && first.b64_json.trim()) {
+                  return first.b64_json
+                }
+                if (first && typeof first.image_base64 === 'string' && first.image_base64.trim()) {
+                  return first.image_base64
+                }
+              }
+              return undefined
+            }
+
+            const base64 = extractBase64()
+            if (!base64) {
+              return null
+            }
+
+            const sanitizedBase64 = base64.includes(',')
+              ? base64.split(',').pop()!.trim()
+              : base64.trim()
+
+            const imageId =
+              typeof raw.id === 'string' && raw.id.trim()
+                ? raw.id
+                : `image-${Date.now()}-${Object.keys(imageGenerationMap).length}`
+
+            return {
+              id: imageId,
+              type: raw.type || 'image_generation_call',
+              status: raw.status || 'completed',
+              result: sanitizedBase64,
+              revised_prompt: raw.revised_prompt
+            }
+          }
+
+          const updateAssistantImages = (imageGenerations: ImageGeneration[]) => {
+            set(state => ({
+              conversations: state.conversations.map(conv =>
+                conv.id === targetConversationId
+                  ? {
+                      ...conv,
+                      messages: conv.messages.map(msg =>
+                        msg.id === assistantMessageId
+                          ? { ...msg, image_generations: imageGenerations }
+                          : msg
+                      ),
+                      updated_at: new Date().toISOString()
+                    }
+                  : conv
+              )
+            }))
+          }
+
           const { conversations: updatedConversations } = get()
           const updatedConversation = updatedConversations.find(conv => conv.id === targetConversationId)
           
@@ -367,12 +456,12 @@ export const useChatStore = create<ChatState>()(
               ws.onmessage = (event) => {
                 try {
                   const chunk = JSON.parse(event.data)
-                  
+
                   // Handle heartbeat response
                   if (chunk.type === 'heartbeat') {
                     return
                   }
-                  
+
                   if (chunk.error) {
                     // 格式化WebSocket错误
                     const formattedError = formatWebSearchError(chunk.error)
@@ -403,7 +492,7 @@ export const useChatStore = create<ChatState>()(
                   // Handle reasoning data in streaming response
                   if (chunk.choices && chunk.choices[0]?.delta?.reasoning) {
                     const deltaReasoning = chunk.choices[0].delta.reasoning
-                    
+
                     // 更新reasoning内容
                     set(state => ({
                       conversations: state.conversations.map(conv =>
@@ -422,8 +511,39 @@ export const useChatStore = create<ChatState>()(
                     }))
                   }
 
+                  // Handle image generation data in streaming response
+                  if (chunk.choices && chunk.choices[0]?.delta?.image_generation) {
+                    const imageGeneration = chunk.choices[0].delta.image_generation
+                    console.log('收到图片生成数据:', imageGeneration)
+
+                    const normalized = normalizeImageGeneration(imageGeneration)
+                    if (normalized) {
+                      imageGenerationMap[normalized.id] = normalized
+                      updateAssistantImages(Object.values(imageGenerationMap))
+
+                      // 图片生成完成，立即重置 isLoading 状态
+                      console.log('图片生成完成，重置 isLoading')
+                      get()._cleanupWebSocket()
+                      set(state => ({
+                        conversations: state.conversations.map(conv =>
+                          conv.id === targetConversationId
+                            ? { ...conv, isLoading: false }
+                            : conv
+                        ),
+                        isLoading: false,
+                        abortController: null
+                      }))
+                    } else {
+                      console.warn('图片生成结果缺少可用的 base64 数据，已忽略:', imageGeneration)
+                    }
+                  }
+
                   // 如果流式传输完成
                   if (chunk.choices && chunk.choices[0]?.finish_reason) {
+                    console.log('收到 finish_reason:', chunk.choices[0].finish_reason)
+                    if (Object.keys(imageGenerationMap).length > 0) {
+                      updateAssistantImages(Object.values(imageGenerationMap))
+                    }
                     get()._cleanupWebSocket()
                     set(state => ({
                       conversations: state.conversations.map(conv =>
@@ -434,6 +554,7 @@ export const useChatStore = create<ChatState>()(
                       isLoading: false,
                       abortController: null
                     }))
+                    console.log('已设置 isLoading: false')
                   }
                 } catch (error) {
                   console.error('解析流式响应失败:', error)
@@ -459,15 +580,26 @@ export const useChatStore = create<ChatState>()(
               ws.onclose = (event) => {
                 get()._cleanupWebSocket()
                 if (!event.wasClean && attempt < get().wsMaxReconnectAttempts) {
-                  console.log(`WebSocket连接断开，尝试重连 (${attempt + 1}/${get().wsMaxReconnectAttempts})`)
+                  console.log(`WebSocket连接断开，开始重连 (${attempt + 1}/${get().wsMaxReconnectAttempts})`)
                   setTimeout(() => {
                     attemptWebSocketConnection(attempt + 1)
                   }, get().wsReconnectDelay * Math.pow(2, attempt))
                 } else if (!event.wasClean && attempt >= get().wsMaxReconnectAttempts) {
-                  console.log('WebSocket连接断开且重连失败，切换到HTTP模式')
+                  console.log('WebSocket连接断开且重试失败，切换到HTTP模式')
                   get()._sendMessageNormal(content, targetConversationId, settings, apiKey, assistantMessageId, tools)
                 } else {
-                  set({ isLoading: false, abortController: null })
+                  if (Object.keys(imageGenerationMap).length > 0) {
+                    updateAssistantImages(Object.values(imageGenerationMap))
+                  }
+                  set(state => ({
+                    conversations: state.conversations.map(conv =>
+                      conv.id === targetConversationId
+                        ? { ...conv, isLoading: false }
+                        : conv
+                    ),
+                    isLoading: false,
+                    abortController: null
+                  }))
                 }
               }
 
@@ -490,10 +622,20 @@ export const useChatStore = create<ChatState>()(
           // Start WebSocket connection attempt
           await attemptWebSocketConnection()
 
-          // 设置abort信号处理
           abortController.signal.addEventListener('abort', () => {
             get()._cleanupWebSocket()
-            set({ isLoading: false, abortController: null })
+            if (Object.keys(imageGenerationMap).length > 0) {
+              updateAssistantImages(Object.values(imageGenerationMap))
+            }
+            set(state => ({
+              conversations: state.conversations.map(conv =>
+                conv.id === targetConversationId
+                  ? { ...conv, isLoading: false }
+                  : conv
+              ),
+              isLoading: false,
+              abortController: null
+            }))
           })
 
         } catch (error: any) {
@@ -877,7 +1019,46 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'chat-store',
-      version: 1
+      version: 1,
+      // 自定义存储配置，避免存储过大的数据
+      partialize: (state) => ({
+        conversations: state.conversations.map(conv => ({
+          ...conv,
+          messages: conv.messages.map(msg => ({
+            ...msg,
+            // 移除图片生成结果中的 base64 数据（只保留元数据）
+            image_generations: msg.image_generations?.map(img => ({
+              id: img.id,
+              type: img.type,
+              status: img.status,
+              revised_prompt: img.revised_prompt
+              // 不保存 result (base64 数据)
+            })),
+            // 移除用户上传的图片数据
+            images: msg.images?.map(img => ({
+              id: img.id,
+              filename: img.filename,
+              mime_type: img.mime_type,
+              size: img.size
+              // 不保存 data (base64 数据)
+            }))
+          }))
+        })),
+        currentConversationId: state.currentConversationId
+        // 不存储 isLoading, abortController, WebSocket 相关状态
+      }),
+      // 添加错误处理
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error('Failed to rehydrate store:', error)
+          // 清空可能损坏的数据
+          try {
+            localStorage.removeItem('chat-store')
+          } catch (e) {
+            console.error('Failed to clear corrupted store:', e)
+          }
+        }
+      }
     }
   )
 )

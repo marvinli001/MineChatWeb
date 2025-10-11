@@ -212,42 +212,40 @@ class AIProviderService:
         return tools_config
     
     def _build_image_generation_tool_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
-        """构建图片生成工具配置"""
+        """构建图片生成工具配置（Responses API）"""
+        logger.info(f"构建图片生成工具配置，输入: {tool_config}")
+
         config = {
             "type": "image_generation"
         }
-        
-        # 添加可选的图片生成参数
+
+        # 添加 Responses API 支持的图片生成参数
+        # 注意：format 和 compression 只在 Image API 中支持，不在 Responses API 中支持
         if "size" in tool_config:
             config["size"] = tool_config["size"]
-        
+
         if "quality" in tool_config:
             config["quality"] = tool_config["quality"]
-        
-        if "format" in tool_config:
-            config["format"] = tool_config["format"]
-        
-        if "compression" in tool_config:
-            config["compression"] = tool_config["compression"]
-        
+
         if "background" in tool_config:
             config["background"] = tool_config["background"]
-        
-        if "input_fidelity" in tool_config:
-            config["input_fidelity"] = tool_config["input_fidelity"]
-        
-        if "input_image" in tool_config:
-            config["input_image"] = tool_config["input_image"]
-        
-        if "input_image_mask" in tool_config:
-            config["input_image_mask"] = tool_config["input_image_mask"]
-        
+
         if "partial_images" in tool_config:
             config["partial_images"] = tool_config["partial_images"]
-        
-        # 默认设置审核级别为low（如用户要求）
-        config["moderation"] = tool_config.get("moderation", "low")
-        
+
+        if "input_fidelity" in tool_config:
+            config["input_fidelity"] = tool_config["input_fidelity"]
+
+        if "input_image_mask" in tool_config:
+            config["input_image_mask"] = tool_config["input_image_mask"]
+
+        if "moderation" in tool_config:
+            config["moderation"] = tool_config["moderation"]
+        else:
+            # 默认设置审核级别为low（如用户要求）
+            config["moderation"] = "low"
+
+        logger.info(f"图片生成工具配置构建完成: {config}")
         return config
 
     def _build_function_calling_tool_config(self, tool_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -913,10 +911,14 @@ class AIProviderService:
                     has_image_gen_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
                     if has_image_gen_tool:
                         previous_image_gen_id = self._find_previous_image_generation(messages)
-                    
+
                     # 使用 Responses API 的多模态参数结构
                     # 将前端的 'instant' 映射为 OpenAI API 的 'minimal'
+                    # 但是当有图片生成工具时，'minimal' 不支持，需要升级到 'low'
                     effort_value = "minimal" if reasoning == "instant" else reasoning
+                    if has_image_gen_tool and effort_value == "minimal":
+                        effort_value = "low"
+                        logger.info("检测到图片生成工具，将 reasoning effort 从 'minimal' 升级到 'low'")
                     completion_params = {
                         "model": model,
                         "input": input_messages,
@@ -1027,10 +1029,14 @@ class AIProviderService:
                     has_image_gen_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
                     if has_image_gen_tool:
                         previous_image_gen_id = self._find_previous_image_generation(messages)
-                    
+
                     # 使用结构化输入格式
                     # 将前端的 'instant' 映射为 OpenAI API 的 'minimal'
+                    # 但是当有图片生成工具时，'minimal' 不支持，需要升级到 'low'
                     effort_value = "minimal" if reasoning == "instant" else reasoning
+                    if has_image_gen_tool and effort_value == "minimal":
+                        effort_value = "low"
+                        logger.info("检测到图片生成工具，将 reasoning effort 从 'minimal' 升级到 'low'")
                     completion_params = {
                         "model": model,
                         "input": input_messages,
@@ -1073,9 +1079,13 @@ class AIProviderService:
                     has_image_gen_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
                     if has_image_gen_tool:
                         previous_image_gen_id = self._find_previous_image_generation(messages)
-                    
+
                     # 将前端的 'instant' 映射为 OpenAI API 的 'minimal'
+                    # 但是当有图片生成工具时，'minimal' 不支持，需要升级到 'low'
                     effort_value = "minimal" if reasoning == "instant" else reasoning
+                    if has_image_gen_tool and effort_value == "minimal":
+                        effort_value = "low"
+                        logger.info("检测到图片生成工具，将 reasoning effort 从 'minimal' 升级到 'low'")
                     completion_params = {
                         "model": model,
                         "input": input_text.strip(),
@@ -1181,18 +1191,18 @@ class AIProviderService:
         images = None
         files = None
         search_results = None
-        citations_enabled = False
-        
+        citations_enabled = True  # 默认启用引用（符合 Anthropic 文档建议）
+
         if isinstance(msg, dict):
             images = msg.get("images")
             files = msg.get("files")
             search_results = msg.get("search_results")
-            citations_enabled = msg.get("citations_enabled", False)
+            citations_enabled = msg.get("citations_enabled", True)  # 默认为 True
         else:
             images = getattr(msg, "images", None)
             files = getattr(msg, "files", None)
             search_results = getattr(msg, "search_results", None)
-            citations_enabled = getattr(msg, "citations_enabled", False)
+            citations_enabled = getattr(msg, "citations_enabled", True)  # 默认为 True
         
         # 检查是否有多媒体内容
         has_multimedia = (images and len(images) > 0) or (files and len(files) > 0) or (search_results and len(search_results) > 0)
@@ -1504,34 +1514,39 @@ class AIProviderService:
     def _convert_tools_to_anthropic_format(self, tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """将工具配置转换为Anthropic格式"""
         anthropic_tools = []
-        
+
+        logger.info(f"转换工具到Anthropic格式，输入工具: {tools}")
+
         for tool in tools:
             tool_type = tool.get("type")
-            
+            logger.info(f"处理工具类型: {tool_type}")
+
             if tool_type == "web_search" or tool_type == "web_search_20250305":
                 # Web Search工具 - 支持Anthropic web_search_20250305格式
                 anthropic_tool = {
                     "type": "web_search_20250305",
                     "name": "web_search"
                 }
-                
+
                 # 添加可选参数
                 if tool.get("max_uses"):
                     anthropic_tool["max_uses"] = tool.get("max_uses", 5)
-                
+
                 if tool.get("user_location"):
                     anthropic_tool["user_location"] = tool.get("user_location")
-                
+
                 if tool.get("allowed_domains"):
                     anthropic_tool["allowed_domains"] = tool.get("allowed_domains")
-                
+
                 if tool.get("blocked_domains"):
                     anthropic_tool["blocked_domains"] = tool.get("blocked_domains")
-                
+
                 anthropic_tools.append(anthropic_tool)
-            
+                logger.info(f"已添加 web_search 工具到 Anthropic 配置: {anthropic_tool}")
+
             # 可以在这里添加其他工具类型的支持
-        
+
+        logger.info(f"转换后的Anthropic工具列表: {anthropic_tools}")
         return anthropic_tools
 
     def _convert_anthropic_response_to_openai_format(self, response: Any, thinking_mode: bool = False) -> Dict[str, Any]:
@@ -1718,13 +1733,17 @@ class AIProviderService:
                 )
                 config_dict["thinking_config"] = thinking_config
 
-            # 使用新版 SDK 的 types.GenerateContentConfig
-            generation_config = types.GenerateContentConfig(**config_dict)
-
             # 转换工具
             gemini_tools = None
             if tools:
                 gemini_tools = self._convert_tools_to_gemini_format(tools)
+
+            # 如果有工具，添加到 config_dict 中
+            if gemini_tools:
+                config_dict['tools'] = gemini_tools
+
+            # 使用新版 SDK 的 types.GenerateContentConfig
+            generation_config = types.GenerateContentConfig(**config_dict)
 
             # 处理最后一条用户消息
             last_message = messages[-1]
@@ -1967,13 +1986,25 @@ class AIProviderService:
     async def _google_stream_completion(self, client, model, contents, generation_config, gemini_tools):
         """Google流式响应处理（新版 SDK）"""
         try:
-            # 使用新版 SDK 的流式 API
-            response_stream = await client.aio.models.generate_content_stream(
+            # 如果有工具，添加到 generation_config 中
+            if gemini_tools:
+                from google.genai import types
+                # 重新创建 config，添加 tools 参数
+                config_dict = generation_config.model_dump() if hasattr(generation_config, 'model_dump') else {}
+                config_dict['tools'] = gemini_tools
+                generation_config = types.GenerateContentConfig(**config_dict)
+
+            # 使用新版 SDK 的流式 API (不需要 await，直接返回异步迭代器)
+            response_stream = client.aio.models.generate_content_stream(
                 model=model,
                 contents=contents,
-                config=generation_config,
-                tools=gemini_tools
+                config=generation_config
             )
+
+            # 确保 response_stream 是异步迭代器而不是协程
+            if hasattr(response_stream, '__await__'):
+                # 如果是协程，需要 await 它
+                response_stream = await response_stream
 
             # 收集流式响应
             full_text = ""
@@ -2395,13 +2426,17 @@ class AIProviderService:
                 )
                 config_dict["thinking_config"] = thinking_config
 
-            # 使用新版 SDK 的 types.GenerateContentConfig
-            generation_config = types.GenerateContentConfig(**config_dict)
-
             # 转换工具
             gemini_tools = None
             if tools:
                 gemini_tools = self._convert_tools_to_gemini_format(tools)
+
+            # 如果有工具，添加到 config_dict 中
+            if gemini_tools:
+                config_dict['tools'] = gemini_tools
+
+            # 使用新版 SDK 的 types.GenerateContentConfig
+            generation_config = types.GenerateContentConfig(**config_dict)
 
             # 如果有 system instruction，将其添加到 contents 的开头
             if system_instruction:
@@ -2411,12 +2446,17 @@ class AIProviderService:
                 })
 
             # 使用新版 SDK 的流式 API
+            # 注意：异步流式调用返回的是异步迭代器，直接使用不需要 await
             response_stream = client.aio.models.generate_content_stream(
                 model=model,
                 contents=contents,
-                config=generation_config,
-                tools=gemini_tools
+                config=generation_config
             )
+
+            # 确保 response_stream 是异步迭代器而不是协程
+            if hasattr(response_stream, '__await__'):
+                # 如果是协程，需要 await 它
+                response_stream = await response_stream
 
             accumulated_text = ""
             accumulated_reasoning = ""
@@ -2672,8 +2712,16 @@ class AIProviderService:
                     "medium": "medium",
                     "high": "high"
                 }
+                effort_value = effort_map.get(reasoning, "medium")
+
+                # 检查是否有图片生成工具，如果有且 effort 为 minimal，升级到 low
+                has_image_gen_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
+                if has_image_gen_tool and effort_value == "minimal":
+                    effort_value = "low"
+                    logger.info("检测到图片生成工具，将 reasoning effort 从 'minimal' 升级到 'low'")
+
                 stream_params["reasoning"] = {
-                    "effort": effort_map.get(reasoning, "medium"),
+                    "effort": effort_value,
                     "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                 }
                 logger.info(f"GPT-5 流式调用，使用 reasoning effort: {stream_params['reasoning']['effort']}, summary: {stream_params['reasoning']['summary']}")
@@ -2685,6 +2733,7 @@ class AIProviderService:
                 # 转换 Responses API 事件为 Chat Completions 格式
                 event_dict = event.model_dump() if hasattr(event, 'model_dump') else event
                 event_type = event_dict.get('type', '')
+                logger.info(f"收到 Responses API 事件: {event_type}")
 
                 # 处理reasoning summary事件
                 if event_type == 'response.reasoning_summary_part.done':
@@ -2716,8 +2765,35 @@ class AIProviderService:
                         }]
                     }
 
+                # 处理图片生成调用完成事件
+                elif event_type == 'response.image_generation_call.done':
+                    logger.info(f"收到图片生成完成事件，完整数据: {event_dict}")
+                    image_data = event_dict.get('image_generation_call', {})
+                    logger.info(f"提取的 image_data: {image_data}")
+                    image_result = {
+                        'id': image_data.get('id'),
+                        'type': 'image_generation_call',
+                        'status': image_data.get('status', 'completed'),
+                        'result': image_data.get('result'),
+                        'revised_prompt': image_data.get('revised_prompt')
+                    }
+                    logger.info(f"构建的 image_result: {image_result}")
+
+                    # 发送包含图片生成结果的事件
+                    yield {
+                        'choices': [{
+                            'delta': {
+                                'image_generation': image_result
+                            },
+                            'index': 0,
+                            'finish_reason': None
+                        }]
+                    }
+                    logger.info(f"已发送图片生成结果: {image_result.get('id')}")
+
                 # 处理完成事件
                 elif event_type == 'response.completed':
+                    logger.info("收到 response.completed 事件，发送 finish_reason: stop")
                     yield {
                         'choices': [{
                             'delta': {},
@@ -2725,6 +2801,7 @@ class AIProviderService:
                             'finish_reason': 'stop'
                         }]
                     }
+                    logger.info("已发送 finish_reason: stop 到前端")
 
                 # 处理错误事件
                 elif event_type == 'response.failed':
@@ -2733,22 +2810,56 @@ class AIProviderService:
                         'error': error_info.get('message', 'Unknown error')
                     }
 
+                # 处理 output_item.done 事件（可能包含图片生成结果）
+                elif event_type == 'response.output_item.done':
+                    item = event_dict.get('item', {})
+                    item_type = item.get('type', '')
+                    logger.info(f"收到 output_item.done 事件，类型: {item_type}")
+
+                    # 检查是否是图片生成结果
+                    if item_type == 'image_generation_call':
+                        logger.info(f"检测到图片生成结果，完整数据: {item}")
+                        image_result = {
+                            'id': item.get('id'),
+                            'type': 'image_generation_call',
+                            'status': item.get('status', 'completed'),
+                            'result': item.get('result'),
+                            'revised_prompt': item.get('revised_prompt')
+                        }
+                        logger.info(f"构建的 image_result: {image_result}")
+
+                        yield {
+                            'choices': [{
+                                'delta': {
+                                    'image_generation': image_result
+                                },
+                                'index': 0,
+                                'finish_reason': None
+                            }]
+                        }
+                        logger.info(f"已发送图片生成结果: {image_result.get('id')}")
+                    continue
+
                 # 忽略但记录的事件（这些事件不需要发送给前端，但表示流仍在进行）
                 elif event_type in [
                     'response.created',
                     'response.in_progress',
                     'response.output_item.added',
-                    'response.output_item.done',
                     'response.content_part.added',
                     'response.content_part.done',
                     'response.output_text.done',
                     'response.reasoning_summary_part.added',
+                    'response.reasoning_summary_text.delta',
+                    'response.reasoning_summary_text.done',
                     'response.web_search_call.in_progress',
                     'response.web_search_call.searching',
                     'response.web_search_call.completed',
                     'response.file_search_call.in_progress',
                     'response.file_search_call.searching',
                     'response.file_search_call.completed',
+                    'response.image_generation_call.in_progress',
+                    'response.image_generation_call.generating',
+                    'response.image_generation_call.partial_image',
                     'response.mcp_list_tools.in_progress',
                     'response.mcp_list_tools.completed',
                     'response.mcp_call.in_progress',
@@ -2880,9 +2991,15 @@ class AIProviderService:
             
             # 工具配置（如果有）
             if tools:
+                logger.info(f"收到工具配置: {tools}")
                 anthropic_tools = self._convert_tools_to_anthropic_format(tools)
                 if anthropic_tools:
                     stream_params["tools"] = anthropic_tools
+                    logger.info(f"已添加工具到stream_params: {anthropic_tools}")
+                else:
+                    logger.warning("工具转换后为空列表")
+            else:
+                logger.info("未收到工具配置")
             
             # 检查是否使用了Files API，如果是则添加betas参数
             uses_files_api = self._check_uses_files_api(user_messages)
