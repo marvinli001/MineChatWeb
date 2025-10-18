@@ -230,8 +230,8 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     }
 
     // 2. 根据推理模式过滤
-    // GPT-5 在 minimal 推理模式下不支持 web_search 工具
-    if (settings.reasoning === 'minimal') {
+    // GPT-5 在 instant 推理模式下不支持 web_search 工具
+    if (settings.reasoning === 'instant') {
       filteredTools = filteredTools.filter(tool => tool.id !== 'search')
     }
 
@@ -275,9 +275,9 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     }
   }, [settings.chatProvider, selectedTools])
 
-  // 当切换到 minimal 推理模式时，自动移除搜索工具
+  // 当切换到 instant 推理模式时，自动移除搜索工具
   useEffect(() => {
-    if (settings.reasoning === 'minimal') {
+    if (settings.reasoning === 'instant') {
       // 移除搜索工具（如果已选中）
       const hasSearchTool = selectedTools.some(tool => tool.id === 'search')
       if (hasSearchTool) {
