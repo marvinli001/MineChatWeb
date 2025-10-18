@@ -219,14 +219,23 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     return settings.chatProvider !== 'openai_compatible'
   }
 
-  // 根据当前提供商过滤可用工具
+  // 根据当前提供商和推理模式过滤可用工具
   const getAvailableTools = (): Tool[] => {
+    let filteredTools = [...availableTools]
+
+    // 1. 根据提供商过滤
     if (settings.chatProvider === 'anthropic') {
       // Anthropic（Claude）不支持图片生成，只显示搜索工具
-      return availableTools.filter(tool => tool.id !== 'image_generation')
+      filteredTools = filteredTools.filter(tool => tool.id !== 'image_generation')
     }
-    // OpenAI和Google提供商都支持图片生成，显示所有工具
-    return availableTools
+
+    // 2. 根据推理模式过滤
+    // GPT-5 在 minimal 推理模式下不支持 web_search 工具
+    if (settings.reasoning === 'minimal') {
+      filteredTools = filteredTools.filter(tool => tool.id !== 'search')
+    }
+
+    return filteredTools
   }
 
   // 获取所有可用工具（内置工具 + 已添加的插件）
@@ -265,6 +274,17 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
       }
     }
   }, [settings.chatProvider, selectedTools])
+
+  // 当切换到 minimal 推理模式时，自动移除搜索工具
+  useEffect(() => {
+    if (settings.reasoning === 'minimal') {
+      // 移除搜索工具（如果已选中）
+      const hasSearchTool = selectedTools.some(tool => tool.id === 'search')
+      if (hasSearchTool) {
+        setSelectedTools(selectedTools.filter(tool => tool.id !== 'search'))
+      }
+    }
+  }, [settings.reasoning, selectedTools])
 
   // 自动调整文本框高度，限制最大高度（统一两种模式）
   useEffect(() => {

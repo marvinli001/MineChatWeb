@@ -333,6 +333,61 @@ class ModelConfigService {
     }
   }
 
+  // 获取提供商的最小（最便宜）模型
+  async getCheapestModel(providerId: string): Promise<string | null> {
+    try {
+      const config = await this.loadConfig()
+      const provider = config.providers[providerId]
+
+      if (!provider || !provider.models) {
+        return null
+      }
+
+      // 定义每个提供商的最小模型映射
+      const cheapestModels: Record<string, string> = {
+        'openai': 'gpt-5-nano',
+        'anthropic': 'claude-haiku-4-5-20251001',
+        'google': 'gemini-2.5-flash-lite',
+        'deepseek': 'deepseek-chat',
+        'openai_compatible': '' // 自定义提供商没有预定义的最小模型
+      }
+
+      const cheapestModelId = cheapestModels[providerId]
+
+      // 验证模型是否存在于配置中
+      if (cheapestModelId && provider.models[cheapestModelId]) {
+        return cheapestModelId
+      }
+
+      // 如果预定义的模型不存在，查找价格最低的模型
+      const models = Object.entries(provider.models)
+      if (models.length === 0) {
+        return null
+      }
+
+      // 按输入价格排序，选择最便宜的
+      const sortedByPrice = models.sort((a, b) => {
+        const priceA = a[1].pricing?.input || Infinity
+        const priceB = b[1].pricing?.input || Infinity
+        return priceA - priceB
+      })
+
+      return sortedByPrice[0][0]
+    } catch (error) {
+      console.warn('无法获取最小模型:', error)
+
+      // 返回默认模型
+      const defaultModels: Record<string, string> = {
+        'openai': 'gpt-5-nano',
+        'anthropic': 'claude-haiku-4-5-20251001',
+        'google': 'gemini-2.5-flash-lite',
+        'deepseek': 'deepseek-chat'
+      }
+
+      return defaultModels[providerId] || null
+    }
+  }
+
   // 刷新配置
   async refreshConfig(): Promise<ModelsConfig> {
     console.log('[ModelConfig] 手动刷新配置')

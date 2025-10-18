@@ -398,6 +398,25 @@
             "output": 15.0
           }
         },
+        "claude-haiku-4-5-20251001": {
+          "name": "Claude Haiku 4.5",
+          "description": "Our fastest and most intelligent Haiku model with near-frontier performance. First Haiku model with extended thinking",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
+          "api_type": "messages",
+          "context_length": 200000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_thinking": true,
+          "supports_streaming": true,
+          "supports_citations": true,
+          "supports_files": true,
+          "supports_search_results": true,
+          "supports_web_search": true,
+          "pricing": {
+            "input": 1.0,
+            "output": 5.0
+          }
+        },
         "claude-3-5-haiku-20241022": {
           "name": "Claude 3.5 Haiku",
           "description": "Fast and cost-effective model for everyday tasks",

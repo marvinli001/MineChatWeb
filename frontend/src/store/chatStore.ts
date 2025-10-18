@@ -10,7 +10,7 @@ interface ChatState {
   currentConversationId: string | null
   isLoading: boolean
   abortController: AbortController | null
-  
+
   // WebSocket connection state
   wsConnection: WebSocket | null
   wsReconnectAttempts: number
@@ -19,6 +19,9 @@ interface ChatState {
   wsHeartbeatInterval: NodeJS.Timeout | null
   wsLastHeartbeat: number
   wsPrewarmed: boolean
+
+  // Title generation state
+  generatingTitleForConversation: string | null
 
   // Actions
   createNewConversation: () => void
@@ -29,11 +32,13 @@ interface ChatState {
   stopGeneration: () => void
   deleteConversation: (id: string) => void
   updateConversationTitle: (id: string, title: string) => void
+  updateConversationTitleAnimated: (id: string, title: string) => Promise<void>
+  generateConversationTitle: (conversationId: string) => Promise<void>
   clearAllConversations: () => void
   syncToCloud: () => Promise<void>
   syncFromCloud: () => Promise<void>
   regenerateLastMessage: () => Promise<void>
-  
+
   // WebSocket management
   _createWebSocketConnection: (url: string) => Promise<WebSocket>
   _setupHeartbeat: (ws: WebSocket) => void
@@ -48,7 +53,7 @@ export const useChatStore = create<ChatState>()(
       currentConversationId: null,
       isLoading: false,
       abortController: null,
-      
+
       // WebSocket connection state
       wsConnection: null,
       wsReconnectAttempts: 0,
@@ -57,6 +62,9 @@ export const useChatStore = create<ChatState>()(
       wsHeartbeatInterval: null,
       wsLastHeartbeat: 0,
       wsPrewarmed: false,
+
+      // Title generation state
+      generatingTitleForConversation: null,
 
       createNewConversation: () => {
         // 真正的对话会在用户发送第一条消息时创建
@@ -169,6 +177,93 @@ export const useChatStore = create<ChatState>()(
             conv.id === id ? { ...conv, title } : conv
           )
         }))
+      },
+
+      updateConversationTitleAnimated: async (id: string, title: string) => {
+        // 直接更新标题（不使用打字机效果）
+        set(state => ({
+          conversations: state.conversations.map(conv =>
+            conv.id === id ? { ...conv, title } : conv
+          ),
+          generatingTitleForConversation: null // 完成后清除生成状态
+        }))
+      },
+
+      generateConversationTitle: async (conversationId: string) => {
+        try {
+          const { conversations, generatingTitleForConversation } = get()
+
+          // 如果已经在为某个对话生成标题，则跳过
+          if (generatingTitleForConversation) {
+            console.log('[TitleGen] 已有标题生成任务进行中，跳过')
+            return
+          }
+
+          const conversation = conversations.find(conv => conv.id === conversationId)
+
+          if (!conversation) {
+            console.warn('[TitleGen] 找不到对话')
+            return
+          }
+
+          // 导入标题生成服务
+          const { titleGenerationService } = await import('@/services/titleGenerationService')
+
+          // 检查是否应该生成标题（恰好2条消息）
+          if (!titleGenerationService.shouldGenerateTitle(conversation.messages)) {
+            console.log('[TitleGen] 不满足标题生成条件')
+            return
+          }
+
+          // 如果标题已经不是默认标题，跳过生成
+          if (conversation.title !== '新对话' && !conversation.title.endsWith('...')) {
+            console.log('[TitleGen] 标题已自定义，跳过生成')
+            return
+          }
+
+          console.log('[TitleGen] 开始生成标题')
+
+          // 设置生成状态
+          set({ generatingTitleForConversation: conversationId })
+
+          // 显示加载状态
+          set(state => ({
+            conversations: state.conversations.map(conv =>
+              conv.id === conversationId ? { ...conv, title: '生成中...' } : conv
+            )
+          }))
+
+          // 获取设置
+          const { useSettingsStore } = await import('./settingsStore')
+          const settings = useSettingsStore.getState().settings
+
+          const apiKey = settings.apiKeys?.[conversation.model_provider || settings.chatProvider]
+          if (!apiKey) {
+            throw new Error('API密钥未配置')
+          }
+
+          // 调用标题生成服务
+          const generatedTitle = await titleGenerationService.generateTitle(
+            conversation.messages,
+            conversation.model_provider || settings.chatProvider,
+            apiKey,
+            settings.openaiCompatibleConfig?.baseUrl
+          )
+
+          // 使用打字机效果更新标题
+          await get().updateConversationTitleAnimated(conversationId, generatedTitle)
+
+        } catch (error: any) {
+          console.error('[TitleGen] 标题生成失败:', error)
+          // 重置生成状态
+          set({ generatingTitleForConversation: null })
+          // 恢复为默认标题
+          set(state => ({
+            conversations: state.conversations.map(conv =>
+              conv.id === conversationId ? { ...conv, title: '新对话' } : conv
+            )
+          }))
+        }
       },
 
       clearAllConversations: () => {
@@ -555,6 +650,11 @@ export const useChatStore = create<ChatState>()(
                       abortController: null
                     }))
                     console.log('已设置 isLoading: false')
+
+                    // 异步触发标题生成（不阻塞主流程）
+                    setTimeout(() => {
+                      get().generateConversationTitle(targetConversationId)
+                    }, 200) // 延迟200ms后生成，确保UI更新完成
                   }
                 } catch (error) {
                   console.error('解析流式响应失败:', error)
@@ -813,6 +913,11 @@ export const useChatStore = create<ChatState>()(
               abortController: null
             }
           })
+
+          // 异步触发标题生成（不阻塞主流程）
+          setTimeout(() => {
+            get().generateConversationTitle(targetConversationId)
+          }, 200) // 延迟200ms后生成，确保UI更新完成
 
           if (settings.enableCloudSync && 
               settings.autoSync && 

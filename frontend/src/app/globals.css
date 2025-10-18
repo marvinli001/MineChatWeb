@@ -460,3 +460,13 @@ html, body {
     }
   }
 }
+
+/* 流光效果动画（用于标题生成加载状态） */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}

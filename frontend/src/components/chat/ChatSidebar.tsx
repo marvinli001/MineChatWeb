@@ -15,7 +15,7 @@ interface ChatSidebarProps {
 }
 
 export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMarketClick, onPluginMarketClick, onDeepResearchClick, onBackToChat }: ChatSidebarProps) {
-  const { conversations, currentConversationId, createNewConversation, setCurrentConversation, deleteConversation } = useChatStore()
+  const { conversations, currentConversationId, createNewConversation, setCurrentConversation, deleteConversation, generatingTitleForConversation } = useChatStore()
   const { settings } = useSettingsStore()
 
   // 检查当前提供商是否支持插件市场
@@ -182,6 +182,9 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
               const displayTitle = conversation.title || '新对话'
               const truncatedTitle = displayTitle.length > 10 ? displayTitle.slice(0, 10) + '...' : displayTitle
 
+              // 检查是否正在生成标题
+              const isGeneratingTitle = generatingTitleForConversation === conversation.id
+
               return (
               <motion.div
                 key={conversation.id}
@@ -197,8 +200,20 @@ export default function ChatSidebar({ onSettingsClick, onLoginClick, onModelMark
                     : 'bg-gray-50 dark:bg-[#171717] hover:bg-black/5 dark:hover:bg-white/5'
                 }`}
               >
-                <div className="flex-1 justify-start text-gray-900 dark:text-white text-xs font-normal overflow-hidden whitespace-nowrap text-ellipsis">
-                  {truncatedTitle}
+                <div className="flex-1 justify-start text-xs font-normal overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-1">
+                  {isGeneratingTitle ? (
+                    <span
+                      className="bg-gradient-to-r from-gray-900 via-blue-500 to-gray-900 dark:from-white dark:via-blue-400 dark:to-white bg-clip-text text-transparent"
+                      style={{
+                        backgroundSize: '200% 100%',
+                        animation: 'shimmer 1.5s infinite linear'
+                      }}
+                    >
+                      {truncatedTitle}
+                    </span>
+                  ) : (
+                    <span className="text-gray-900 dark:text-white">{truncatedTitle}</span>
+                  )}
                 </div>
                 <div className="w-6 h-8 absolute right-0 top-0 bg-gradient-to-l from-gray-50 dark:from-[#171717] to-transparent pointer-events-none" />
                 <motion.button
