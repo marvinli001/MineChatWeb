@@ -23,7 +23,20 @@ async def voice_transcribe(
         raise HTTPException(status_code=400, detail="未提供音频文件")
     
     # 检查文件类型
-    allowed_types = ['audio/webm', 'audio/wav', 'audio/mp3', 'audio/m4a', 'audio/ogg', 'audio/mpeg']
+    allowed_types = [
+        'audio/webm',
+        'audio/webm;codecs=opus',
+        'audio/wav',
+        'audio/mp3',
+        'audio/m4a',
+        'audio/mpeg',
+        'audio/ogg',
+        'audio/ogg;codecs=opus',
+        'audio/mp4',
+        'audio/mp4;codecs=mp4a.40.2',
+        'audio/mp4;codecs=mp4a.40.5',
+        'audio/aac'
+    ]
     if audio.content_type not in allowed_types:
         raise HTTPException(
             status_code=400, 
@@ -59,8 +72,23 @@ async def voice_transcribe(
     temp_file = None
     try:
         # 创建临时文件
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as temp_file:
-            # 将上传的文件内容写入临时文件
+        extension_map = {
+            'audio/webm': '.webm',
+            'audio/webm;codecs=opus': '.webm',
+            'audio/wav': '.wav',
+            'audio/mp3': '.mp3',
+            'audio/mpeg': '.mp3',
+            'audio/m4a': '.m4a',
+            'audio/ogg': '.ogg',
+            'audio/ogg;codecs=opus': '.ogg',
+            'audio/mp4': '.mp4',
+            'audio/mp4;codecs=mp4a.40.2': '.mp4',
+            'audio/mp4;codecs=mp4a.40.5': '.mp4',
+            'audio/aac': '.aac'
+        }
+        suffix = extension_map.get(audio.content_type, '.webm')
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            # ���ϴ����ļ�����д����ʱ�ļ�
             content = await audio.read()
             temp_file.write(content)
             temp_file_path = temp_file.name

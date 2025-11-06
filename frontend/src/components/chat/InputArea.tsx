@@ -147,6 +147,19 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragCountRef = useRef(0)
+  const recordingMimeTypeRef = useRef<string>('')
+
+  const getAudioExtension = (mimeType: string): string => {
+    if (!mimeType) return '.webm'
+    if (mimeType.includes('webm')) return '.webm'
+    if (mimeType.includes('wav')) return '.wav'
+    if (mimeType.includes('m4a')) return '.m4a'
+    if (mimeType.includes('mp4')) return '.mp4'
+    if (mimeType.includes('mpeg') || mimeType.includes('mp3')) return '.mp3'
+    if (mimeType.includes('ogg')) return '.ogg'
+    if (mimeType.includes('aac')) return '.aac'
+    return '.webm'
+  }
   
   const {
     sendMessage,
@@ -680,10 +693,31 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
       })
       
       // 创建录音器
-      const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      })
-      
+      const preferredMimeTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4;codecs=mp4a.40.2',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+        'audio/mpeg',
+        'audio/aac',
+      ]
+      const supportedMimeType = preferredMimeTypes.find(type =>
+        typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)
+      )
+
+      let recorder: MediaRecorder
+      try {
+        recorder = supportedMimeType
+          ? new MediaRecorder(stream, { mimeType: supportedMimeType })
+          : new MediaRecorder(stream)
+      } catch (err) {
+        console.warn('��ָ����Ƶ��ʽ��ʧ��, ����ʹ��Ĭ��ֵ', err)
+        recorder = new MediaRecorder(stream)
+      }
+
+      recordingMimeTypeRef.current = recorder.mimeType || supportedMimeType || ''
+
       setAudioStream(stream)
       setMediaRecorder(recorder)
       setAudioChunks([])
@@ -743,11 +777,12 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
       }
       
       // 创建音频文件
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' })
-      
-      // 创建FormData
+      const mimeType = recordingMimeTypeRef.current || audioChunks[0]?.type || 'audio/webm;codecs=opus'
+      const audioBlob = new Blob(audioChunks, { type: mimeType })
+      const fileExtension = getAudioExtension(mimeType)
+
       const formData = new FormData()
-      formData.append('audio', audioBlob, 'recording.webm')
+      formData.append('audio', audioBlob, `recording${fileExtension}`)
       formData.append('model', 'gpt-4o-transcribe') // 默认使用gpt-4o-transcribe
       // 可选参数
       // formData.append('language', 'zh') // 中文
@@ -804,6 +839,7 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
       toast.error(finalErrorMessage)
     } finally {
       setIsTranscribing(false)
+      recordingMimeTypeRef.current = ''
     }
   }
 

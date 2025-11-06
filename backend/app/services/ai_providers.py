@@ -1,7 +1,7 @@
 import openai
 import anthropic
 from google import genai
-from typing import Dict, List, Any, AsyncGenerator, Union
+from typing import Dict, List, Any, AsyncGenerator, Union, Tuple
 import asyncio
 import logging
 import json
@@ -117,6 +117,64 @@ class AIProviderService:
             "role": role,
             "content": content_parts
         }
+
+    def _convert_message_to_responses_input(
+        self,
+        msg: Union[Dict[str, Any], Any]
+    ) -> Tuple[Dict[str, Any], bool]:
+        """????????Responses API??????????????"""
+        role = self._get_message_attr(msg, "role")
+        content = self._get_message_attr(msg, "content") or ""
+
+        images = msg.get("images") if isinstance(msg, dict) else getattr(msg, "images", None)
+        files = msg.get("files") if isinstance(msg, dict) else getattr(msg, "files", None)
+
+        has_structured_content = False
+        content_parts: List[Dict[str, Any]] = []
+
+        text_part = {"type": "input_text", "text": content} if content.strip() else None
+
+        if images:
+            has_structured_content = True
+            for image in images:
+                if isinstance(image, dict):
+                    image_data = image.get("data")
+                    mime_type = image.get("mime_type", "image/jpeg")
+                else:
+                    image_data = getattr(image, "data", "")
+                    mime_type = getattr(image, "mime_type", "image/jpeg")
+
+                if image_data:
+                    content_parts.append({
+                        "type": "input_image",
+                        "image_url": f"data:{mime_type};base64,{image_data}"
+                    })
+
+        if files:
+            for file in files:
+                if isinstance(file, dict):
+                    openai_file_id = file.get("openai_file_id")
+                    process_mode = file.get("process_mode", "direct")
+                else:
+                    openai_file_id = getattr(file, "openai_file_id", None)
+                    process_mode = getattr(file, "process_mode", "direct")
+
+                if openai_file_id and process_mode == "direct":
+                    has_structured_content = True
+                    content_parts.append({
+                        "type": "input_file",
+                        "file_id": openai_file_id
+                    })
+
+        if has_structured_content:
+            if text_part:
+                content_parts.insert(0, text_part)
+            elif not content_parts:
+                content_parts.append({"type": "input_text", "text": ""})
+
+            return {"role": role, "content": content_parts}, True
+
+        return {"role": role, "content": content}, False
     
     def _prepare_tools_config(self, messages: List[Union[Dict[str, Any], Any]], tools: List[Dict[str, Any]] = None, provider: str = "openai") -> Dict[str, Any]:
         """准备工具配置，基于消息中的文件类型和提供商"""
@@ -1127,50 +1185,82 @@ class AIProviderService:
                     logger.error("Responses API 不可用，请升级 OpenAI SDK 到最新版本")
                     raise Exception(f"Responses API 不可用: {str(e)}. 请运行: pip install --upgrade openai")
             else:
-                # 标准的 Responses API 调用（对于其他非 GPT-5 思考模式的模型）
-                # 转换消息为 Responses API 格式
+                # ��׼�� Responses API ���ã�ͬʱ�̳�ͼƬ���ļ�����
                 input_messages = []
                 instructions_text = ""
+                uses_structured_content = False
 
                 for msg in messages:
                     role = self._get_message_attr(msg, "role")
-                    content = self._get_message_attr(msg, "content")
 
                     if role == "system":
-                        instructions_text = content
-                    else:
-                        input_messages.append({
-                            "role": role,
-                            "content": content
-                        })
+                        instructions_text = self._get_message_attr(msg, "content")
+                        continue
+
+                    if role == "mcp_approval_response":
+                        if isinstance(msg, dict):
+                            input_messages.append({
+                                "type": "mcp_approval_response",
+                                "approve": msg.get("approve", True),
+                                "approval_request_id": msg.get("approval_request_id")
+                            })
+                        else:
+                            input_messages.append({
+                                "type": "mcp_approval_response",
+                                "approve": getattr(msg, "approve", True),
+                                "approval_request_id": getattr(msg, "approval_request_id", "")
+                            })
+                        uses_structured_content = True
+                        continue
+
+                    converted_message, has_structured = self._convert_message_to_responses_input(msg)
+                    if has_structured:
+                        uses_structured_content = True
+                    input_messages.append(converted_message)
+
+                if uses_structured_content:
+                    normalized_messages: List[Dict[str, Any]] = []
+                    for item in input_messages:
+                        if isinstance(item, dict) and item.get("role"):
+                            content = item.get("content", "")
+                            if isinstance(content, list):
+                                if not content:
+                                    content = [{"type": "input_text", "text": ""}]
+                                item = {**item, "content": content}
+                            else:
+                                item = {
+                                    **item,
+                                    "content": [{"type": "input_text", "text": content or ""}]
+                                }
+                        normalized_messages.append(item)
+                    input_messages = normalized_messages
 
                 completion_params = {
                     "model": model,
                     "input": input_messages
                 }
 
-                # 添加 instructions
                 if instructions_text:
                     completion_params["instructions"] = instructions_text
 
-                # 准备工具配置
                 tools_config = self._prepare_tools_config(messages, tools, "openai")
                 if tools_config["tools"]:
                     completion_params["tools"] = tools_config["tools"]
+                    need_code_interpreter = any(tool.get("type") == "code_interpreter" for tool in tools_config["tools"])
+                    if need_code_interpreter:
+                        completion_params["tool_choice"] = "required"
 
-                # GPT-5 系列模型不支持自定义 temperature，使用默认值 1
                 if not self._is_gpt5_model(model):
                     completion_params["temperature"] = 0.7
 
-                # 使用 max_output_tokens（Responses API 的参数）
                 completion_params["max_output_tokens"] = 4000
 
-                # 使用 Responses API
                 response = await asyncio.wait_for(
                     client.responses.create(**completion_params),
                     timeout=timeout
                 )
             
+
             result = response.model_dump()
             logger.info(f"OpenAI Responses API调用成功")
             
