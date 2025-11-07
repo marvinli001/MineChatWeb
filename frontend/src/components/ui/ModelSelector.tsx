@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ChevronDownIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useSettingsStore } from '@/store/settingsStore'
 import { modelConfigService, type ModelConfig } from '@/services/modelConfigService'
@@ -14,42 +14,42 @@ interface ModelSelectorProps {
 export default function ModelSelector({ onModelMarketClick, showDetailedInfo = false, dropdownDirection = 'down' }: ModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [currentModelConfig, setCurrentModelConfig] = useState<ModelConfig | null>(null)
-  const { settings, updateSettings } = useSettingsStore()
+  const { settings } = useSettingsStore()
+  const { chatProvider, chatModel, openaiCompatibleConfig, apiKeys } = settings
 
   useEffect(() => {
-    loadCurrentModelConfig()
-  }, [settings.chatProvider, settings.chatModel, settings.openaiCompatibleConfig])
-
-  const loadCurrentModelConfig = async () => {
-    if (settings.chatProvider && settings.chatModel) {
-      if (settings.chatProvider === 'openai_compatible') {
-        // 对于OpenAI兼容提供商，从设置存储中获取自定义模型
-        const customModel = settings.openaiCompatibleConfig?.customModels?.find(
-          m => m.id === settings.chatModel
-        )
-        if (customModel) {
-          setCurrentModelConfig({
-            name: customModel.name,
-            description: customModel.description,
-            api_type: 'chat_completions',
-            context_length: 0,
-            supports_vision: false,
-            supports_function_calling: false,
-            supports_thinking: false,
-            supports_streaming: true,
-            pricing: { input: 0, output: 0 }
-          })
+    const loadCurrentModelConfig = async () => {
+      if (chatProvider && chatModel) {
+        if (chatProvider === 'openai_compatible') {
+          const customModel = openaiCompatibleConfig?.customModels?.find(
+            m => m.id === chatModel
+          )
+          if (customModel) {
+            setCurrentModelConfig({
+              name: customModel.name,
+              description: customModel.description,
+              api_type: 'chat_completions',
+              context_length: 0,
+              supports_vision: false,
+              supports_function_calling: false,
+              supports_thinking: false,
+              supports_streaming: true,
+              pricing: { input: 0, output: 0 }
+            })
+          } else {
+            setCurrentModelConfig(null)
+          }
         } else {
-          setCurrentModelConfig(null)
+          const config = await modelConfigService.getModelConfig(chatProvider, chatModel)
+          setCurrentModelConfig(config)
         }
       } else {
-        const config = await modelConfigService.getModelConfig(settings.chatProvider, settings.chatModel)
-        setCurrentModelConfig(config)
+        setCurrentModelConfig(null)
       }
-    } else {
-      setCurrentModelConfig(null)
     }
-  }
+
+    loadCurrentModelConfig()
+  }, [chatProvider, chatModel, openaiCompatibleConfig])
 
   const getProviderDisplayName = (providerId: string) => {
     const providerNames: Record<string, string> = {
@@ -62,7 +62,12 @@ export default function ModelSelector({ onModelMarketClick, showDetailedInfo = f
     return providerNames[providerId] || providerId
   }
 
-  const hasValidConfig = settings.chatProvider && settings.chatModel && settings.apiKeys[settings.chatProvider]
+  const hasValidConfig = useMemo(() => {
+    if (!chatProvider || !chatModel) {
+      return false
+    }
+    return Boolean(apiKeys[chatProvider])
+  }, [apiKeys, chatProvider, chatModel])
 
   const handleMoreModelsClick = () => {
     setIsOpen(false)

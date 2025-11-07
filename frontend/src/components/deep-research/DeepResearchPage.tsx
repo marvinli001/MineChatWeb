@@ -124,15 +124,15 @@ export default function DeepResearchPage({ onBackToChat, onSettingsClick, onLogi
     initializeService()
 
     // 清理函数
+    const intervalRegistry = pollIntervalsRef.current
     return () => {
       deepResearchService.disconnect()
 
       // 清理所有轮询间隔
-      const intervals = pollIntervalsRef.current
-      intervals.forEach((interval) => {
+      intervalRegistry.forEach((interval) => {
         clearInterval(interval)
       })
-      intervals.clear()
+      intervalRegistry.clear()
     }
   }, [])
 

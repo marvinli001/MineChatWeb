@@ -35,14 +35,23 @@ class ModelConfigService {
   private readonly localStorageTimeKey = 'models_config_cache_time'
   private refreshTimer: NodeJS.Timeout | null = null
 
+  private isBrowser(): boolean {
+    return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+  }
+
   constructor() {
-    // 启动时从 localStorage 加载缓存
-    this.loadFromLocalStorage()
-    // 启动定时刷新
-    this.startAutoRefresh()
+    if (this.isBrowser()) {
+      // 启动时从 localStorage 加载缓存
+      this.loadFromLocalStorage()
+      // 启动定时刷新
+      this.startAutoRefresh()
+    }
   }
 
   private loadFromLocalStorage(): void {
+    if (!this.isBrowser()) {
+      return
+    }
     try {
       const cachedConfig = localStorage.getItem(this.localStorageKey)
       const cachedTime = localStorage.getItem(this.localStorageTimeKey)
@@ -66,6 +75,9 @@ class ModelConfigService {
   }
 
   private saveToLocalStorage(config: ModelsConfig): void {
+    if (!this.isBrowser()) {
+      return
+    }
     try {
       localStorage.setItem(this.localStorageKey, JSON.stringify(config))
       localStorage.setItem(this.localStorageTimeKey, Date.now().toString())
@@ -75,6 +87,9 @@ class ModelConfigService {
   }
 
   private startAutoRefresh(): void {
+    if (!this.isBrowser()) {
+      return
+    }
     // 每10分钟自动刷新一次
     this.refreshTimer = setInterval(() => {
       console.log('[ModelConfig] 自动刷新配置...')
