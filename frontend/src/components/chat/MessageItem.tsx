@@ -58,7 +58,7 @@ export default function MessageItem({ message, isLast }: MessageItemProps) {
         setCurrentModelIcon((modelConfig as any)?.icon || null)
 
         // 检测是否是推理模型
-        const reasoningModels = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini']
+        const reasoningModels = ['gpt-5', 'gpt-5.1', 'gpt-5-mini', 'gpt-5-nano', 'o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini']
         const isReasoning = reasoningModels.some(m => model.includes(m)) || settings.thinkingMode
         setIsReasoningModel(isReasoning)
       }

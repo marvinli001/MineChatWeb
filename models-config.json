@@ -1,15 +1,30 @@
 {
-  "version": "711f589",
-  "last_updated": "2025-08-29T17:49:43Z",
+  "version": "711f589-gpt51",
+  "last_updated": "2025-11-19T21:00:00Z",
   "providers": {
     "openai": {
       "name": "OpenAI",
       "description": "OpenAI 官方模型",
       "supports_thinking": true,
       "models": {
+        "gpt-5.1": {
+          "name": "GPT-5.1",
+          "description": "The best model for coding and agentic tasks with configurable reasoning effort.",
+          "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5.1.png",
+          "api_type": "responses",
+          "context_length": 400000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_streaming": true,
+          "supports_thinking": true,
+          "pricing": {
+            "input": 1.25,
+            "output": 10.00
+          }
+        },
         "gpt-5": {
           "name": "GPT-5",
-          "description": "The best model for coding and agentic tasks across domains",
+          "description": "Previous intelligent reasoning model for coding and agentic tasks with configurable reasoning effort.",
           "icon": "https://cdn.openai.com/API/docs/images/model-page/model-icons/gpt-5.png",
           "api_type": "responses",
           "context_length": 400000,

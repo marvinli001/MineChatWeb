@@ -24,7 +24,7 @@ export interface Settings {
   // 功能设置
   thinkingMode: boolean
   streamMode: boolean
-  reasoning: 'instant' | 'low' | 'medium' | 'high'
+  reasoning: 'none' | 'instant' | 'low' | 'medium' | 'high'
   
   // 界面设置
   theme: 'light' | 'dark' | 'auto'

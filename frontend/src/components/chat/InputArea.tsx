@@ -174,9 +174,8 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
   const { convertPluginsToTools, convertMCPServersToTools } = usePluginStore()
 
   // 检查是否为GPT-5系列模型
-  const isGPT5Model = (model: string): boolean => {
-    const gpt5Models = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest']
-    return gpt5Models.includes(model)
+  const isGPT5Model = (model?: string): boolean => {
+    return !!model?.startsWith('gpt-5')
   }
 
   // 检查当前选择的模型是否支持thinking mode
@@ -232,6 +231,8 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     return settings.chatProvider !== 'openai_compatible'
   }
 
+  const isOpenAIMinimalReasoning = settings.chatProvider === 'openai' && isGPT5Model(settings.chatModel) && (settings.reasoning === 'instant' || settings.reasoning === 'none')
+
   // 根据当前提供商和推理模式过滤可用工具
   const getAvailableTools = (): Tool[] => {
     let filteredTools = [...availableTools]
@@ -244,7 +245,7 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
 
     // 2. 根据推理模式过滤
     // GPT-5 在 instant 推理模式下不支持 web_search 工具
-    if (settings.reasoning === 'instant') {
+    if (isOpenAIMinimalReasoning) {
       filteredTools = filteredTools.filter(tool => tool.id !== 'search')
     }
 
@@ -288,16 +289,22 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     }
   }, [settings.chatProvider, selectedTools])
 
-  // 当切换到 instant 推理模式时，自动移除搜索工具
+  // 当切换到最小推理模式时，自动移除搜索工具
   useEffect(() => {
-    if (settings.reasoning === 'instant') {
-      // 移除搜索工具（如果已选中）
+    if (isOpenAIMinimalReasoning) {
       const hasSearchTool = selectedTools.some(tool => tool.id === 'search')
       if (hasSearchTool) {
         setSelectedTools(selectedTools.filter(tool => tool.id !== 'search'))
       }
     }
-  }, [settings.reasoning, selectedTools])
+  }, [isOpenAIMinimalReasoning, selectedTools])
+
+  // 特殊处理：GPT-5.1 不再提供 Instant 选项，自动映射为 None
+  useEffect(() => {
+    if (settings.chatProvider === 'openai' && settings.chatModel?.startsWith('gpt-5.1') && settings.reasoning === 'instant') {
+      updateSettings({ reasoning: 'none' })
+    }
+  }, [settings.chatProvider, settings.chatModel, settings.reasoning, updateSettings])
 
   // 自动调整文本框高度，限制最大高度（统一两种模式）
   useEffect(() => {
@@ -1282,6 +1289,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     budget={settings.reasoning}
                     onChange={(budget) => updateSettings({ reasoning: budget })}
                     provider={settings.chatProvider}
+                    model={settings.chatModel}
                     thinkingEnabled={settings.thinkingMode}
                     onThinkingToggle={(enabled) => updateSettings({ thinkingMode: enabled })}
                   />
@@ -1967,6 +1975,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     budget={settings.reasoning}
                     onChange={(budget) => updateSettings({ reasoning: budget })}
                     provider={settings.chatProvider}
+                    model={settings.chatModel}
                     thinkingEnabled={settings.thinkingMode}
                     onThinkingToggle={(enabled) => updateSettings({ thinkingMode: enabled })}
                   />

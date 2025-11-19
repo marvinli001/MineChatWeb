@@ -8,6 +8,7 @@ interface ThinkingBudgetButtonProps {
   budget: ThinkingBudget
   onChange: (budget: ThinkingBudget) => void
   provider?: string
+  model?: string
   thinkingEnabled?: boolean
   onThinkingToggle?: (enabled: boolean) => void
   className?: string
@@ -18,6 +19,7 @@ interface ThinkingBudgetPopoverProps {
   onChange: (budget: ThinkingBudget) => void
   onClose: () => void
   provider?: string
+  model?: string
 }
 
 const budgetOptions: { value: ThinkingBudget; label: string; description: string }[] = [
@@ -34,7 +36,24 @@ const openaiGPT5BudgetOptions: { value: ThinkingBudget; label: string; descripti
   { value: 'high', label: 'High', description: '深度思考，详细分析' }
 ]
 
-function ThinkingBudgetPopover({ current, onChange, onClose, provider = 'openai' }: ThinkingBudgetPopoverProps) {
+const gpt51BudgetOptions: { value: ThinkingBudget; label: string; description: string }[] = [
+  { value: 'none', label: 'None', description: '无额外思考，追求最低延迟' },
+  { value: 'low', label: 'Low', description: '快速响应，轻度思考' },
+  { value: 'medium', label: 'Medium', description: '平衡思考深度与速度' },
+  { value: 'high', label: 'High', description: '深度思考，详细分析' }
+]
+
+const getBudgetOptions = (provider?: string, model?: string) => {
+  if (provider === 'openai') {
+    if (model?.includes('gpt-5.1')) {
+      return gpt51BudgetOptions
+    }
+    return openaiGPT5BudgetOptions
+  }
+  return budgetOptions
+}
+
+function ThinkingBudgetPopover({ current, onChange, onClose, provider = 'openai', model }: ThinkingBudgetPopoverProps) {
   const handleSelect = (budget: ThinkingBudget) => {
     onChange(budget)
     onClose()
@@ -49,8 +68,7 @@ function ThinkingBudgetPopover({ current, onChange, onClose, provider = 'openai'
     }
   }
 
-  // 根据提供商选择预算选项
-  const options = provider === 'openai' ? openaiGPT5BudgetOptions : budgetOptions
+  const options = getBudgetOptions(provider, model)
 
   return (
     <>
@@ -104,13 +122,15 @@ export default function ThinkingBudgetButton({
   budget, 
   onChange, 
   provider = 'openai', 
+  model,
   thinkingEnabled = false, 
   onThinkingToggle, 
   className = "" 
 }: ThinkingBudgetButtonProps) {
   const [showPopover, setShowPopover] = useState(false)
   
-  const currentOption = budgetOptions.find(opt => opt.value === budget)
+  const options = getBudgetOptions(provider, model)
+  const currentOption = options.find(opt => opt.value === budget)
   const isAnthropicProvider = provider === 'anthropic'
   const isGoogleProvider = provider === 'google'
 
@@ -181,6 +201,7 @@ export default function ThinkingBudgetButton({
           onChange={onChange}
           onClose={() => setShowPopover(false)}
           provider={provider}
+          model={model}
         />
       )}
     </div>

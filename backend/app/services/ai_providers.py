@@ -618,7 +618,7 @@ class AIProviderService:
                 'chatgpt-4o-latest',
                 'gpt-4o-realtime-preview',
                 'gpt-4o-realtime-preview-2024-10-01',
-                'gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest',
+                'gpt-5', 'gpt-5.1', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest',
                 'gpt-4o', 'gpt-4o-mini',
                 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
                 'o1', 'o1-preview', 'o1-mini', 'o3', 'o3-mini', 'o4-mini'
@@ -641,13 +641,28 @@ class AIProviderService:
             return False
 
     def _is_gpt5_model(self, model: str) -> bool:
-        """判断是否为 GPT-5 系列模型"""
-        gpt5_models = ['gpt-5', 'gpt-5-mini', 'gpt-5-nano', 'gpt-5-chat-latest']
-        return model in gpt5_models
+        """????? GPT-5 ????"""
+        return model.startswith('gpt-5')
 
     def _supports_thinking_mode(self, model: str) -> bool:
         """判断模型是否支持 thinking mode (通过 reasoning_effort 参数)"""
         return self._is_gpt5_model(model)
+
+    def _map_reasoning_effort(self, model: str, reasoning: str, has_image_gen_tool: bool = False) -> str:
+        """Normalize reasoning effort for different GPT-5 family models"""
+        model_lower = (model or "").lower()
+        effort_value = reasoning or "medium"
+
+        if effort_value == "instant":
+            effort_value = "none" if model_lower.startswith("gpt-5.1") else "minimal"
+        elif effort_value == "none" and not model_lower.startswith("gpt-5.1"):
+            effort_value = "minimal"
+
+        if has_image_gen_tool and effort_value in ["minimal", "none"]:
+            effort_value = "low"
+
+        return effort_value
+
 
     def _convert_responses_to_chat_format(self, responses_result: Dict[str, Any]) -> Dict[str, Any]:
         """将 Responses API 格式转换为标准 Chat Completions 格式"""
@@ -973,10 +988,7 @@ class AIProviderService:
                     # 使用 Responses API 的多模态参数结构
                     # 将前端的 'instant' 映射为 OpenAI API 的 'minimal'
                     # 但是当有图片生成工具时，'minimal' 不支持，需要升级到 'low'
-                    effort_value = "minimal" if reasoning == "instant" else reasoning
-                    if has_image_gen_tool and effort_value == "minimal":
-                        effort_value = "low"
-                        logger.info("检测到图片生成工具，将 reasoning effort 从 'minimal' 升级到 'low'")
+                    effort_value = self._map_reasoning_effort(model, reasoning, bool(has_image_gen_tool))
                     completion_params = {
                         "model": model,
                         "input": input_messages,
@@ -1091,10 +1103,7 @@ class AIProviderService:
                     # 使用结构化输入格式
                     # 将前端的 'instant' 映射为 OpenAI API 的 'minimal'
                     # 但是当有图片生成工具时，'minimal' 不支持，需要升级到 'low'
-                    effort_value = "minimal" if reasoning == "instant" else reasoning
-                    if has_image_gen_tool and effort_value == "minimal":
-                        effort_value = "low"
-                        logger.info("检测到图片生成工具，将 reasoning effort 从 'minimal' 升级到 'low'")
+                    effort_value = self._map_reasoning_effort(model, reasoning, bool(has_image_gen_tool))
                     completion_params = {
                         "model": model,
                         "input": input_messages,
@@ -1140,10 +1149,7 @@ class AIProviderService:
 
                     # 将前端的 'instant' 映射为 OpenAI API 的 'minimal'
                     # 但是当有图片生成工具时，'minimal' 不支持，需要升级到 'low'
-                    effort_value = "minimal" if reasoning == "instant" else reasoning
-                    if has_image_gen_tool and effort_value == "minimal":
-                        effort_value = "low"
-                        logger.info("检测到图片生成工具，将 reasoning effort 从 'minimal' 升级到 'low'")
+                    effort_value = self._map_reasoning_effort(model, reasoning, bool(has_image_gen_tool))
                     completion_params = {
                         "model": model,
                         "input": input_text.strip(),
@@ -2796,25 +2802,13 @@ class AIProviderService:
             # 如果是 GPT-5 模型，添加 reasoning 参数
             if self._is_gpt5_model(model):
                 # 将前端的 reasoning 值映射到 OpenAI Responses API 的 reasoning.effort 格式
-                effort_map = {
-                    "instant": "minimal",  # instant 映射到 minimal
-                    "low": "low",
-                    "medium": "medium",
-                    "high": "high"
-                }
-                effort_value = effort_map.get(reasoning, "medium")
-
-                # 检查是否有图片生成工具，如果有且 effort 为 minimal，升级到 low
                 has_image_gen_tool = tools and any(tool.get("type") == "image_generation" for tool in tools)
-                if has_image_gen_tool and effort_value == "minimal":
-                    effort_value = "low"
-                    logger.info("检测到图片生成工具，将 reasoning effort 从 'minimal' 升级到 'low'")
+                effort_value = self._map_reasoning_effort(model, reasoning, has_image_gen_tool)
 
                 stream_params["reasoning"] = {
                     "effort": effort_value,
                     "summary": reasoning_summaries if reasoning_summaries != "auto" else "auto"
                 }
-                logger.info(f"GPT-5 流式调用，使用 reasoning effort: {stream_params['reasoning']['effort']}, summary: {stream_params['reasoning']['summary']}")
 
             # 使用 Responses API 进行流式调用
             stream = await client.responses.create(**stream_params)
