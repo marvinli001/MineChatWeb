@@ -193,6 +193,7 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
       try {
         // 可以通过modelConfigService来检查，但这里为了避免异步复杂性，先使用硬编码列表
         const anthropicThinkingModels = [
+          'claude-opus-4-5',
           'claude-sonnet-4-5',
           'claude-opus-4-1-20250805',
           'claude-opus-4-20250514',
@@ -209,6 +210,7 @@ export default function InputArea({ isWelcomeMode = false, onModelMarketClick }:
     // 对于Google，支持 Gemini 2.0 和 2.5 系列的 thinking mode
     if (settings.chatProvider === 'google') {
       const googleThinkingModels = [
+        'gemini-3-pro-preview',
         'gemini-2.0-flash-exp',
         'gemini-2.5-pro',
         'gemini-2.5-flash',

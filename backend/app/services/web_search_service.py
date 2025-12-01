@@ -15,9 +15,13 @@ class WebSearchService:
             'gpt-4o',
             'gpt-4.1-mini',
             'gpt-4.1',
+            'gpt-5.1',
+            'gpt-5',
+            'gpt-5-mini',
+            'gpt-5-nano',
+            'gpt-5-chat-latest',
             'o4-mini',
-            'o3',
-            'gpt-5'  # with reasoning levels low, medium and high
+            'o3'
         ]
         
     def supports_native_web_search(self, provider: str, model: str) -> bool:

@@ -148,17 +148,37 @@ class ModelConfigService {
 
   private getDefaultConfig(): ModelsConfig {
     return {
-      version: "1.0.0",
+      version: "1.0.1",
       last_updated: new Date().toISOString(),
       providers: {
         openai: {
           name: "OpenAI",
-          description: "OpenAI 官方模型",
+          description: "OpenAI ????",
           supports_thinking: true,
           models: {
+            "gpt-5.1": {
+              name: "GPT-5.1",
+              description: "??? GPT-5 ??????????????",
+              api_type: "responses",
+              context_length: 400000,
+              supports_vision: true,
+              supports_function_calling: true,
+              supports_streaming: true,
+              pricing: { input: 1.25, output: 10.0 }
+            },
+            "gpt-5": {
+              name: "GPT-5",
+              description: "??? GPT-5 ????????????",
+              api_type: "responses",
+              context_length: 400000,
+              supports_vision: true,
+              supports_function_calling: true,
+              supports_streaming: true,
+              pricing: { input: 1.25, output: 10.0 }
+            },
             "gpt-4o": {
               name: "GPT-4o",
-              description: "最新的 GPT-4 模型",
+              description: "??? GPT-4 ??",
               api_type: "chat_completions",
               context_length: 128000,
               supports_vision: true,
@@ -170,12 +190,23 @@ class ModelConfigService {
         },
         anthropic: {
           name: "Anthropic",
-          description: "Anthropic Claude 模型",
+          description: "Anthropic Claude ??",
           supports_thinking: true,
           models: {
+            "claude-opus-4-5": {
+              name: "Claude Opus 4.5",
+              description: "Premium model combining maximum intelligence with practical performance",
+              api_type: "messages",
+              context_length: 1000000,
+              supports_vision: true,
+              supports_function_calling: true,
+              supports_thinking: true,
+              supports_streaming: true,
+              pricing: { input: 5.0, output: 25.0 }
+            },
             "claude-opus-4-1-20250805": {
               name: "Claude Opus 4.1",
-              description: "Claude 最强模型",
+              description: "Claude ???????????????",
               api_type: "messages",
               context_length: 200000,
               supports_vision: true,
@@ -188,12 +219,34 @@ class ModelConfigService {
         },
         google: {
           name: "Google",
-          description: "Google Gemini 模型",
+          description: "Google Gemini ??",
           supports_thinking: true,
           models: {
+            "gemini-3-pro-preview": {
+              name: "Gemini 3 Pro (Preview)",
+              description: "?? Gemini 3 ?????????????",
+              api_type: "generate_content",
+              context_length: 1000000,
+              supports_vision: true,
+              supports_function_calling: true,
+              supports_thinking: true,
+              supports_streaming: true,
+              pricing: { input: 2.0, output: 12.0 }
+            },
+            "gemini-3-pro-image-preview": {
+              name: "Gemini 3 Pro Image (Preview)",
+              description: "Gemini 3 Pro tuned for image-heavy prompts and outputs",
+              api_type: "generate_content",
+              context_length: 65000,
+              supports_vision: true,
+              supports_function_calling: false,
+              supports_thinking: true,
+              supports_streaming: true,
+              pricing: { input: 2.0, output: 0.134 }
+            },
             "gemini-2.5-pro": {
               name: "Gemini 2.5 Pro",
-              description: "Google最强推理模型，支持复杂任务",
+              description: "Google?????????????",
               api_type: "generate_content",
               context_length: 2000000,
               supports_vision: true,
@@ -204,7 +257,7 @@ class ModelConfigService {
             },
             "gemini-2.5-flash": {
               name: "Gemini 2.5 Flash",
-              description: "最新多模态模型，速度快、功能全，支持思考模式",
+              description: "??????????????????????",
               api_type: "generate_content",
               context_length: 1000000,
               supports_vision: true,
@@ -215,7 +268,7 @@ class ModelConfigService {
             },
             "gemini-2.5-flash-lite": {
               name: "Gemini 2.5 Flash Lite",
-              description: "速度最快、成本最低的多模态模型，支持思考模式",
+              description: "??????????????????????",
               api_type: "generate_content",
               context_length: 1000000,
               supports_vision: true,
@@ -223,28 +276,6 @@ class ModelConfigService {
               supports_thinking: true,
               supports_streaming: true,
               pricing: { input: 0.0375, output: 0.15 }
-            },
-            "gemini-2.5-flash-image": {
-              name: "Gemini 2.5 Flash Image",
-              description: "专门的图像生成模型",
-              api_type: "generate_content",
-              context_length: 32000,
-              supports_vision: false,
-              supports_function_calling: false,
-              supports_thinking: false,
-              supports_streaming: false,
-              pricing: { input: 30.0, output: 30.0 }
-            },
-            "gemini-2.0-flash-exp": {
-              name: "Gemini 2.0 Flash (Experimental)",
-              description: "实验性最新模型，支持思考模式",
-              api_type: "generate_content",
-              context_length: 1000000,
-              supports_vision: true,
-              supports_function_calling: true,
-              supports_thinking: true,
-              supports_streaming: true,
-              pricing: { input: 0.075, output: 0.3 }
             }
           }
         }
@@ -302,7 +333,7 @@ class ModelConfigService {
       return modelId.includes('image') || modelConfig?.name?.toLowerCase().includes('image') || false
     } catch (error) {
       console.warn('无法检查Google图像模型类型，使用回退逻辑:', error)
-      const imageModels = ['gemini-2.5-flash-image', 'gemini-image', 'imagen-4']
+      const imageModels = ['gemini-3-pro-image-preview', 'gemini-2.5-flash-image', 'gemini-image', 'imagen-4', 'imagen-4.0', 'imagen-3.0']
       return imageModels.some(model => modelId.includes(model))
     }
   }

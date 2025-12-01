@@ -17,9 +17,13 @@ export function supportsNativeWebSearch(provider: string, model: string): boolea
       'gpt-4o', 
       'gpt-4.1-mini',
       'gpt-4.1',
+      'gpt-5.1',
+      'gpt-5',  // with reasoning levels low, medium and high
+      'gpt-5-mini',
+      'gpt-5-nano',
+      'gpt-5-chat-latest',
       'o4-mini',
-      'o3',
-      'gpt-5'  // with reasoning levels low, medium and high
+      'o3'
     ]
 
     return supportedModels.some(supportedModel => 
@@ -30,12 +34,14 @@ export function supportsNativeWebSearch(provider: string, model: string): boolea
   if (provider === 'anthropic') {
     // 根据 Anthropic 文档，支持 web_search_20250305 工具的模型
     const supportedAnthropicModels = [
+      'claude-opus-4-5',
       'claude-opus-4-1-20250805',
       'claude-opus-4-20250514',
       'claude-sonnet-4-20250514',
       'claude-sonnet-4-5',  // Claude Sonnet 4.5 (短版本)
       'claude-sonnet-4-5-20250929',  // Claude Sonnet 4.5 (完整版本)
       'claude-3-7-sonnet-20250219',
+      'claude-haiku-4-5-20251001',
       'claude-3-5-sonnet-latest',
       'claude-3-5-sonnet-20241022',  // 配置文件中的实际模型ID
       'claude-3-5-haiku-latest',

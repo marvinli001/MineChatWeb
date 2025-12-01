@@ -1,6 +1,6 @@
 {
-  "version": "711f589-gpt51",
-  "last_updated": "2025-11-19T21:00:00Z",
+  "version": "711f589-gpt51+claude45+gemini3",
+  "last_updated": "2025-11-20T12:00:00Z",
   "providers": {
     "openai": {
       "name": "OpenAI",
@@ -299,6 +299,25 @@
       "supports_web_search": true,
       "supports_streaming": true,
       "models": {
+        "claude-opus-4-5": {
+          "name": "Claude Opus 4.5",
+          "description": "Premium model combining maximum intelligence with practical performance",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
+          "api_type": "messages",
+          "context_length": 1000000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_thinking": true,
+          "supports_streaming": true,
+          "supports_citations": true,
+          "supports_files": true,
+          "supports_search_results": true,
+          "supports_web_search": true,
+          "pricing": {
+            "input": 5.0,
+            "output": 25.0
+          }
+        },
         "claude-sonnet-4-5": {
           "name": "Claude Sonnet 4.5",
           "description": "Our most intelligent model with enhanced agentic coding and tool use capabilities",
@@ -318,9 +337,9 @@
             "output": 15.0
           }
         },
-        "claude-opus-4-1-20250805": {
-          "name": "Claude Opus 4.1",
-          "description": "Our most capable model with enhanced reasoning and multimodal capabilities",
+        "claude-opus-4-20250514": {
+          "name": "Claude Opus 4",
+          "description": "High-performance flagship model",
           "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
           "api_type": "messages",
           "context_length": 200000,
@@ -337,9 +356,9 @@
             "output": 75.0
           }
         },
-        "claude-opus-4-20250514": {
-          "name": "Claude Opus 4",
-          "description": "High-performance flagship model",
+        "claude-opus-4-1-20250805": {
+          "name": "Claude Opus 4.1",
+          "description": "Our most capable model with enhanced reasoning and multimodal capabilities",
           "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/claude-color.png",
           "api_type": "messages",
           "context_length": 200000,
@@ -456,8 +475,38 @@
     "google": {
       "name": "Google",
       "description": "Gemini 系列模型",
-      "supports_thinking": false,
+      "supports_thinking": true,
       "models": {
+        "gemini-3-pro-preview": {
+          "name": "Gemini 3 Pro (Preview)",
+          "description": "Most intelligent Gemini model with advanced reasoning and multimodal support",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/google-gemini-icon.webp",
+          "api_type": "generate_content",
+          "context_length": 1000000,
+          "supports_vision": true,
+          "supports_function_calling": true,
+          "supports_thinking": true,
+          "supports_streaming": true,
+          "pricing": {
+            "input": 2.00,
+            "output": 12.00
+          }
+        },
+        "gemini-3-pro-image-preview": {
+          "name": "Gemini 3 Pro Image (Preview)",
+          "description": "Gemini 3 Pro tuned for image-heavy prompts and outputs",
+          "icon": "https://raw.githubusercontent.com/marvinli001/MineChatWeb/refs/heads/main/google-gemini-icon.webp",
+          "api_type": "generate_content",
+          "context_length": 65000,
+          "supports_vision": true,
+          "supports_function_calling": false,
+          "supports_thinking": true,
+          "supports_streaming": true,
+          "pricing": {
+            "input": 2.00,
+            "output": 0.134
+          }
+        },
         "gemini-2.5-pro": {
           "name": "Gemini 2.5 Pro",
           "description": "Enhanced thinking and reasoning, multimodal understanding, advanced coding, and more",

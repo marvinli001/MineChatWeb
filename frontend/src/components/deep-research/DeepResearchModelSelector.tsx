@@ -13,15 +13,16 @@ const DEEP_RESEARCH_MODELS = [
     id: 'o3-deep-research',
     name: 'o3-deep-research',
     provider: 'OpenAI',
-    description: 'OpenAI 最新的深度研究模型'
+    description: 'OpenAI ?????????'
   },
   {
     id: 'o4-mini-deep-research',
     name: 'o4-mini-deep-research', 
     provider: 'OpenAI',
-    description: 'OpenAI 轻量级深度研究模型'
+    description: 'OpenAI ?????????'
   }
 ]
+
 
 export default function DeepResearchModelSelector({ selectedModel, onModelChange }: DeepResearchModelSelectorProps) {
   const [isOpen, setIsOpen] = useState(false)

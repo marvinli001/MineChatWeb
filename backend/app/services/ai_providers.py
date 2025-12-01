@@ -1818,27 +1818,24 @@ class AIProviderService:
             # 使用新版 SDK 的 types
             from google.genai import types
 
-            # 处理thinking mode（支持 Gemini 2.0 和 2.5 系列）
+            # Gemini 3 uses thinking_level; older Gemini models keep thinking_budget
             thinking_config = None
-            if thinking_mode and (model.startswith("gemini-2.0") or model.startswith("gemini-2.5")):
-                # Google Gemini 使用动态思维（thinking_budget=-1）
-                # 模型自动决定何时思考以及思考多少，不允许用户手动设置
-                thinking_config = types.ThinkingConfig(
-                    thinking_budget=-1,  # 动态思维，模型自动调整
-                    include_thoughts=True  # 包含思维链
-                )
+            if thinking_mode:
+                if model.startswith("gemini-3"):
+                    level = self._map_gemini_thinking_level(reasoning)
+                    thinking_config = types.ThinkingConfig(
+                        thinking_level=level,
+                        include_thoughts=True
+                    )
+                elif model.startswith("gemini-2.0") or model.startswith("gemini-2.5"):
+                    thinking_config = types.ThinkingConfig(
+                        thinking_budget=-1,
+                        include_thoughts=True
+                    )
+
+            if thinking_config:
                 config_dict["thinking_config"] = thinking_config
 
-            # 转换工具
-            gemini_tools = None
-            if tools:
-                gemini_tools = self._convert_tools_to_gemini_format(tools)
-
-            # 如果有工具，添加到 config_dict 中
-            if gemini_tools:
-                config_dict['tools'] = gemini_tools
-
-            # 使用新版 SDK 的 types.GenerateContentConfig
             generation_config = types.GenerateContentConfig(**config_dict)
 
             # 处理最后一条用户消息
@@ -1851,6 +1848,10 @@ class AIProviderService:
                 if image_gen_tool:
                     # 提取提示文本
                     prompt_text = self._extract_text_from_parts(user_parts)
+
+                    if model.startswith("gemini-3"):
+                        # Gemini 3 image generation prefers latest Imagen 4 (nanobanana pro)
+                        image_gen_tool = {**image_gen_tool, "model": "imagen-4.0-generate-001"}
 
                     # 优先使用 Imagen API
                     try:
@@ -2070,6 +2071,16 @@ class AIProviderService:
 
         return citations, sources
 
+    def _map_gemini_thinking_level(self, reasoning: str) -> str:
+        """Map UI reasoning level to Gemini 3 thinking_level values"""
+        level = (reasoning or "high").lower()
+        if level in ["none", "instant", "minimal", "low"]:
+            return "low"
+        if level == "medium":
+            return "medium"
+        return "high"
+
+
     def _get_thinking_budget(self, reasoning):
         """根据reasoning级别获取thinking budget"""
         budget_map = {
@@ -2231,11 +2242,13 @@ class AIProviderService:
                 aspect_ratio = "4:3"
 
             # 选择模型
-            model = "imagen-4.0-generate-001"
-            if quality == "hd":
-                model = "imagen-4.0-ultra-generate-001"
-            elif quality == "fast":
-                model = "imagen-4.0-fast-generate-001"
+            preferred_model = tool_config.get("model")
+            model = preferred_model or "imagen-4.0-generate-001"
+            if not preferred_model:
+                if quality == "hd":
+                    model = "imagen-4.0-ultra-generate-001"
+                elif quality == "fast":
+                    model = "imagen-4.0-fast-generate-001"
 
             logger.info(f"使用 Imagen API 生成图片: model={model}, aspect_ratio={aspect_ratio}, n={number_of_images}")
 
@@ -2332,6 +2345,11 @@ class AIProviderService:
                         prompt_text += part["text"] + " "
             else:
                 prompt_text = str(user_parts)
+
+            if model.startswith("gemini-3"):
+                override_tool = dict(image_gen_tool)
+                override_tool["model"] = "imagen-4.0-generate-001"
+                return await self._handle_google_imagen_generation(prompt_text.strip(), api_key, override_tool)
 
             # 构建完整的图像生成提示
             image_prompt = f"Generate an image: {prompt_text.strip()}"
@@ -2511,27 +2529,24 @@ class AIProviderService:
             # 使用新版 SDK 的 types
             from google.genai import types
 
-            # 处理thinking mode（支持 Gemini 2.0 和 2.5 系列）
+            # Gemini 3 uses thinking_level; older Gemini models keep thinking_budget
             thinking_config = None
-            if thinking_mode and (model.startswith("gemini-2.0") or model.startswith("gemini-2.5")):
-                # Google Gemini 使用动态思维（thinking_budget=-1）
-                # 模型自动决定何时思考以及思考多少，不允许用户手动设置
-                thinking_config = types.ThinkingConfig(
-                    thinking_budget=-1,  # 动态思维，模型自动调整
-                    include_thoughts=True  # 包含思维链
-                )
+            if thinking_mode:
+                if model.startswith("gemini-3"):
+                    level = self._map_gemini_thinking_level(reasoning)
+                    thinking_config = types.ThinkingConfig(
+                        thinking_level=level,
+                        include_thoughts=True
+                    )
+                elif model.startswith("gemini-2.0") or model.startswith("gemini-2.5"):
+                    thinking_config = types.ThinkingConfig(
+                        thinking_budget=-1,
+                        include_thoughts=True
+                    )
+
+            if thinking_config:
                 config_dict["thinking_config"] = thinking_config
 
-            # 转换工具
-            gemini_tools = None
-            if tools:
-                gemini_tools = self._convert_tools_to_gemini_format(tools)
-
-            # 如果有工具，添加到 config_dict 中
-            if gemini_tools:
-                config_dict['tools'] = gemini_tools
-
-            # 使用新版 SDK 的 types.GenerateContentConfig
             generation_config = types.GenerateContentConfig(**config_dict)
 
             # 如果有 system instruction，将其添加到 contents 的开头

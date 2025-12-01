@@ -325,7 +325,7 @@ class DeepResearchService:
             
             # 添加网络搜索工具
             if request.enable_web_search:
-                tools.append({"type": "web_search_preview"})
+                tools.append({"type": "web_search"})
             
             # 添加文件搜索工具
             if request.vector_store_ids:
@@ -343,7 +343,7 @@ class DeepResearchService:
             
             # 如果没有工具，至少添加网络搜索
             if not tools:
-                tools.append({"type": "web_search_preview"})
+                tools.append({"type": "web_search"})
             
             # 构建请求参数
             research_params = {
