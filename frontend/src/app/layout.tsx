@@ -5,6 +5,14 @@ import { Toaster } from 'react-hot-toast'
 export const metadata: Metadata = {
   title: 'MineChatWeb',
   description: 'A powerful AI chat application with multiple providers',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+    other: [
+      { rel: 'icon', url: '/icon.png', type: 'image/png' },
+    ],
+  },
 }
 
 export function generateViewport() {
